@@ -6,7 +6,10 @@ const YG_AUDIO=(()=>{
  const sampled={slash:'assets/audio/slash.mp3',special:'assets/audio/kris_ultimate.mp3'};
  const sampleBanks={};
  const menuTrack=new Audio('assets/audio/menu.mp3'),battleTrack=new Audio('assets/audio/battle.mp3'),pecadoTrack=new Audio('assets/audio/pecado.mp3');
- for(const a of [menuTrack,battleTrack,pecadoTrack]){a.loop=true;a.preload='none';a.playsInline=true;}
+ const nordicTrack=new Audio('assets/audio/nordic_theme.mp3'),nordicBossTrack=new Audio('assets/audio/nordic_boss.mp3');
+ const tracks={menu:menuTrack,battle:battleTrack,pecado:pecadoTrack,nordic:nordicTrack,nordicBoss:nordicBossTrack};
+ for(const a of Object.values(tracks)){a.loop=true;a.preload='none';a.playsInline=true;}
+
  let musicMode='',audioUnlocked=false;
  const cached={}, playedAt=Object.create(null);
  const SPECS={
@@ -79,12 +82,28 @@ const YG_AUDIO=(()=>{
     a.play().catch(()=>{});return true;}catch(e){return false;}
  }
  function syncMusic(){
-   if(!enabled||!audioUnlocked||document.hidden){menuTrack.pause();battleTrack.pause();pecadoTrack.pause();return;}
-   const requested=(typeof phase==='string'&&phase==='play'&&typeof stage==='number'&&stage===20&&typeof enemies!=='undefined'&&enemies.some(e=>e.type==='pecado'&&e.hp>0))?'pecado':((typeof phase==='string'&&['play','reward','ultimate'].includes(phase))?'battle':'menu');
-   if(requested!==musicMode){musicMode=requested;for(const t of [menuTrack,battleTrack,pecadoTrack]){t.pause();t.currentTime=0;}}
-   const target=requested==='menu'?menuTrack:requested==='pecado'?pecadoTrack:battleTrack;
-   target.volume=Math.min(1,volume*(requested==='menu'?.32:requested==='pecado'?.46:.41));
-   if(target.paused)target.play().catch(()=>{});
+  const all=Object.values(tracks);
+  if(!enabled||!audioUnlocked||document.hidden){for(const t of all)t.pause();return;}
+  const currentPhase=typeof phase==='string'?phase:'title';
+  const combat=['play','reward','ultimate'].includes(currentPhase);
+  const activeBoss=(type)=>typeof enemies!=='undefined'&&enemies.some(e=>e.type===type&&e.hp>0);
+  const currentStage=typeof stage==='number'?stage:0;
+  // Each Nordic wave uses its own OST. The Jarl switches to the DragonForce
+  // 8-bit cover while alive, then automatically returns to Nordic ambience.
+  // Waves 15 / 20 are intentionally distinct; stage 15 remains the existing
+  // battle track until its custom audio is provided, stage 20 has Peccatum.
+  const requested=!combat?'menu':
+   currentStage===25&&activeBoss('frostjarl')?'nordicBoss':
+   currentStage===20&&activeBoss('pecado')?'pecado':
+   currentStage>=21&&currentStage<=25?'nordic':'battle';
+  if(requested!==musicMode){
+   musicMode=requested;
+   for(const t of all){t.pause();try{t.currentTime=0;}catch(_){}}
+  }
+  const target=tracks[requested];
+  const gains={menu:.32,battle:.41,pecado:.46,nordic:.42,nordicBoss:.43};
+  target.volume=Math.min(1,volume*gains[requested]);
+  if(target.paused)target.play().catch(()=>{});
  }
  function play(name,weight=1,pan=0){
    if(name==='loidSlash'||name==='krisSlash')return sampledPlay('slash',weight);
@@ -135,7 +154,7 @@ const YG_AUDIO=(()=>{
   if(boss&&beat%4===2)note(146.83,0,.14,.052,'sawtooth');
   beat++;
  }
- function setEnabled(on){enabled=!!on; if(master&&context)master.gain.setTargetAtTime(enabled?volume:0,context.currentTime,.025); if(enabled){audioUnlocked=true;ensure();syncMusic();play('menu',.9);}else{menuTrack.pause();battleTrack.pause();pecadoTrack.pause();} updateButtons();}
+ function setEnabled(on){enabled=!!on; if(master&&context)master.gain.setTargetAtTime(enabled?volume:0,context.currentTime,.025); if(enabled){audioUnlocked=true;ensure();syncMusic();play('menu',.9);}else{for(const t of Object.values(tracks))t.pause();} updateButtons();}
  function setVolume(val){volume=Math.max(0,Math.min(1,Number(val)/100));if(master&&context)master.gain.setTargetAtTime(enabled?volume:0,context.currentTime,.025);syncMusic();updateButtons();}
  function unlock(){if(enabled){audioUnlocked=true;ensure();syncMusic();}}
  function initUI(){
@@ -146,6 +165,6 @@ const YG_AUDIO=(()=>{
   document.addEventListener('visibilitychange',()=>{if(context&&context.state==='suspended'&&enabled&&!document.hidden)context.resume().catch(()=>{})});
   updateButtons();
  }
- return {play,unlock,initUI,setEnabled,setVolume,syncMusic,get currentMusic(){return musicMode},get musicPlaying(){return !menuTrack.paused||!battleTrack.paused||!pecadoTrack.paused},get status(){return context?.state||'not-started'}};
+ return {play,unlock,initUI,setEnabled,setVolume,syncMusic,get currentMusic(){return musicMode},get musicPlaying(){return Object.values(tracks).some(t=>!t.paused)},get status(){return context?.state||'not-started'}};
 })();
 YG_AUDIO.initUI();

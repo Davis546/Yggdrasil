@@ -1,6 +1,6 @@
 {
   "name": "yggdrasil-online-cloudflare",
-  "version": "3.8.0",
+  "version": "3.9.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,9 @@
     "deploy": "wrangler deploy",
     "test:server": "node tests/authoritative.test.mjs && node tests/network-server.test.mjs",
     "test:nordic": "node tests/nordic.test.mjs",
-    "test:campaign": "node tests/campaign.test.mjs"
+    "test:campaign": "node tests/campaign.test.mjs",
+    "test:bosses": "node tests/boss-render.test.mjs",
+    "test:music": "node tests/music.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.50.0"
