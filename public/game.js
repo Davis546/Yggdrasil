@@ -24,15 +24,15 @@ function coopNote(message){const n=$('coopNotice');if(n)n.textContent=message;}
 
 
 const HERO={loid:new Image(),kris:new Image(),cross:new Image(),eve:new Image(),kali:new Image()};
-const MIRROR_SPRITE=new Image();MIRROR_SPRITE.src='assets/effects/mirror_projectile.png?v=29';
+const MIRROR_SPRITE=new Image();MIRROR_SPRITE.src='assets/effects/mirror_projectile.png?v=30';
 const SKILL_HEROES=new Set(['loid','kris','cross','eve','kali']);let lastSkillArt='';
-function syncSkillArt(type){if(!SKILL_HEROES.has(type)||lastSkillArt===type)return;lastSkillArt=type;for(const [key,id] of [['q','btnSkill'],['e','btnSecondary'],['r','btnUltimate']]){const btn=document.getElementById(id);if(!btn)continue;btn.style.setProperty('--skill-art',`url(assets/ui/abilities/${type}_${key}.png?v=29)`);}}
+function syncSkillArt(type){if(!SKILL_HEROES.has(type)||lastSkillArt===type)return;lastSkillArt=type;for(const [key,id] of [['q','btnSkill'],['e','btnSecondary'],['r','btnUltimate']]){const btn=document.getElementById(id);if(!btn)continue;btn.style.setProperty('--skill-art',`url(assets/ui/abilities/${type}_${key}.png?v=30)`);}}
 
 HERO.loid.src='assets/heroes/loid_sheet.png';
 HERO.kris.src='assets/heroes/kris_sheet.png';
 HERO.cross.src='assets/heroes/cross_sheet.png';
-HERO.eve.src='assets/heroes/eve_sheet.png?v=29';
-HERO.kali.src='assets/heroes/kali_sheet.png?v=29';
+HERO.eve.src='assets/heroes/eve_sheet.png?v=30';
+HERO.kali.src='assets/heroes/kali_sheet.png?v=30';
 const ENEMY_URLS={walker:'assets/enemies/oni_walker.png',runner:'assets/enemies/oni_runner.png',caster:'assets/enemies/oni_caster.png',boss:'assets/enemies/samurai_sheet.png',reuni:'assets/enemies/reuni_sheet.png',tsukuomi:'assets/enemies/tsukuomi_sheet.png',ghost:'assets/enemies/ghost_sheet.png',yokai:'assets/enemies/yokai_sheet.png',beast:'assets/enemies/beast_sheet.png',pecado:'assets/enemies/pecado_sheet.png'};
 const FROG=new Image();FROG.src='assets/heroes/kris_frog_sheet.png';
 const ARENA=new Image(); ARENA.src='assets/japanese_arena.webp';

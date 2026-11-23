@@ -1,56 +1,36 @@
-# YGGDRASIL — As Sete Raízes | v2.9
+# YGGDRASIL — As Sete Raízes · v3.0
 
-**Atualização de acabamento visual e correções do X1 (Cloudflare Workers + Durable Objects).**
+Atualização focada no modo **X1 Online**. Base: projeto v2.9, com todas as artes, personagens, poderes, chefes, música e cooperativo preservados.
 
-## O que mudou
+## Mudanças reais
 
-- **Uma única arena X1**, com dimensão de mundo 1920 × 1400 e câmera suave que acompanha cada lutador. O cenário japonês não é mais reproduzido em quatro cópias.
-- **Eve Lorey**: corrigido o nome nas telas; a spritesheet `public/assets/heroes/eve_sheet.png` contém 12 quadros corretamente isolados, não várias miniaturas dentro de um mesmo quadro.
-- **Kali**: spritesheet de 12 quadros, transparência ajustada e retrato atualizado em pixel art.
-- **Seleção**: retratos em pixel art de Kali e Eve Lorey, gerados a partir das referências dos personagens.
-- **Ataque de Kali**: espelho ornamental desenhado (`public/assets/effects/mirror_projectile.png`), girando em voo, com estilhaços e efeitos no impacto. A identificação do espelho também passa pela sincronização do cooperativo.
-- **Combate X1**: golpes corpo a corpo com arcos mágicos em camadas e brilhos curtos, ataques com efeitos mais legíveis e sons leves sintetizados por WebAudio.
-- **Q / E / R**: ícones ilustrados para Loid, Kris, Xans, Eve Lorey e Kali (`public/assets/ui/abilities/`). Usados no X1 e nos botões da interface mobile do cooperativo.
-- **Versão**: a interface e scripts agora mostram **v2.9**, com parâmetros `?v=29` nos arquivos alterados para evitar visualizar recursos antigos em cache.
+- **X1 multiplayer:** movimento local previsto no convidado e reconciliação suave com a posição autoritativa do anfitrião; evita o efeito de travar/recuar a cada resposta da rede. Quadros de estado numerados para ignorar estados fora de ordem. Diminui envios de inputs repetidos (com heartbeat) e descarta envios quando o WebSocket está congestionado.
+- **Renderização:** câmera acompanha o personagem e desenha somente a parte visível da arena, em vez de escalar/desenhar o mapa inteiro em cada quadro. Qualidade de X1 configurável (Auto, HD, Leve, Desempenho); no celular o modo Auto adapta a resolução caso o FPS caia.
+- **Eve Lorey e Kali:** sprites normalizados por quadro com transparência, sem recortes vazando de uma célula para outra. Escala visual dos dois aumentada no X1; imagens originais de personagem preservadas.
+- **Eve Lorey:** seu dash do vazio mostra dois portais pixel art animados, na saída e na chegada, com efeitos sonoros, além do deslocamento instantâneo calculado pelo anfitrião.
+- **Cartas do X1:** 22 ilustrações grandes extraídas do atlas de cartas do próprio jogo e aplicadas às cartas do duelo, com molduras e cores por raridade. Mantido o sistema de 3 cartas por jogador antes da luta.
+- **Combate:** animação curta de avanço/recuo durante os ataques, efeitos de magia temporal e espelhos, rastro do espelho da Kali, e pré-visualização cosmética dos comandos dos convidados para não parecer que o botão ficou sem resposta. A lógica de dano permanece com o anfitrião.
+- **Interface:** botões ilustrados Q/E/R preservados, indicador FPS/ping/jitter e número **v3.0** na tela principal e no X1. URLs de assets atualizadas para `?v=30` para facilitar recarregamento após deploy.
 
-## O que foi preservado
+## O que não muda
 
-Cooperativo até 3 jogadores, modo X1 e espectadores, salas, cartas, lutas contra Samurai, Reuni, Tsukuomi e Pecado, sprites de Loid/Kris/Xans, músicas, habilidades especiais, modo automático e desempenho para celulares fracos.
+- O modo cooperativo de até 3 jogadores, a seleção dos cinco protagonistas, o modo Pecador, os chefes (Samurai, Reuni, Tsukuomi, Pecado), a música do X1, a cura, as cartas especiais e o rework dos poderes.
+- O X1 permanece **host-authoritative**: quem cria a sala processa o combate, os outros recebem o mesmo estado pela conexão Cloudflare Workers + Durable Objects. Ele ainda não é um servidor dedicado de simulação.
 
-## Publicar pelo GitHub Codespaces no Cloudflare
+## Publicação no GitHub Codespaces e Cloudflare
 
-1. Extraia o conteúdo do ZIP na raiz do repositório (a raiz precisa conter `wrangler.jsonc`, `package.json`, a pasta `src` e a pasta `public`).
-2. No terminal dentro da raiz:
-
-```bash
-npm install
-npx wrangler deploy
-```
-
-3. Confira o link `.workers.dev` que aparecer, e atualize a página em todos os aparelhos. Na abertura do jogo e no X1, verifique o texto **v2.9**.
-
-Se tiver enviado o próprio ZIP para a raiz do GitHub, no Codespaces extraia-o primeiro:
+O ZIP deve ser extraído na **raiz do repositório**, que contém `package.json`, `wrangler.jsonc`, `src/` e `public/`.
 
 ```bash
-unzip -o Yggdrasil_Cloudflare_X1_Pixel_Art_v29.zip -d .
-npm install
-npx wrangler deploy
+git pull && unzip -o Yggdrasil_Cloudflare_X1_Fluidez_Portal_v30.zip -d . && npm install && git add public src package.json wrangler.jsonc README.md && (git diff --cached --quiet || git commit -m "Yggdrasil v3.0 - X1 fluidez e portais") && git push && npx wrangler deploy
 ```
 
-Para salvar os arquivos extraídos também no repositório, faça **separadamente**:
+Após publicar, atualize a página em ambos os dispositivos. Na tela inicial e no cabeçalho da arena X1 deve aparecer **v3.0**.
 
-```bash
-git add public src package.json wrangler.jsonc README.md
-git commit -m "Yggdrasil v2.9 - X1 e pixel art"
-git push
-```
+## Testes realizados
 
-## Testes e limitações
+- `node --check`: `public/duel.js`, `public/game.js`, `src/worker.mjs` e `public/audio.js`.
+- Teste local com **duas janelas de navegador simulando mensagens do WebSocket**: jogador convidado moveu-se, anfitrião recebeu a direção, e as posições exibidas ficaram próximas; nenhuma exceção JavaScript. O dash de Eve criou os dois efeitos de portal na simulação do anfitrião.
+- Arquivos de arte validados: 12 quadros de Kali, 12 de Eve Lorey, quatro imagens do portal, 22 ilustrações de cartas; todas as imagens estão presentes no pacote.
 
-- JavaScript verificado com `node --check` (`game.js`, `duel.js`, `audio.js`, `src/worker.mjs`).
-- Imagens inspecionadas: **12 quadros preenchidos de Kali e 12 de Eve Lorey**.
-- Teste visual local com duas personagens no X1 (Kali e Eve Lorey) concluído sem erro de JavaScript.
-- Teste funcional local do espelho no X1: reduziu corretamente a vida do adversário de 11.200 para 11.087.
-- **Não foi feita uma partida remota real de 2 jogadores no Cloudflare nem teste em celulares físicos**; ainda é necessário conferir a sincronização e o FPS na hospedagem.
-
-O X1 continua **host-authoritative**: o anfitrião processa dano e estado, e a sala distribui os resultados via WebSocket. A atualização preserva essa arquitetura para não refazer a rede neste ciclo de acabamento visual.
+**Limitação importante:** por restrições do ambiente, a partida real entre dois dispositivos publicados na Cloudflare não foi executada. A melhora da fluidez deve ser confirmada no seu site e em celulares reais.

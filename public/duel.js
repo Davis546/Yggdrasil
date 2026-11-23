@@ -1,4 +1,4 @@
-// YGGDRASIL PvP 1x1 — a separate mode; does not change co-op's game.js.
+// YGGDRASIL v3.0 PvP — optimised shared online arena with locally predicted input.
 // The host is the authority for damage, cooldowns, positions and the outcome.
 const $ = id => document.getElementById(id);
 const W=960,H=576,MAP_W=1920,MAP_H=1400,HP=11200,ROUND_TIME=180;
@@ -9,17 +9,25 @@ const heroes={loid:{name:'LOID',dmg:128,speed:175,attack:.37,range:97,crit:.09,s
 const cards={
   heart:['Coração da Raiz','+1.100 de vida máxima.'],blade:['Fio da Ruína','+12% de dano.'],fast:['Dança das Lâminas','+10% de rapidez de ataque.'],speed:['Passos Leves','+8% velocidade de movimento.'],armor:['Casca Ancestral','9% menos dano recebido.'],reach:['Alcance da Raiz','+10% alcance (máximo 25%).'],dodge:['Reflexos Antigos','Esquiva recarrega mais rápido.'],critical:['Olho do Predador','+8% chance de crítico.'],arc:['Corte Crescente','Aumenta o arco do ataque.'],echo:['Eco da Lâmina','12% chance de segundo golpe.'],ancient:['Herança de Yggdrasil','+6% vida, dano e velocidade.'],shadowblade:['Lâmina Sombria','Loid: +14% de dano.'],shadowdash:['Passo Sombrio','Loid: esquiva 18% mais rápida.'],darkburst:['Abismo Desperto','Loid: aura mais forte.'],black:['Fúria Negra','Kris: +25% dano transformado.'],form:['Forma Perfeita','Kris: +3s de transformação.'],awakening:['Despertar','Kris: Q recarrega mais rápido.'],bloodmoon:['Lua do Abismo','Kris: corte transformado causa mais dano.'],mirror:['Reflexo Duplo','Kali: +12% de dano de ilusão.'],mirrorguard:['Espelho Protetor','Kali: defesa ilusória dura mais.'],voidblade:['Espada Voraz','Eve: +12% dano da espada.'],timeward:['Tempo Dilatado','Eve: área de tempo mais duradoura.']
 };
-const $arena=$('arena'),g=$arena.getContext('2d',{alpha:false});const DUEL_SCALE=Math.min(2,Math.max(1.3,window.devicePixelRatio||1.5));$arena.width=Math.round(W*DUEL_SCALE);$arena.height=Math.round(H*DUEL_SCALE);g.imageSmoothingEnabled=false;let duelCamera={x:0,y:0};
-const arena=new Image();arena.src='assets/japanese_arena.webp?v=29';
-const mirrorAsset=new Image();mirrorAsset.src='assets/effects/mirror_projectile.png?v=29';
+const $arena=$('arena'),g=$arena.getContext('2d',{alpha:false});
+const isMobile=matchMedia('(pointer:coarse)').matches;
+let DUEL_SCALE=Math.min(isMobile?1.35:1.85,Math.max(.85,window.devicePixelRatio||1));
+let qualityMode='auto',lastQualityShift=0,slowFpsTime=0;
+function resizeArena(){const ratio=DUEL_SCALE;$arena.width=Math.round(W*ratio);$arena.height=Math.round(H*ratio);g.imageSmoothingEnabled=false;}
+resizeArena();let duelCamera={x:0,y:0};
+
+const arena=new Image();arena.src='assets/japanese_arena.webp?v=30';
+const mirrorAsset=new Image();mirrorAsset.src='assets/effects/mirror_projectile.png?v=30';
+const portalFrames=Array.from({length:4},(_,i)=>{let im=new Image();im.src=`assets/effects/void_portal_${i}.png?v=30`;return im;});
+
 const slashPalette={loid:'#d2adff',kris:'#7cbaff',cross:'#cba2ff',eve:'#ab8dff',kali:'#f4c3fe'};
-const sprites={};for(const h of Object.keys(heroes)){let im=new Image();im.src=`assets/heroes/${h}_sheet.png?v=29`;sprites[h]=im;}
+const sprites={};for(const h of Object.keys(heroes)){let im=new Image();im.src=`assets/heroes/${h}_sheet.png?v=30`;sprites[h]=im;}
 const duelSkillIcons={}; let duelIconHero='';
 function showSkillArt(hero){
  if(!hero||!heroes[hero]||hero===duelIconHero)return;duelIconHero=hero;
  for(const key of ['q','e','r']){
   const btn=document.querySelector(`#touchControls .skills [data-act="${key}"]`);if(!btn)continue;
-  btn.replaceChildren();const img=new Image();img.src=`assets/ui/abilities/${hero}_${key}.png?v=29`;
+  btn.replaceChildren();const img=new Image();img.src=`assets/ui/abilities/${hero}_${key}.png?v=30`;
   img.alt='Arte da habilidade';img.className='skill-icon';
   const label=document.createElement('span');label.textContent=key.toUpperCase();label.className='skill-key';
   btn.append(img,label);
@@ -31,7 +39,7 @@ function duelSfx(kind){
  const now=performance.now();if(now-sfxLast<55)return;sfxLast=now;
  try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
   sfxCtx=sfxCtx||new AC();if(sfxCtx.state==='suspended')sfxCtx.resume().catch(()=>{});
-  const f={mirror:[920,430,.21],slash:[420,135,.11],cast:[650,180,.27],dash:[1200,260,.14],hit:[160,70,.14],ultimate:[180,760,.36]}[kind]||[450,200,.14];
+  const f={portal:[1000,110,.31],mirror:[920,430,.21],slash:[420,135,.11],cast:[650,180,.27],dash:[1200,260,.14],hit:[160,70,.14],ultimate:[180,760,.36]}[kind]||[450,200,.14];
   const osc=sfxCtx.createOscillator(),vol=sfxCtx.createGain();osc.type=kind==='mirror'?'triangle':kind==='slash'?'sawtooth':'sine';
   osc.frequency.setValueAtTime(f[0],sfxCtx.currentTime);osc.frequency.exponentialRampToValueAtTime(f[1],sfxCtx.currentTime+f[2]);
   vol.gain.setValueAtTime(.0001,sfxCtx.currentTime);vol.gain.exponentialRampToValueAtTime(.045,sfxCtx.currentTime+.012);vol.gain.exponentialRampToValueAtTime(.0001,sfxCtx.currentTime+f[2]);
@@ -62,7 +70,8 @@ duelMusicVolume.addEventListener('input',()=>{duelMusic.volume=Number(duelMusicV
 window.addEventListener('pagehide',()=>duelMusic.pause());
 
 let ws, battle=null, view=null, rendered=new Map(), gameTime=0,last=performance.now(),lastSend=0,lastSnapshot=0, fps=60, frames=0,fpsTime=0;
-const controls={x:0,y:0,aim:0,attack:false};const keySet=new Set();let touchX=0,touchY=0,dragging=false,stickId=null,stickStart={x:0,y:0};
+let latestSeq=-1,hostSeq=0,lastSnapAt=0,localTravelFx=[],networkJitter=0,networkGap=0;
+const controls={x:0,y:0,aim:0,attack:false};let lastInputSent={x:0,y:0,aim:0,attack:false},lastInputHeartbeat=0;const keySet=new Set();let touchX=0,touchY=0,dragging=false,stickId=null,stickStart={x:0,y:0};
 const show=(id,yes)=>$(id).classList.toggle('hidden',!yes);
 const note=text=>{$('notice').textContent=text;};
 const send=m=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(m));};
@@ -89,7 +98,7 @@ function handleMessage(m){
  if(m.t==='pvpBegin'){
    state.started=true;state.finished=false;
    if(!state.id)return;
-   battle={host:state.id===m.host,fighters:m.fighters,players:[],particles:[],projectiles:[],fx:[],clock:0,remaining:ROUND_TIME,starting:3,resultSent:false};
+   battle={host:state.id===m.host,fighters:m.fighters,players:[],particles:[],projectiles:[],fx:[],clock:0,remaining:ROUND_TIME,starting:3,resultSent:false};latestSeq=-1;hostSeq=0;lastSnapAt=0;lastInputHeartbeat=0;lastInputSent={x:0,y:0,aim:0,attack:false};rendered.clear();
    for(let i=0;i<m.fighters.length;i++)battle.players.push(makeActor(m.fighters[i],i));
    view=null;rendered.clear();showScene('battle');show('resultOverlay',false);showSkillArt(m.fighters.find(p=>p.id===state.id)?.hero||'');
    show('spectatorMark',state.role==='spectator');show('touchControls',state.role==='fighter');
@@ -97,9 +106,18 @@ function handleMessage(m){
  }
  if(m.t==='pvpInput'&&battle?.host){const a=battle.players.find(x=>x.id===m.id);if(a)a.input={...m.data};return;}
  if(m.t==='pvpAction'&&battle?.host){const a=battle.players.find(x=>x.id===m.id);if(a)act(a,m.action,m.variant);return;}
- if(m.t==='pvpSnapshot'&&!battle?.host){view=m.data;
+ if(m.t==='pvpSnapshot'&&!battle?.host){
+   if(!m.data?.players || m.data.players.length!==2)return;
+   const seq=Number.isFinite(m.data.seq)?m.data.seq:latestSeq+1;
+   if(seq<=latestSeq)return;
+   latestSeq=seq;
+   const now=performance.now(); if(lastSnapAt){const gap=now-lastSnapAt;networkJitter=networkJitter*.84+Math.abs(gap-62)*.16;networkGap=gap;}lastSnapAt=now;
+   view=m.data;
    if(!battle){battle={host:false,players:[],fighters:[],clock:0,remaining:ROUND_TIME,starting:0};showScene('battle');}
-   if(view?.players){for(const p of view.players){const old=rendered.get(p.id);if(!old||Math.hypot(old.x-p.x,old.y-p.y)>130)rendered.set(p.id,{...p});}}
+   if(view?.players){for(const p of view.players){const old=rendered.get(p.id);if(!old)rendered.set(p.id,{...p});
+     else if(Math.hypot(old.x-p.x,old.y-p.y)>260){old.x=p.x;old.y=p.y;}
+     // Reconciliation runs gently in renderGuests instead of resetting movement on every packet.
+   }}
    return;
  }
  if(m.t==='pvpResult'){
@@ -136,8 +154,8 @@ function refreshLobby(){
 }
 function renderDraft(){let root=$('draftCards');root.replaceChildren();$('chosenCount').textContent=`(${state.picks.length}/3)`;
  for(const id of state.offer){const item=cards[id];if(!item)continue;
-  const b=document.createElement('button');b.className='card'+(state.picks.includes(id)?' chosen':'');
-  const im=document.createElement('img');im.src=`assets/cards/${id}.png`;im.alt='';const title=document.createElement('strong');title.textContent=item[0];const sub=document.createElement('small');sub.textContent=item[1];b.append(im,title,sub);
+  const b=document.createElement('button');b.className='card illustrated-card '+(state.picks.includes(id)?' chosen':'');b.dataset.rarity=['ancient','black','bloodmoon','timeward','mirror'].includes(id)?'epic':['heart','blade','shadowblade','voidblade','critical'].includes(id)?'rare':'common';
+  const im=document.createElement('img');im.className='card-art';im.src=`assets/cards/pvp/${id}.webp?v=30`;im.alt='Arte de '+item[0];const title=document.createElement('strong');title.textContent=item[0];const sub=document.createElement('small');sub.textContent=item[1];const glow=document.createElement('i');glow.className='card-art-glow';b.append(glow,im,title,sub);
   b.disabled=state.picks.includes(id)||state.picks.length>=3||!state.selectedHero;
   b.onclick=()=>send({t:'pvpPick',card:id});root.append(b);
  }
@@ -149,6 +167,24 @@ function makeActor(p,i){const def=heroes[p.hero]||heroes.loid;
 }
 function enemyOf(a){return battle?.players.find(x=>x.id!==a.id);}
 function drawFx(x,y,type,t=0.4,r=25,color='#cf92fc',ex=0,ey=0){if(!battle?.fx)return;battle.fx.push({x,y,type,t,max:t,r,color,ex,ey});if(battle.fx.length>26)battle.fx.shift();}
+// Guest-only cosmetic feedback; damage and cooldown are always decided by the host.
+function guestFx(x,y,type,t=.3,r=40,color='#bf8bf7',ex=0,ey=0){
+  if(localTravelFx.length>18)localTravelFx.shift();
+  localTravelFx.push({x,y,type,t,max:t,r,color,ex,ey});
+}
+function previewGuestAction(name){
+ if(battle?.host||state.role!=='fighter')return;
+ const me=rendered.get(state.id)||view?.players?.find(x=>x.id===state.id);
+ if(!me)return;
+ const direction=Number.isFinite(controls.aim)?controls.aim:0;
+ if(name==='dash'&&me.hero==='eve'){
+   guestFx(me.x,me.y,'portal',.72,58);
+   guestFx(clamp(me.x+Math.cos(direction)*215,55,MAP_W-55),clamp(me.y+Math.sin(direction)*215,75,MAP_H-55),'portal',.72,58);
+ }else if(name==='dash')guestFx(me.x,me.y,'ring',.25,26,heroes[me.hero]?.color||'#ae8cfa');
+ else if(name==='q'&&me.hero==='eve')guestFx(me.x,me.y,'portal',.55,66);
+ else if(name==='e')guestFx(me.x,me.y,'ring',.33,70,'#bcaaff');
+ else if(name==='r')guestFx(me.x,me.y,'ring',.62,130,'#deb9ff');
+}
 function hit(a,b,amount,from='hit'){
  if(!b||b.hp<=0||a.hp<=0||b.invuln>0||b.defend>0)return 0; if(b.mirrorGuard>0&&Math.random()<.5){drawFx(b.x,b.y,'ring',.26,25,'#ddbbff');return 0;}if(b.dodgeChance>0&&Math.random()<b.dodgeChance){drawFx(b.x,b.y,'ring',.28,21,'#a2bcff');return 0;}
  let dealt=amount*(1-b.armor);
@@ -178,7 +214,14 @@ function act(a,action,variant){if(!battle?.host||!a||a.hp<=0||battle.starting>0|
  const b=enemyOf(a);if(action==='dash'){
   if(a.dashCd>0)return;const ang=Math.atan2(a.input.y,a.input.x)||a.aim;
   a.dx=Math.cos(ang);a.dy=Math.sin(ang);a.dashTime=.22;a.dashCd=a.hero==='loid'&&a.ultMode==='loid'&&a.ultTimer>0?.07:a.dashDelay;
-  a.invuln=.32;if(a.hero==='eve'){a.dashTime=.32;drawFx(a.x,a.y,'ring',.50,36,'#996dff');}else drawFx(a.x,a.y,'ring',.35,25,heroes[a.hero].color);return;
+  a.invuln=.32;if(a.hero==='eve'){
+     // Instant void-portal travel. Host is the authority; clients display both portals.
+     const fromX=a.x,fromY=a.y;
+     a.dashTime=0;a.x=clamp(a.x+a.dx*232,55,MAP_W-55);a.y=clamp(a.y+a.dy*232,75,MAP_H-55);
+     drawFx(fromX,fromY,'portal',.80,62,'#9e75ff');
+     drawFx(a.x,a.y,'portal',.80,62,'#b78aff');
+     a.blink=.32;
+   }else drawFx(a.x,a.y,'ring',.35,25,heroes[a.hero].color);return;
  }
  if(action==='q'){
   if(a.qCd>0)return;a.qCd=a.skillDelay;
@@ -258,15 +301,33 @@ function sim(dt){if(!battle?.host||battle.resultSent)return;
  if(battle.remaining<=0){let a=battle.players[0],b=battle.players[1];finish(a.hp/a.maxHp>b.hp/b.maxHp?a.id:b.hp/b.maxHp>a.hp/a.maxHp?b.id:null);}
 }
 function snapshot(){if(!battle?.host)return null;
- return {time:battle.remaining,starting:battle.starting,players:battle.players.map(a=>({id:a.id,hero:a.hero,x:+a.x.toFixed(2),y:+a.y.toFixed(2),face:a.face,step:+a.step.toFixed(2),aim:+a.aim.toFixed(3),hp:Math.ceil(a.hp),maxHp:Math.ceil(a.maxHp),ult:Math.round(a.ultCharge),qCd:+a.qCd.toFixed(1),eCd:+a.eCd.toFixed(1),dashCd:+a.dashCd.toFixed(1),aura:+a.aura.toFixed(2),shadows:+a.shadows.toFixed(2),transform:+a.transform.toFixed(2),defend:+a.defend.toFixed(2),ultTimer:+a.ultTimer.toFixed(2),ultMode:a.ultMode,mirrorGuard:+a.mirrorGuard.toFixed(2),temporalField:+a.temporalField.toFixed(2),voidUlt:+a.voidUlt.toFixed(2),mirrorImages:+a.mirrorImages.toFixed(2),atkFx:+a.attackFx.toFixed(2),atkAngle:a.attackAngle||a.aim,hitFx:+a.hitFx.toFixed(2),blink:+a.blink.toFixed(2),corruption:+a.corruption.toFixed(2)})),
+ return {seq:++hostSeq,time:battle.remaining,starting:battle.starting,players:battle.players.map(a=>({id:a.id,hero:a.hero,x:+a.x.toFixed(2),y:+a.y.toFixed(2),face:a.face,step:+a.step.toFixed(2),aim:+a.aim.toFixed(3),hp:Math.ceil(a.hp),maxHp:Math.ceil(a.maxHp),ult:Math.round(a.ultCharge),qCd:+a.qCd.toFixed(1),eCd:+a.eCd.toFixed(1),dashCd:+a.dashCd.toFixed(1),aura:+a.aura.toFixed(2),shadows:+a.shadows.toFixed(2),transform:+a.transform.toFixed(2),defend:+a.defend.toFixed(2),ultTimer:+a.ultTimer.toFixed(2),ultMode:a.ultMode,mirrorGuard:+a.mirrorGuard.toFixed(2),temporalField:+a.temporalField.toFixed(2),voidUlt:+a.voidUlt.toFixed(2),mirrorImages:+a.mirrorImages.toFixed(2),atkFx:+a.attackFx.toFixed(2),atkAngle:a.attackAngle||a.aim,hitFx:+a.hitFx.toFixed(2),blink:+a.blink.toFixed(2),corruption:+a.corruption.toFixed(2)})),
   projectiles:battle.projectiles.map(p=>({x:Math.round(p.x),y:Math.round(p.y),color:p.color,kind:p.kind||0})),fx:battle.fx.map(f=>({...f,t:+f.t.toFixed(2)}))};
 }
 function drawSprite(p){const img=sprites[p.hero];const row={down:0,left:1,right:2,up:3}[p.face]||0;let frame=Math.floor((p.step||0))%3;
  g.save();if(p.defend>0){g.shadowColor='#a9c4ff';g.shadowBlur=15;}if(p.blink>0)g.globalAlpha=.65;
- if(img?.complete&&img.naturalWidth){g.drawImage(img,frame*112,row*112,112,112,p.x-29,p.y-41,58,58);}
+ if(img?.complete&&img.naturalWidth){
+   const sc=p.hero==='eve'?1.30:p.hero==='kali'?1.19:1;
+   const sz=58*sc;
+   // Small attack anticipation/recoil animation without replacing any character sprite.
+   const phase=clamp((p.atkFx||0)/.16,0,1);
+   const lunge=Math.sin((1-phase)*Math.PI)*7;
+   const px=p.x+Math.cos(p.atkAngle||p.aim||0)*lunge;
+   const py=p.y+Math.sin(p.atkAngle||p.aim||0)*lunge;
+   g.drawImage(img,frame*112,row*112,112,112,px-sz/2,py-41*sc,sz,sz);
+  }
  else{g.fillStyle=heroes[p.hero].color;g.beginPath();g.arc(p.x,p.y-13,20,0,Math.PI*2);g.fill();}g.restore();
  g.save();g.fillStyle='#0e0914';g.fillRect(p.x-23,p.y-46,46,5);g.fillStyle=p.hp>0?'#db6683':'#777';g.fillRect(p.x-22,p.y-45,44*clamp(p.hp/p.maxHp,0,1),4);g.font='bold 11px system-ui';g.textAlign='center';g.lineWidth=3;g.strokeStyle='#160b25';g.strokeText(heroes[p.hero]?.name||'JOGADOR',p.x,p.y-52);g.fillStyle='#fff0d8';g.fillText(heroes[p.hero]?.name||'JOGADOR',p.x,p.y-52);g.restore();
- if(p.temporalField>0){g.save();g.fillStyle='#4b6bbb28';g.strokeStyle='#98baff';g.beginPath();g.arc(p.x,p.y,180,0,Math.PI*2);g.fill();g.stroke();g.restore();}if(p.mirrorGuard>0){g.save();g.strokeStyle='#e7b7ff';g.beginPath();g.arc(p.x,p.y,65,0,Math.PI*2);g.stroke();g.restore();}if(p.voidUlt>0){g.save();g.fillStyle='#08000bb8';g.fillRect(0,0,W,H);g.restore();}
+ if(p.temporalField>0){g.save();
+   const rr=180;g.fillStyle='#4b6bbb28';g.strokeStyle='#98baff';g.lineWidth=2;
+   g.beginPath();g.arc(p.x,p.y,rr,0,Math.PI*2);g.fill();g.stroke();
+   g.strokeStyle='#cfdbffb8';g.lineWidth=2;
+   for(let j=0;j<12;j++){const a=j*Math.PI/6+gameTime*.08;g.beginPath();g.moveTo(p.x+Math.cos(a)*(rr-8),p.y+Math.sin(a)*(rr-8));g.lineTo(p.x+Math.cos(a)*(rr-21-(j%3)*4),p.y+Math.sin(a)*(rr-21-(j%3)*4));g.stroke();}
+   g.restore();}
+  if(p.mirrorGuard>0){g.save();g.strokeStyle='#e7b7ff';g.lineWidth=2;g.beginPath();g.arc(p.x,p.y,65,0,Math.PI*2);g.stroke();
+  if(mirrorAsset.complete&&mirrorAsset.naturalWidth){for(let k=0;k<3;k++){const a=k*2.094+gameTime*.8;const x=p.x+Math.cos(a)*52,y=p.y+Math.sin(a)*35;g.save();g.translate(x,y);g.rotate(a);g.drawImage(mirrorAsset,-11,-13,22,26);g.restore();}}
+  g.restore();}
+  if(p.voidUlt>0){g.save();g.fillStyle='#08000bb8';g.fillRect(0,0,W,H);g.restore();}
  if(p.aura>0||p.ultMode==='loid'&&p.ultTimer>0){g.save();g.strokeStyle=p.ultMode==='loid'&&p.ultTimer>0?'#7e48b2':'#5d2789';g.lineWidth=4;g.globalAlpha=.5;g.beginPath();g.arc(p.x,p.y,p.ultTimer>0&&p.ultMode==='loid'?215:110,0,Math.PI*2);g.stroke();g.restore();}
  if(p.shadows>0){for(let i=0;i<4;i++){let an=i*Math.PI/2+gameTime*1.3;g.fillStyle='#482a6eb0';g.beginPath();g.ellipse(p.x+Math.cos(an)*50,p.y+Math.sin(an)*37,14,18,0,0,Math.PI*2);g.fill();}}
  if(p.atkFx>0&&p.hero!=='kali'){
@@ -289,23 +350,35 @@ function paint(s,dt){
  g.save();g.translate(-Math.round(duelCamera.x),-Math.round(duelCamera.y));
  // Large Japanese arena, tiled at native detail rather than stretching one blurry image.
  if(arena.complete&&arena.naturalWidth){
-  // One continuous scene: no mirrored quarters, no impossible seams.
-  g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(arena,0,0,MAP_W,MAP_H);g.imageSmoothingEnabled=false;
+  // Draw only the VISIBLE rectangle. Avoid re-scaling a giant 1920x1400 image every frame.
+  const aw=arena.naturalWidth,ah=arena.naturalHeight;
+  const sx=duelCamera.x/MAP_W*aw,sy=duelCamera.y/MAP_H*ah;
+  const sw=Math.min(aw-sx,W/MAP_W*aw),sh=Math.min(ah-sy,H/MAP_H*ah);
+  g.imageSmoothingEnabled=qualityMode==='high';
+  if(sw>0&&sh>0)g.drawImage(arena,sx,sy,sw,sh,duelCamera.x,duelCamera.y,W,H);
+  g.imageSmoothingEnabled=false;
  }
  g.strokeStyle='#e2b88d60';g.lineWidth=5;g.strokeRect(12,12,MAP_W-24,MAP_H-24);
- for(const fx of s?.fx||[]){const alpha=clamp(fx.t/(fx.max||.5),0,1);g.save();g.globalAlpha=alpha;
+ for(const fx of [...(s?.fx||[]),...localTravelFx]){const alpha=clamp(fx.t/(fx.max||.5),0,1);g.save();g.globalAlpha=alpha;
   if(fx.type==='ring'||fx.type==='shadow'){g.strokeStyle=fx.color;g.lineWidth=fx.type==='shadow'?11:4;g.beginPath();g.arc(fx.x,fx.y,fx.r*(1.35-alpha*.35),0,Math.PI*2);g.stroke();}
   if(fx.type==='slash'){g.strokeStyle=fx.color;g.lineWidth=5;g.beginPath();g.arc(fx.x,fx.y,fx.r/1.6,fx.ex-.85,fx.ex+.85);g.stroke();}
   if(fx.type==='mirrorcast'){g.strokeStyle='#f6d2ff';g.lineWidth=2;for(let i=0;i<8;i++){let a=i*Math.PI/4+gameTime*2;g.beginPath();g.moveTo(fx.x+Math.cos(a)*7,fx.y+Math.sin(a)*7);g.lineTo(fx.x+Math.cos(a)*fx.r*alpha,fx.y+Math.sin(a)*fx.r*alpha);g.stroke();}}
   if(fx.type==='mirrorShatter'){for(let i=0;i<8;i++){let a=i*Math.PI/4;let rr=fx.r*(1-alpha);g.fillStyle=i%2?'#a6e8ff':'#ffe3ff';g.save();g.translate(fx.x+Math.cos(a)*rr,fx.y+Math.sin(a)*rr);g.rotate(a);g.fillRect(-2,-7,4,14);g.restore();}}
   if(fx.type==='beam'){g.strokeStyle=fx.color;g.lineWidth=18;g.beginPath();g.moveTo(fx.x,fx.y);g.lineTo(fx.x+Math.cos(fx.ex)*fx.r,fx.y+Math.sin(fx.ex)*fx.r);g.stroke();}
-  if(fx.type==='skull'){g.fillStyle='#ece0ff';g.font='bold 28px system-ui';g.fillText('☠',fx.x-14,fx.y+7);g.strokeStyle='#d9c5ff';g.lineWidth=9;g.beginPath();g.moveTo(fx.x,fx.y);g.lineTo(fx.ex,fx.ey);g.stroke();}
+  if(fx.type==='portal'){
+    const progress=1-alpha;
+    const frame=Math.min(3,Math.floor(progress*4));const pic=portalFrames[frame];
+    if(pic.complete&&pic.naturalWidth){const size=108+Math.sin(progress*Math.PI)*28;g.drawImage(pic,fx.x-size/2,fx.y-size/2,size,size);}
+    else{g.strokeStyle='#b28eff';g.lineWidth=7;g.beginPath();g.ellipse(fx.x,fx.y,28,45,0,0,6.283);g.stroke();}
+   }
+   if(fx.type==='skull'){g.fillStyle='#ece0ff';g.font='bold 28px system-ui';g.fillText('☠',fx.x-14,fx.y+7);g.strokeStyle='#d9c5ff';g.lineWidth=9;g.beginPath();g.moveTo(fx.x,fx.y);g.lineTo(fx.ex,fx.ey);g.stroke();}
   if(fx.type==='text'){g.textAlign='center';g.font='bold 18px system-ui';g.fillStyle=fx.color;g.strokeStyle='#170b22';g.lineWidth=3;g.strokeText('-'+nfmt(fx.ex),fx.x,fx.y-20*(1-alpha));g.fillText('-'+nfmt(fx.ex),fx.x,fx.y-20*(1-alpha));}
   g.restore();}
  for(const p of s?.projectiles||[]){
   if(p.kind===3&&mirrorAsset.complete&&mirrorAsset.naturalWidth){
     g.save();g.translate(p.x,p.y);g.rotate(gameTime*11);g.globalAlpha=.32;g.fillStyle='#b67ae9';g.beginPath();g.ellipse(-10,0,17,6,0,0,Math.PI*2);g.fill();g.globalAlpha=1;
-    g.drawImage(mirrorAsset,-16,-16,32,32);g.restore();
+    g.drawImage(mirrorAsset,-18,-22,36,44);
+    g.globalAlpha=.28;g.drawImage(mirrorAsset,-36,-18,18,24);g.restore();
   }else{g.fillStyle=p.color;g.beginPath();g.arc(p.x,p.y,5,0,Math.PI*2);g.fill();}
  }
  for(const p of s?.players||[])drawSprite(p);
@@ -316,33 +389,70 @@ function paint(s,dt){
 function renderHud(s){if(!s||!s.players?.length)return;
  for(let i=0;i<2;i++){const p=s.players[i];if(!p)continue;$(i?'rightName':'leftName').textContent=heroes[p.hero]?.name||'LUTADOR';$(i?'rightHp':'leftHp').style.width=(clamp(p.hp/p.maxHp,0,1)*100)+'%';$(i?'rightNum':'leftNum').textContent=`${nfmt(p.hp)} / ${nfmt(p.maxHp)} · ULT ${p.ult|0}%`;}
  let remain=Math.max(0,s.time||0),secs=Math.ceil(remain);$('timer').textContent=`${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
- $('netInfo').textContent=`${fps} FPS · ${state.ping}ms`;
+ $('netInfo').textContent=`${fps} FPS · ${state.ping}ms · jitter ${Math.round(networkJitter)}ms`;
  $('roundCountdown').textContent=s.starting>0?String(Math.ceil(s.starting)):'';
 }
 function renderGuests(dt){if(!view)return null;
- const out={...view,players:view.players.map(p=>{let smooth=rendered.get(p.id);if(!smooth){smooth={...p};rendered.set(p.id,smooth);}const distance=Math.hypot(smooth.x-p.x,smooth.y-p.y);const a=distance>115?1:Math.min(1,dt*15);
- smooth.x+=(p.x-smooth.x)*a;smooth.y+=(p.y-smooth.y)*a;Object.assign(smooth,Object.fromEntries(Object.entries(p).filter(([k])=>!['x','y'].includes(k))));
- if(p.id===state.id&&state.role==='fighter'&&distance<65){smooth.x+=controls.x*heroes[p.hero].speed*dt*.15;smooth.y+=controls.y*heroes[p.hero].speed*dt*.15;}return smooth;} )};return out;
+ const out={...view,players:view.players.map(p=>{
+  let smooth=rendered.get(p.id);
+  if(!smooth){smooth={...p};rendered.set(p.id,smooth);}
+  const mine=p.id===state.id&&state.role==='fighter';
+  const distance=Math.hypot(smooth.x-p.x,smooth.y-p.y);
+  if(mine){
+    // Move immediately on this device; reconcile to authoritative host at a gentle rate.
+    const length=Math.hypot(controls.x,controls.y);
+    const age=performance.now()-lastSnapAt;
+    if(length>.08&&view.starting<=0&&age<1800){
+      const speed=heroes[p.hero].speed;
+      smooth.x=clamp(smooth.x+(controls.x/Math.max(length,1))*speed*dt,55,MAP_W-55);
+      smooth.y=clamp(smooth.y+(controls.y/Math.max(length,1))*speed*dt,75,MAP_H-55);
+      smooth.step=(smooth.step+dt*8)%3;
+      smooth.face=Math.abs(controls.x)>Math.abs(controls.y)?controls.x>0?'right':'left':controls.y>0?'down':'up';
+    }
+    // Never snap back for small network discrepancies.
+    const correction=distance>155?Math.min(1,dt*7):Math.min(1,dt*2.4);
+    smooth.x+=(p.x-smooth.x)*correction;smooth.y+=(p.y-smooth.y)*correction;
+  }else{
+    const blend=distance>190?Math.min(1,dt*22):Math.min(1,dt*12);
+    smooth.x+=(p.x-smooth.x)*blend;smooth.y+=(p.y-smooth.y)*blend;
+  }
+  // Assign status separately; keep our local walk animation between snapshots.
+  for(const k of Object.keys(p))if(k!=='x'&&k!=='y'&&!(mine&&(k==='step'||k==='face')))smooth[k]=p[k];
+  return smooth;
+ })};return out;
 }
 function getControls(){let x=0,y=0;if(keySet.has('w')||keySet.has('arrowup'))y--;if(keySet.has('s')||keySet.has('arrowdown'))y++;if(keySet.has('a')||keySet.has('arrowleft'))x--;if(keySet.has('d')||keySet.has('arrowright'))x++;
  controls.x=clamp(x+touchX,-1,1);controls.y=clamp(y+touchY,-1,1);
  if(keySet.has('j')||keySet.has('mouse'))controls.attack=true;
- else if(!('ontouchstart' in window))controls.attack=false;
+ else if(!isMobile)controls.attack=false;
  if((navigator.maxTouchPoints>0||'ontouchstart' in window)&&controls.attack){
   const pp=battle?.host?battle.players:view?.players;const me=pp?.find(p=>p.id===state.id),other=pp?.find(p=>p.id!==state.id);
   if(me&&other)controls.aim=Math.atan2(other.y-me.y,other.x-me.x);
  } }
-function tick(ms){let dt=clamp((ms-last)/1000,0,.045);last=ms;gameTime+=dt;fpsTime+=dt;frames++;if(fpsTime>=1){fps=Math.round(frames/fpsTime);frames=0;fpsTime=0;}
+function tick(ms){let dt=clamp((ms-last)/1000,0,.045);last=ms;gameTime+=dt;fpsTime+=dt;frames++;if(fpsTime>=1){fps=Math.round(frames/fpsTime);frames=0;fpsTime=0;
+   if(qualityMode==='auto'&&isMobile&&performance.now()-lastQualityShift>4500){
+    if(fps<37){slowFpsTime++;if(slowFpsTime>=2&&DUEL_SCALE>0.88){DUEL_SCALE=Math.max(.85,DUEL_SCALE-.22);resizeArena();lastQualityShift=performance.now();slowFpsTime=0;}}
+    else {slowFpsTime=0;if(fps>57&&DUEL_SCALE<1.25){DUEL_SCALE=Math.min(1.25,DUEL_SCALE+.12);resizeArena();lastQualityShift=performance.now();}}
+   }}
  if(battle){getControls();if(state.role==='fighter'&&controls.attack&&gameTime>=nextBasicSfx){
     const self=(battle.host?battle.players:view?.players)?.find(p=>p.id===state.id);
     duelSfx(self?.hero==='kali'?'mirror':'slash');nextBasicSfx=gameTime+.39;
+    if(!battle.host&&self){guestFx(self.x+Math.cos(controls.aim)*48,self.y+Math.sin(controls.aim)*48,self.hero==='kali'?'mirrorcast':'slash',.23,self.hero==='kali'?22:70,heroes[self.hero]?.color||'#dcaaff',controls.aim,0);}
    }if(state.role==='fighter'){
    if(battle.host){const a=battle.players.find(p=>p.id===state.id);if(a)a.input={...controls};}
-   else if(performance.now()-lastSend>33){send({t:'pvpInput',...controls});lastSend=performance.now();}
+   else if(performance.now()-lastSend>45){
+    const now=performance.now();
+    const changed=Math.abs(controls.x-lastInputSent.x)>.06||Math.abs(controls.y-lastInputSent.y)>.06||Math.abs(Math.atan2(Math.sin(controls.aim-lastInputSent.aim),Math.cos(controls.aim-lastInputSent.aim)))>.13||controls.attack!==lastInputSent.attack;
+    if(ws?.bufferedAmount<7000&&(changed||now-lastInputHeartbeat>140)){
+      send({t:'pvpInput',...controls});lastInputSent={...controls};lastInputHeartbeat=now;
+    }
+    lastSend=now;
+   }
   }
-  if(battle.host&&!state.finished){sim(dt);if(ms-lastSnapshot>50){const ss=snapshot();view=ss;if(ws?.bufferedAmount<30000)send({t:'pvpSnapshot',data:ss});lastSnapshot=ms;}}
+  if(battle.host&&!state.finished){sim(dt);if(ms-lastSnapshot>(isMobile?72:60)){const ss=snapshot();view=ss;if(ws?.bufferedAmount<12000)send({t:'pvpSnapshot',data:ss});lastSnapshot=ms;}}
   const s=battle.host?snapshot():renderGuests(dt);
   if(state.scene==='battle'){paint(s,dt);renderHud(s);}
+  localTravelFx=localTravelFx.filter(f=>(f.t-=dt)>0);
  }requestAnimationFrame(tick);
 }
 function action(name,variant){if(state.role!=='fighter'||!state.started||state.finished||!battle)return;
@@ -350,7 +460,9 @@ function action(name,variant){if(state.role!=='fighter'||!state.started||state.f
   const p=(battle.host?battle.players:view?.players)?.find(a=>a.id===state.id);
   if(p?.hero==='kris'&&(p.ultCharge??p.ult??0)>=100){show('krisChoices',true);return;}
  }
- duelSfx(name==='dash'?'dash':name==='r'?'ultimate':name==='q'||name==='e'?'cast':'slash');executeAction(name,variant);
+ const mine=(battle?.host?battle.players:view?.players)?.find(p=>p.id===state.id);
+ duelSfx(name==='dash'&&mine?.hero==='eve'?'portal':name==='dash'?'dash':name==='r'?'ultimate':name==='q'||name==='e'?'cast':'slash');
+ previewGuestAction(name);executeAction(name,variant);
 }
 function executeAction(name,variant){if(battle?.host){const a=battle.players.find(x=>x.id===state.id);if(a)act(a,name,variant)}else{send({t:'pvpAction',action:name,variant:variant||''});}}
 function keyAction(e,down){const k=e.key.toLowerCase();if([' ','arrowdown','arrowup','arrowleft','arrowright'].includes(k))e.preventDefault();if(down&&!keySet.has(k)){
@@ -375,6 +487,11 @@ for(const b of document.querySelectorAll('[data-act]')){
 $('create').onclick=()=>send({t:'pvpCreate'});$('joinFighter').onclick=()=>send({t:'pvpJoin',code:$('roomCode').value,role:'fighter'});$('joinSpectator').onclick=()=>send({t:'pvpJoin',code:$('roomCode').value,role:'spectator'});
 for(const b of document.querySelectorAll('[data-hero]'))b.onclick=()=>send({t:'pvpChoose',hero:b.dataset.hero});
 $('begin').onclick=()=>send({t:'pvpBegin'});$('leave').onclick=()=>{stopDuelMusic();send({t:'pvpLeave'});state.scene='entry';state.code='';showScene('entry');note('Você saiu da sala.');};
+const qualitySelect=$('duelQuality');if(qualitySelect){qualitySelect.value=qualityMode;qualitySelect.addEventListener('change',()=>{
+ qualityMode=qualitySelect.value;
+ DUEL_SCALE=qualityMode==='performance'?.8:qualityMode==='light'?1:qualityMode==='high'?Math.min(2,window.devicePixelRatio||2):Math.min(isMobile?1.35:1.85,window.devicePixelRatio||1);
+ resizeArena();note(qualityMode==='high'?'Nitidez máxima ativa.':'Qualidade de X1 ajustada: '+qualityMode);
+});}
 $('copyCode').onclick=async()=>{try{await navigator.clipboard.writeText(state.code);note('Código da sala copiado.')}catch{note('Código: '+state.code)}};
 $('rematch').onclick=()=>send({t:'pvpRematch'});$('backLobby').onclick=()=>send({t:'pvpRematch'});
 // Kris's ultimate has four original choices; do not replace them with a fixed buff.
@@ -383,4 +500,5 @@ document.querySelector('.arena-shell').append(modal);
 for(const b of modal.querySelectorAll('[data-ult]'))b.onclick=()=>{show('krisChoices',false);executeAction('r',b.dataset.ult)};
 modal.querySelector('#cancelUlt').onclick=()=>show('krisChoices',false);
 setInterval(()=>{if(state.online)send({t:'ping',ts:Date.now()});},4000);
+if(new URLSearchParams(location.search).has('debug'))window.YGG_DEBUG={snapshot:()=>view,actor:()=>rendered.get(state.id),host:()=>battle?.host,actors:()=>battle?.players};
 connect();requestAnimationFrame(tick);
