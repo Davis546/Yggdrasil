@@ -1,4 +1,4 @@
-// Yggdrasil Online — Cloudflare Workers + Durable Objects (prototype)
+// Yggdrasil Online v3.4 — Cloudflare Workers + Durable Objects (prototype)
 // Host-authoritative: the host simulates combat; this Durable Object relays inputs/states.
 import { DurableObject } from 'cloudflare:workers';
 
@@ -68,7 +68,7 @@ export class Lobby extends DurableObject {
     try {
       // A slow guest must not accumulate an ever-growing queue of obsolete frames.
       // Critical events (cards, lobby, start, attack controls) are never dropped.
-      if ((value.t === 'motion' || value.t === 'state') &&
+      if ((value.t === 'motion' || value.t === 'state' || value.t === 'pvpSnapshot' || value.t === 'pvpMotion') &&
           typeof c.socket.bufferedAmount === 'number' && c.socket.bufferedAmount > 131072) return;
       c.socket.send(JSON.stringify(value));
     } catch { /* disconnected */ }
@@ -246,20 +246,36 @@ export class Lobby extends DurableObject {
           fighters:fighters.map(p=>({id:p.id,hero:p.hero,cards:p.picks}))};
         for(const p of r.members){this.persist(p);this.safeSend(p,started);}this.pvpLobby(r);return;
       }
+      // Secure WebRTC signaling within an active X1 room. Only the two verified
+      // fighters may exchange offer/answer/ICE; spectators cannot inject signals.
+      if(m.t==='pvpSignal'&&r.started&&!r.finished&&c.role==='fighter'){
+        const other=[...r.members].find(p=>p.id===m.to&&p.role==='fighter'&&p!==c);
+        if(!other || !m.data || !['offer','answer','candidate'].includes(m.data.type))return;
+        const payload=JSON.stringify(m.data);
+        if(payload.length>16000)return;
+        this.safeSend(other,{t:'pvpSignal',from:c.id,data:m.data});return;
+      }
       if(m.t==='pvpInput'&&r.started&&!r.finished&&c.role==='fighter'&&c!==r.host){
         const safe = v=>Number.isFinite(v)?Math.max(-1,Math.min(1,v)):0;
-        this.safeSend(r.host,{t:'pvpInput',id:c.id,data:{
+        this.safeSend(r.host,{t:'pvpInput',id:c.id,seq:Number.isSafeInteger(m.seq)&&m.seq>0?m.seq:0,data:{
           x:safe(m.x),y:safe(m.y),aim:Number.isFinite(m.aim)?m.aim:0,
           attack:!!m.attack,dash:!!m.dash,q:!!m.q,e:!!m.e,r:!!m.r,
           ult:typeof m.ult==='string'?m.ult.slice(0,10):''}});return;
       }
       if(m.t==='pvpAction'&&r.started&&!r.finished&&c.role==='fighter'&&c!==r.host){
         if(!['dash','q','e','eDown','eUp','r'].includes(m.action))return;
-        this.safeSend(r.host,{t:'pvpAction',id:c.id,action:m.action,variant:String(m.variant||'').slice(0,10)});return;
+        this.safeSend(r.host,{t:'pvpAction',id:c.id,action:m.action,variant:String(m.variant||'').slice(0,10),aim:Number.isFinite(m.aim)?m.aim:0,x:Number.isFinite(m.x)?Math.max(-1,Math.min(1,m.x)):0,y:Number.isFinite(m.y)?Math.max(-1,Math.min(1,m.y)):0});return;
+      }
+      if(m.t==='pvpMotion'&&r.started&&!r.finished&&r.host===c){
+        const d=m.data;
+        if(!d||!Number.isSafeInteger(d.seq)||!Array.isArray(d.players)||d.players.length!==2)return;
+        const valid=d.players.every(p=>typeof p.id==='string'&&Number.isFinite(p.x)&&Number.isFinite(p.y));
+        if(!valid||JSON.stringify(d).length>2200)return;
+        for(const other of r.members)if(other!==c)this.safeSend(other,{t:'pvpMotion',data:d});return;
       }
       if(m.t==='pvpSnapshot'&&r.started&&!r.finished&&r.host===c){
         if(!m.data||!Array.isArray(m.data.players)||m.data.players.length!==2)return;
-        const payload=JSON.stringify(m.data);if(payload.length>12000)return;
+        const payload=JSON.stringify(m.data);if(payload.length>17000)return;
         r.lastSnapshot=m.data;
         for(const other of r.members)if(other!==c)this.safeSend(other,{t:'pvpSnapshot',data:m.data});return;
       }

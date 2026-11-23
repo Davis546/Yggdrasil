@@ -421,11 +421,21 @@ function eveVoidCast(){const near=enemies.filter(e=>e.hp>0&&dist(e,player)<155).
  makeParticles(cx,cy,'#8b43e9',minimalFx()?3:16);
 }
 function castEveUltimate(){player.voidUltimate=2.5;player.voidUltTick=0;player.invuln=2.5;voidCollapse=2.5;
- bossMessage='EXPANSÃO DO VAZIO';bossMessageTimer=2.8;ring(player.x,player.y,230,'#27113a');}
+ bossMessage='EXPANSÃO DO VAZIO · O MUNDO DESAPARECE';bossMessageTimer=3.0;
+ YG_AUDIO.play('bossEclipse',.92);shake=Math.max(shake,4);
+ ring(player.x,player.y,230,'#27113a');makeParticles(player.x,player.y,'#9e6aff',minimalFx()?7:28,.85);}
+
 function tickEveUltimate(dt){if(!player||player.type!=='eve'||player.voidUltimate<=0)return;
  player.voidUltimate=Math.max(0,player.voidUltimate-dt);
  if(player.voidUltimate>0&&player.voidUltimate<1.1&&!player.voidUltTick){player.voidUltTick=1;
- for(const e of enemies){if(e.hp<=0)continue;if(isBossEnemy(e))hitEnemy(e,e.maxHp*.20,true,true);else hitEnemy(e,e.hp+1,true,true);}
+ let removed=0;
+ for(const e of enemies){if(e.hp<=0)continue;
+   if(isBossEnemy(e))hitEnemy(e,e.maxHp*.20,true,true);
+   else{removed++;makeParticles(e.x,e.y,'#9d69ee',minimalFx()?3:10,.9);hitEnemy(e,e.hp+1,true,true);}
+ }
+ bossMessage=removed?`EXPANSÃO DO VAZIO · ${removed} CRIATURAS DESINTEGRADAS`:'EXPANSÃO DO VAZIO · IMPACTO NO CHEFE';
+ bossMessageTimer=2.2;YG_AUDIO.play('bossDefeat',.6);
+
  }}
 function crossMultiStrike(){const c=player.crossChain;if(!c||c.remaining<=0)return false;
  const targets=enemies.filter(e=>e.hp>0&&!c.used.includes(e.id)).sort((a,b)=>dist(a,player)-dist(b,player));
@@ -1667,6 +1677,14 @@ function coopAdvance(dt){
    for(const k of ['dashCd','skillCd','secondaryCd','invuln','curseTime','atkTime','darkAuraTime','ultimateTime','ultimateBuffTime','transformTime','frogTime'])a[k]=Math.max(0,(a[k]||0)-dt);
    if(a.secondaryCharging)a.secondaryCharge=Math.min(1.6,a.secondaryCharge+dt);
    if(a.type==='cross')updateCrossBones(a,dt,id);
+   // V3.4: a guest's Eve Lorey ultimate must tick on the HOST as well.
+   // Previously only the local host hero entered tickEveUltimate(), so a remote
+   // Eve cast the darkness effect but never actually desintegrated the Onis.
+   if(a.type==='eve'&&a.voidUltimate>0){
+     const previous=player; player=a;
+     try{tickEveUltimate(dt);}finally{player=previous;}
+   }
+
    const inp=a.input||{x:0,y:0,aim:-Math.PI/2,attack:false};
    if(a.hp<=0){
     // Free-roaming spirit: movement is replicated, but attacks cannot fire.

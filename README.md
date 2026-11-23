@@ -1,35 +1,42 @@
-# YGGDRASIL v3.3 — 5 jogadores online + novos sprites
+# YGGDRASIL v3.5 — foco exclusivo no online X1
 
-**Base:** v3.2. Não altera os poderes, as cartas, os chefes, a trilha, o X1 ou o motor de combate.
+Esta edição foi criada sobre os arquivos completos da v3.4, preservando os **sprites, retratos, mapa, músicas (incluindo `duel_theme.mp3`) e kits de combate**. Nenhum arquivo gráfico ou de áudio foi alterado.
 
-## Melhorias
-- Cooperativo Cloudflare: salas para **2 até 5 jogadores**. Todos podem participar simultaneamente, cada um com um protagonista diferente: Loid, Kris, Xans, Eve Lorey ou Kali.
-- O servidor rejeita um sexto participante e não permite dois jogadores selecionarem o mesmo personagem.
-- A verificação de movimento e os pacotes de posição agora admitem 5 personagens, não apenas 3.
-- Tela da sala, contador durante o combate e espera pelas cartas suportam o novo tamanho de equipe.
-- Posições de surgimento são distribuídas ao redor do anfitrião, evitando sobreposição dos quatro aliados.
-- Novos sprites de **Eve Lorey e Kali** convertidos diretamente das folhas 4×4 fornecidas para o atlas 3×4 usado pelo jogo. Cada quadro é individual, alinhado e transparente.
-- Versão da tela principal e do duelo atualizada para **v3.3**, com atualização do parâmetro de cache.
-- O X1 continua sendo um modo de dois lutadores, com espectadores; não foi transformado em luta de cinco.
+## Mudanças de rede
 
-## Publicar no Cloudflare com GitHub Codespaces
+- **Conexão direta (WebRTC) opcional entre os dois lutadores.** O Cloudflare Durable Object faz apenas a troca segura das informações para estabelecer a conexão; quando os navegadores conseguem conectar diretamente, comandos e estados de batalha viajam entre os dois jogadores sem dar a volta pelo Cloudflare.
+- **Fallback Cloudflare automático.** Se WebRTC não estiver disponível ou for bloqueado pela rede, o X1 continua usando WebSocket/Durable Objects, com o anfitrião controlando a simulação como nas versões anteriores.
+- **Separação das atualizações no fallback:** pacotes curtos de movimento a cada ~44 ms (até ~23 por segundo), e snapshots de combate mais completos a cada ~120 ms (cerca de 8 por segundo), com estados extras após habilidades importantes. Isso diminui o volume de dados repetidos.
+- **Controles e mira sincronizados:** cada comando de habilidade do convidado leva sua direção atual e movimento; entradas de movimento têm número de sequência, impedindo que um comando atrasado substitua um mais recente.
+- **Parada segura:** se o convidado perder conexão ou parar de enviar comandos por ~450 ms, o anfitrião deixa de manter ataques e movimento antigos ativos.
+- **Interposição suave de movimentos:** velocidade estimada a partir do intervalo real entre pacotes, sem presumir o mesmo intervalo para snapshots leves e completos.
+- **Indicador de rede no X1:** `DIRETO P2P` ou `CLOUDFLARE`, junto ao FPS, tempo de ida e volta reportado (quando disponível) e jitter. Assim é fácil saber qual transporte está sendo usado.
+- **Atualizações da HUD limitadas a ~12 Hz**, preservando a animação e renderização do combate.
 
-Envie `Yggdrasil_Cloudflare_5_Jogadores_v33.zip` para a raiz do repositório. No terminal:
+## O que permanece
 
-```bash
-git pull && unzip -o Yggdrasil_Cloudflare_5_Jogadores_v33.zip -d . && npm install && npx wrangler deploy
+Cooperativo de até cinco jogadores, X1 de dois lutadores com espectadores, cartas, habilidades, supremos, artes e música original do duelo. O X1 segue **host-authoritative**: o anfitrião precisa deixar a aba ativa. A versão **não altera o motor de habilidades**.
+
+## Publicar com GitHub Codespaces e Cloudflare
+
+1. Extraia este ZIP na **raiz** do repositório, com `public/`, `src/`, `package.json` e `wrangler.jsonc` juntos.
+2. Execute no terminal:
+
+```sh
+npm install
+npm run test:protocol
+npx wrangler deploy
 ```
 
-Para também salvar no GitHub, após extração:
+3. No X1, entre com **dois jogadores e abra a partida**. No indicador superior confira `DIRETO P2P` (ideal) ou `CLOUDFLARE` (fallback). Atualize a página dos dois aparelhos para evitar cache de versão anterior.
 
-```bash
-git add public src package.json wrangler.jsonc README.md && (git diff --cached --quiet || git commit -m "Yggdrasil v3.3 - Coop 5 e sprites") && git push
-```
+### Limitações reais
 
-## Testes prioritários
-1. Abrir uma sala com 5 abas/navegadores; o sexto deve ser rejeitado.
-2. Selecionar 5 personagens diferentes, iniciar e verificar o movimento e golpes de cada um.
-3. Terminar uma onda e confirmar que o jogo espera **todos os cinco** escolherem cartas.
-4. Verificar animações de Eve e Kali em quatro direções e desempenho dos convidados.
+Conexão direta **não é garantida**: o WebRTC usa servidores públicos STUN, mas não existe TURN configurado. Em redes móveis ou NATs restritivos a conexão pode falhar e retornar ao Cloudflare. Neste caso, o ganho virá dos pacotes menores e da correção do controle, mas poderá continuar havendo alguma latência. Também não houve teste de uma partida completa no serviço Cloudflare real, nem em celulares dos usuários: o ganho precisa ser medido após o deploy.
 
-**Limite do teste local:** o servidor e o código podem ser testados com clientes simulados, mas a latência com cinco dispositivos reais no Cloudflare depende do navegador, rede e capacidade do anfitrião.
+## Testes executados na preparação
+
+- `node --check` dos scripts do Worker, do X1 e do cooperativo.
+- `npm run test:protocol`: teste em memória de duas vagas de lutador + espectador, exclusividade da sinalização WebRTC, sequências de comando, direção de habilidades, e retransmissão de movimento/combate.
+- Integridade do ZIP e comparação byte a byte dos assets com a v3.4.
+- **Teste visual/P2P real não concluído:** o navegador de testes do ambiente bloqueou o acesso a URLs locais; um teste WebRTC isolado também não conseguiu estabelecer ICE aqui.
