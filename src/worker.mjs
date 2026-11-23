@@ -3,6 +3,7 @@
 import { DurableObject } from 'cloudflare:workers';
 
 const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali']);
+const MAX_COOP_PLAYERS = HEROES.size; // five unique heroes, including the host
 const BOSSES = new Set(['samurai', 'reuni', 'tsukuomi', 'pecado']);
 const ACTIONS = new Set(['attack', 'q', 'eDown', 'eUp', 'dash', 'ultimate', 'card', 'ultimateChoice', 'f']);
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -94,8 +95,8 @@ export class Lobby extends DurableObject {
 
   joinRoom(c, room) {
     if(room.kind === 'pvp') { this.safeSend(c,{t:'error',message:'Use o modo X1 para acessar essa sala.'}); return; }
-    if (room.members.size >= 3) {
-      this.safeSend(c, { t: 'error', message: 'Sala cheia (máximo 3 jogadores).' });
+    if (room.members.size >= MAX_COOP_PLAYERS) {
+      this.safeSend(c, { t: 'error', message: 'Sala cheia (máximo 5 jogadores).' });
       return;
     }
     if (room.started) {
@@ -306,7 +307,7 @@ export class Lobby extends DurableObject {
     }
     if (m.t === 'begin' && r.host === c && !r.started) {
       if (r.members.size < 2 || [...r.members].some(p => !p.hero) || new Set([...r.members].map(p=>p.hero)).size !== r.members.size) {
-        this.safeSend(c, { t: 'error', message: 'São necessários 2 ou 3 jogadores com personagem selecionado.' });
+        this.safeSend(c, { t: 'error', message: 'São necessários de 2 a 5 jogadores com personagens diferentes selecionados.' });
         return;
       }
       r.started = true;
@@ -347,7 +348,7 @@ export class Lobby extends DurableObject {
     }
     if (m.t === 'motion' && r.host === c) {
       // Verify compact movement-only packets; do not let large payloads congest the room.
-      if (!m.actors || typeof m.actors !== 'object' || Object.keys(m.actors).length > 3 || JSON.stringify(m).length > 1800) return;
+      if (!m.actors || typeof m.actors !== 'object' || Object.keys(m.actors).length > MAX_COOP_PLAYERS || JSON.stringify(m).length > 2400) return;
       const positions = {};
       for (const p of r.members) {
         const a = m.actors[p.id];

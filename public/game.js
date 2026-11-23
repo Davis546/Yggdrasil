@@ -2,7 +2,7 @@
 'use strict';
 const touchUI=window.matchMedia('(pointer:coarse)').matches || (navigator.maxTouchPoints>0 && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)); document.body.classList.toggle('touch-ui',touchUI); let W=(touchUI&&window.innerWidth>window.innerHeight)?Math.round(288*window.innerWidth/window.innerHeight):480,H=touchUI?(window.innerWidth>window.innerHeight?288:720):288;const WORLD_W=1448,WORLD_H=1086,canvas=document.getElementById('game');let ctx=canvas.getContext('2d',{alpha:false});let RENDER_SCALE=touchUI?1.20:1.5;let renderMode="auto",lastRenderAdjust=0,slowSeconds=0,fastSeconds=0;canvas.width=Math.round(W*RENDER_SCALE);canvas.height=Math.round(H*RENDER_SCALE);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
 const $=id=>document.getElementById(id),rand=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y), norm=(x,y)=>{let l=Math.hypot(x,y)||1;return {x:x/l,y:y/l}}, TAU=Math.PI*2;
-let phase='title',player=null,enemies=[],projectiles=[],particles=[],slashes=[],rings=[],dashShadows=[],stage=1,essence=0,last=0,elapsed=0,shake=0,flash=0,mouseAim=null,pointerDown=false,attackMobile=false,mobileMove={x:0,y:0},opts=[],nextEnemyId=1,camera={x:0,y:0},shadowClones=[],waveIntro=0,domainFade=0,waveClearTimer=-1,dashGhostTimer=0,footstepClock=0,eclipseTime=0,healthDrops=[],damageFloats=[],xansBlasters=[],timeFields=[],mirrorIllusions=[],voidCollapse=0;
+let phase='title',player=null,enemies=[],projectiles=[],particles=[],slashes=[],rings=[],dashShadows=[],stage=1,essence=0,last=0,elapsed=0,shake=0,flash=0,mouseAim=null,pointerDown=false,attackMobile=false,mobileMove={x:0,y:0},opts=[],nextEnemyId=1,camera={x:0,y:0},shadowClones=[],waveIntro=0,domainFade=0,waveClearTimer=-1,dashGhostTimer=0,footstepClock=0,eclipseTime=0,healthDrops=[],damageFloats=[],xansBlasters=[],timeFields=[],mirrorIllusions=[],voidCollapse=0,evePortals=[];
 // v2.4: dynamic *visual* budget. All damage, collisions, dash timing and network ticks
 // remain unchanged even when the canvas renders fewer/cheaper frames.
 const weakMobileHint=touchUI&&((Number(navigator.deviceMemory)||8)<=4||(Number(navigator.hardwareConcurrency)||8)<=4);
@@ -24,15 +24,16 @@ function coopNote(message){const n=$('coopNotice');if(n)n.textContent=message;}
 
 
 const HERO={loid:new Image(),kris:new Image(),cross:new Image(),eve:new Image(),kali:new Image()};
-const MIRROR_SPRITE=new Image();MIRROR_SPRITE.src='assets/effects/mirror_projectile.png?v=30';
+const EVE_PORTAL_FRAMES=Array.from({length:4},(_,i)=>{const a=new Image();a.src=`assets/effects/void_portal_${i}.png?v=32`;return a;});
+const MIRROR_SPRITE=new Image();MIRROR_SPRITE.src='assets/effects/mirror_projectile.png?v=32';
 const SKILL_HEROES=new Set(['loid','kris','cross','eve','kali']);let lastSkillArt='';
-function syncSkillArt(type){if(!SKILL_HEROES.has(type)||lastSkillArt===type)return;lastSkillArt=type;for(const [key,id] of [['q','btnSkill'],['e','btnSecondary'],['r','btnUltimate']]){const btn=document.getElementById(id);if(!btn)continue;btn.style.setProperty('--skill-art',`url(assets/ui/abilities/${type}_${key}.png?v=30)`);}}
+function syncSkillArt(type){if(!SKILL_HEROES.has(type)||lastSkillArt===type)return;lastSkillArt=type; /* Keep original ✦ ✧ ✺ buttons; ability art does not replace their symbols. */}
 
 HERO.loid.src='assets/heroes/loid_sheet.png';
 HERO.kris.src='assets/heroes/kris_sheet.png';
 HERO.cross.src='assets/heroes/cross_sheet.png';
-HERO.eve.src='assets/heroes/eve_sheet.png?v=30';
-HERO.kali.src='assets/heroes/kali_sheet.png?v=30';
+HERO.eve.src='assets/heroes/eve_sheet.png?v=33';
+HERO.kali.src='assets/heroes/kali_sheet.png?v=33';
 const ENEMY_URLS={walker:'assets/enemies/oni_walker.png',runner:'assets/enemies/oni_runner.png',caster:'assets/enemies/oni_caster.png',boss:'assets/enemies/samurai_sheet.png',reuni:'assets/enemies/reuni_sheet.png',tsukuomi:'assets/enemies/tsukuomi_sheet.png',ghost:'assets/enemies/ghost_sheet.png',yokai:'assets/enemies/yokai_sheet.png',beast:'assets/enemies/beast_sheet.png',pecado:'assets/enemies/pecado_sheet.png'};
 const FROG=new Image();FROG.src='assets/heroes/kris_frog_sheet.png';
 const ARENA=new Image(); ARENA.src='assets/japanese_arena.webp';
@@ -103,7 +104,7 @@ function spawnStage(){
  player.x=WORLD_W/2;player.y=WORLD_H/2+120;
  player.dashTime=0;player.darkAuraTime=0;player.ultimateTime=0;player.ultimateBuffTime=0;player.ultimateBuff='';player.frogTime=0;player.curseTime=0;player.invuln=2;
  player.hp=player.hp<=0?Math.ceil(player.maxHp*.5):Math.min(player.maxHp,player.hp+player.betweenHeal);player.ghost=false;
- if(coop.active&&coop.host){for(const [aid,a] of coop.allies){a.x=player.x+((Number(aid)%3)-1)*28;a.y=player.y+35;a.hp=a.hp<=0?Math.ceil(a.maxHp*.5):Math.min(a.maxHp,a.hp+a.betweenHeal);a.ghost=false;a.invuln=2;a.skillCd=0;a.dashCd=0;a.darkAuraTime=0;a.ultimateTime=0;a.ultimateBuffTime=0;a.curseTime=0;a.secondaryCharging=false;}}
+ if(coop.active&&coop.host){let teamIndex=0;const allyCount=coop.allies.size;for(const [aid,a] of coop.allies){const angle=(teamIndex+++.5)*Math.PI*2/Math.max(allyCount,1);a.x=player.x+Math.cos(angle)*62;a.y=player.y+Math.sin(angle)*62;a.hp=a.hp<=0?Math.ceil(a.maxHp*.5):Math.min(a.maxHp,a.hp+a.betweenHeal);a.ghost=false;a.invuln=2;a.skillCd=0;a.dashCd=0;a.darkAuraTime=0;a.ultimateTime=0;a.ultimateBuffTime=0;a.curseTime=0;a.secondaryCharging=false;}}
  camera.x=clamp(player.x-W/2,0,WORLD_W-W);camera.y=clamp(player.y-H/2,0,WORLD_H-H);
  waveIntro=2.3;YG_AUDIO.play('waveStart',.8);
  const isBoss=stage%5===0;const bossType=stage===20?'pecado':stage===15?'tsukuomi':stage===10?'reuni':'boss';
@@ -228,8 +229,8 @@ function dash(){if(coop.active&&!coop.host&&!coop.executing){
    const mv=getMove(),a=Math.hypot(mv.x,mv.y)>.1?Math.atan2(mv.y,mv.x):player.aim;
    player.dashV={x:Math.cos(a),y:Math.sin(a)};player.dashTime=.22;
    player.dashCd=player.type==='loid'&&player.ultimateTime>0?.07:player.dashDelay;
-   player.invuln=.36;coopAction('dash');YG_AUDIO.play('dash',.65);return;
- }if(phase!=='play'||player.hp<=0||player.dashCd>0)return;YG_AUDIO.play('dash');let mv=getMove();let v=Math.hypot(mv.x,mv.y)>.1?norm(mv.x,mv.y):{x:Math.cos(player.aim),y:Math.sin(player.aim)};player.dashV=v;player.dashTime=.22;player.dashCd=player.type==='loid'&&player.ultimateTime>0?.07:player.dashDelay;player.invuln=.36;if(player.type==='eve'){ring(player.x,player.y,21,'#7145ba');}if(player.type==='loid'){dashGhostTimer=0;dashShadows.push({x:player.x,y:player.y,face:player.face,step:player.step,life:.34,max:.34});}makeParticles(player.x,player.y,player.type==='loid'?'#27112f':'#518cff',16);}
+   player.invuln=.36;if(player.type==='eve'){const tx=clamp(player.x+Math.cos(a)*129,48,WORLD_W-48),ty=clamp(player.y+Math.sin(a)*129,48,WORLD_H-48);evePortals.push({ox:player.x,oy:player.y,tx,ty,life:1.25,max:1.25});}coopAction('dash');YG_AUDIO.play('dash',.65);return;
+ }if(phase!=='play'||player.hp<=0||player.dashCd>0)return;YG_AUDIO.play('dash');let mv=getMove();let v=Math.hypot(mv.x,mv.y)>.1?norm(mv.x,mv.y):{x:Math.cos(player.aim),y:Math.sin(player.aim)};player.dashV=v;player.dashTime=.22;player.dashCd=player.type==='loid'&&player.ultimateTime>0?.07:player.dashDelay;player.invuln=.36;if(player.type==='eve'){const ox=player.x,oy=player.y,tx=clamp(ox+v.x*129,48,WORLD_W-48),ty=clamp(oy+v.y*129,48,WORLD_H-48);evePortals.push({ox,oy,tx,ty,life:1.25,max:1.25});ring(ox,oy,27,'#7145ba');ring(tx,ty,27,'#b285ff');}if(player.type==='loid'){dashGhostTimer=0;dashShadows.push({x:player.x,y:player.y,face:player.face,step:player.step,life:.34,max:.34});}makeParticles(player.x,player.y,player.type==='loid'?'#27112f':'#518cff',16);}
 // Xans Q: TRUE blink. Stay at origin, instantly appear at the target, hit,
 // then instantly return. No dash interpolation. Clients receive the same phases.
 function crossTeleport(){
@@ -270,6 +271,20 @@ function updateCrossTeleport(p,dt){
  if(was<.27&&k>=.27){makeParticles(t.ox,t.oy,'#9a66e8',10);ring(t.ox,t.oy,25,'#b67fff');}
  if(k>=t.total){p.x=t.ox;p.y=t.oy;p.crossTp=null;}
  return true;
+}
+function drawEvePortals(){
+ if(!evePortals.length)return;
+ evePortals=evePortals.filter(f=>(f.life-=1/Math.max(24,visibleFps||60))>0);
+ ctx.save();ctx.imageSmoothingEnabled=false;
+ for(const fx of evePortals){const prog=1-fx.life/fx.max,frame=prog<.2?0:prog<.4?1:prog<.8?2:3;const art=EVE_PORTAL_FRAMES[frame];
+   const size=76+Math.sin(elapsed*12)*5;
+   ctx.globalAlpha=Math.min(.92,fx.life/.18);
+   for(const [x,y] of [[fx.ox,fx.oy],[fx.tx,fx.ty]]){
+    if(art?.complete&&art.naturalWidth)ctx.drawImage(art,x-size/2,y-size/2,size,size);
+    else{ctx.strokeStyle='#a679ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(x,y,size*.28,size*.39,0,0,TAU);ctx.stroke();}
+   }
+ }
+ ctx.restore();
 }
 function drawXansPortals(){
  const actors=coop.active?[player,...coop.allies.values()]:[player];
@@ -1231,7 +1246,7 @@ function draw(){
     if(!r)continue;
     ctx.save();ctx.fillStyle=ally.ultimateTime>0?(minimalFx()?'#08030b9c':'#08030bcb'):'#130d21a3';ctx.beginPath();ctx.arc(ally.x,ally.y,r,0,TAU);ctx.fill();
     if(!minimalFx()){ctx.strokeStyle='#8552a6';ctx.lineWidth=2;ctx.stroke();}ctx.restore();
-  }drawDashShadows();drawXansPortals();drawDimensionalCharge();
+  }drawDashShadows();drawXansPortals();drawEvePortals();drawDimensionalCharge();
   for(const a of actors){
    if(a.kind==='enemy')enemySprite(a.e);else if(a.kind==='clone')drawShadowClone(a.s);else if(a.kind==='ally'){const p=a.a;ctx.save();if(p.hp<=0){drawSpiritAura(p);ctx.globalAlpha=.46;}heroSprite(p.x,p.y,p.type,p.face,p.step,p.transformTime>0,1,p);ctx.restore();ctx.save();ctx.textAlign='center';ctx.font='bold 8px system-ui';ctx.fillStyle='#f7e3fd';ctx.strokeStyle='#160921';ctx.lineWidth=2;const name=p.type==='cross'?'XANS':p.type.toUpperCase();ctx.strokeText(name,p.x,p.y-45);ctx.fillText(name,p.x,p.y-45);ctx.fillStyle='#311524';ctx.fillRect(p.x-17,p.y-40,34,3);ctx.fillStyle=p.hp>0?'#d15d83':'#9ee9f6';ctx.fillRect(p.x-17,p.y-40,p.hp>0?34*Math.max(0,p.hp/p.maxHp):34,3);ctx.restore();}
    else if(player){
@@ -1296,7 +1311,7 @@ function updateHud(){
  $('cooldownUltimateSlot').style.setProperty('--readiness',charge+'%');
  $('stageText').textContent='ONDA '+String(stage).padStart(2,'0')+(stage===20?' · PECADO':stage===15?' · TSUKUOMI':stage===10?' · REUNI':stage%5===0?' · CHEFE':'')+(isPecador()?' ✦ PECADOR':'');
  $('themeText').textContent=theme().name;
- $('counterText').textContent=`INIMIGOS ${enemies.filter(e=>e.hp>0).length} · ESSÊNCIA ${essence}`+(coop.active?` · ONLINE ${coop.members.length}/3`:'');
+ $('counterText').textContent=`INIMIGOS ${enemies.filter(e=>e.hp>0).length} · ESSÊNCIA ${essence}`+(coop.active?` · ONLINE ${coop.members.length}/5`:'');
 }
 
 function pickCards(){let valid=cards.filter(c=>(!c.hero||c.hero===player.type)&&!(c.id==='gaster'&&player.cardPower)&&!(c.id==='granita'&&player.cardPower)&&!(c.id==='frog'&&(player.frogSkill||player.frogUsed))&&!(player.frogSkill&&['black','form','awakening','bloodmoon'].includes(c.id))),selected=[];while(selected.length<3&&valid.length){let index=Math.floor(Math.random()*valid.length),c=valid.splice(index,1)[0],weight=c.rarity==='legendary'?.11:c.rarity==='rare'?.45:1;if(Math.random()<weight||valid.length<3-selected.length)selected.push(c)}if(player.type==='kris'&&!player.frogSkill&&stage===8&&!selected.some(c=>c.id==='frog')){selected[1]=cards.find(c=>c.id==='frog');}if(player.type==='cross'&&!player.cardPower&&stage===8&&!selected.some(c=>c.id==='gaster'))selected[1]=cards.find(c=>c.id==='gaster');if(player.type==='loid'&&!player.cardPower&&stage===11&&!selected.some(c=>c.id==='granita'))selected[1]=cards.find(c=>c.id==='granita');return selected.slice(0,3)}
@@ -1549,7 +1564,7 @@ function coopConnect(action, code=''){
 function coopRenderLobby(){
  $('coopConnect').hidden=true;$('coopLobby').hidden=false;
  $('coopRoomCode').textContent=coop.room||'------';
- $('coopPeople').textContent=coop.members.length+' de 3 jogadores: '+coop.members.map(m=>(m.id===coop.id?'VOCÊ':m.id===coop.hostId?'ANFITRIÃO':'ALIADO')+' — '+(m.hero||'escolhendo')).join(' · ');
+ $('coopPeople').textContent=coop.members.length+' de 5 jogadores: '+coop.members.map(m=>(m.id===coop.id?'VOCÊ':m.id===coop.hostId?'ANFITRIÃO':'ALIADO')+' — '+(m.hero||'escolhendo')).join(' · ');
  $('coopHostOptions').hidden=!coop.host;
  if(coop.host){const d=$('coopDifficulty');if(d&&!d.dataset.touched)d.value=difficulty;}
  document.querySelectorAll('[data-coop-hero]').forEach(b=>{const mine=coop.members.some(m=>m.id===coop.id&&m.hero===b.dataset.coopHero);const occupied=coop.members.some(m=>m.id!==coop.id&&m.hero===b.dataset.coopHero);b.classList.toggle('selected',mine);b.disabled=occupied;b.title=occupied?'Já escolhido por outro jogador':'';});
@@ -1574,7 +1589,7 @@ function coopOnMessage(m){
    const mine=m.members.find(p=>p.id===coop.id);const hero=mine?.hero||'loid';
    difficulty=m.difficulty==='pecador'?'pecador':'normal';coop.chosen=false;coop.choices.clear();coop.remoteStarted=true;
    $('coopScreen').classList.add('hidden');start(hero,m.boss||false,false);
-   if(!coop.host){coop.allies=new Map();for(const mp of m.members){if(mp.id===coop.id)continue;const a=createPlayer(mp.hero);a.x=player.x+30;a.y=player.y-15;coop.allies.set(mp.id,a);}coopNote('Online iniciado.');}
+   if(!coop.host){coop.allies=new Map();let i=0;const others=m.members.filter(mp=>mp.id!==coop.id);for(const mp of others){const a=createPlayer(mp.hero);const angle=(i+++0.5)*Math.PI*2/Math.max(others.length,1);a.x=player.x+Math.cos(angle)*62;a.y=player.y+Math.sin(angle)*62;coop.allies.set(mp.id,a);}coopNote('Online iniciado.');}
    return;}
  case 'remoteInput':if(coop.host){const a=coop.allies.get(m.id);if(a){a.input={x:m.x||0,y:m.y||0,aim:Number(m.aim)||0,attack:!!m.attack};a.inputAt=performance.now();}}return;
  case 'remotePress':if(coop.host)coopRemotePress(m.id,m.action,m.value,m.aim,m.dx,m.dy);return;
@@ -1587,8 +1602,8 @@ function coopOnMessage(m){
 }
 function coopInitAllies(){
  coop.allies.clear();
- for(const m of coop.members){if(m.id===coop.id)continue;
-   const a=createPlayer(m.hero||'loid');a.x=WORLD_W/2+(Number(m.id)%3-1)*30;a.y=WORLD_H/2+155;
+ let allyIndex=0;const allyTotal=Math.max(1,coop.members.length-1);for(const m of coop.members){if(m.id===coop.id)continue;
+   const a=createPlayer(m.hero||'loid');const angle=(allyIndex+++.5)*Math.PI*2/allyTotal;a.x=WORLD_W/2+Math.cos(angle)*62;a.y=WORLD_H/2+120+Math.sin(angle)*62;
    a.input={x:0,y:0,aim:-Math.PI/2,attack:false};a.inputAt=performance.now();a.lastAttack=0;
    coop.allies.set(m.id,a);
  }
@@ -1761,7 +1776,7 @@ function coopSendState(force=false){
   hazards:hazards.slice(-60),healthDrops:healthDrops,
   rings:rings.slice(-20),slashes:slashes.slice(-20),
   shadowClones:shadowClones.slice(-12),dashShadows:dashShadows.slice(-18),
-  bonusBeam,xansBlasters:xansBlasters.slice(-4),timeFields:timeFields.slice(-3).map(t=>({...t})),mirrorIllusions:mirrorIllusions.slice(-6).map(v=>({x:v.x,y:v.y,life:v.life,ownerType:v.owner?.type||'kali'})),voidCollapse,waveIntro,eclipseTime,bossMessage,bossMessageTimer,elapsed,mandatory
+  bonusBeam,xansBlasters:xansBlasters.slice(-4),timeFields:timeFields.slice(-3).map(t=>({...t})),mirrorIllusions:mirrorIllusions.slice(-6).map(v=>({x:v.x,y:v.y,life:v.life,ownerType:v.owner?.type||'kali'})),voidCollapse,evePortals:evePortals.slice(-5),waveIntro,eclipseTime,bossMessage,bossMessageTimer,elapsed,mandatory
  }};
  coopSend(packet);
 }
@@ -1814,7 +1829,7 @@ function coopApplyState(s){
  coop.enemyTargets=nextEnemyTargets;
  projectiles=s.projectiles||[];hazards=s.hazards||[];
  healthDrops=s.healthDrops||[];rings=s.rings||[];slashes=s.slashes||[];shadowClones=s.shadowClones||[];dashShadows=s.dashShadows||[];
- bonusBeam=s.bonusBeam||null;xansBlasters=s.xansBlasters||[];timeFields=s.timeFields||[];mirrorIllusions=(s.mirrorIllusions||[]).map(v=>({...v,owner:{type:v.ownerType}}));voidCollapse=s.voidCollapse||0;waveIntro=s.waveIntro||0;eclipseTime=s.eclipseTime||0;
+ bonusBeam=s.bonusBeam||null;xansBlasters=s.xansBlasters||[];timeFields=s.timeFields||[];mirrorIllusions=(s.mirrorIllusions||[]).map(v=>({...v,owner:{type:v.ownerType}}));voidCollapse=s.voidCollapse||0;if(Array.isArray(s.evePortals)&&s.evePortals.length){const old=evePortals.filter(x=>x.local);evePortals=[...old,...s.evePortals.map(p=>({...p}))].slice(-7);}waveIntro=s.waveIntro||0;eclipseTime=s.eclipseTime||0;
  bossMessage=s.bossMessage||'';bossMessageTimer=s.bossMessageTimer||0;
  if(!coop.selectingUltimate){
    if(s.phase==='reward'&&phase!=='reward'){phase='reward';coop.chosen=false;showRewards();}
