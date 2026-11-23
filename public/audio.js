@@ -7,7 +7,8 @@ const YG_AUDIO=(()=>{
  const sampleBanks={};
  const menuTrack=new Audio('assets/audio/menu.mp3'),battleTrack=new Audio('assets/audio/battle.mp3'),pecadoTrack=new Audio('assets/audio/pecado.mp3');
  const nordicTrack=new Audio('assets/audio/nordic_theme.mp3'),nordicBossTrack=new Audio('assets/audio/nordic_boss.mp3');
- const tracks={menu:menuTrack,battle:battleTrack,pecado:pecadoTrack,nordic:nordicTrack,nordicBoss:nordicBossTrack};
+ const namelessTrack=new Audio('assets/audio/nameless_ost.mp3');
+ const tracks={nameless:namelessTrack,menu:menuTrack,battle:battleTrack,pecado:pecadoTrack,nordic:nordicTrack,nordicBoss:nordicBossTrack};
  for(const a of Object.values(tracks)){a.loop=true;a.preload='none';a.playsInline=true;}
 
  let musicMode='',audioUnlocked=false;
@@ -93,15 +94,16 @@ const YG_AUDIO=(()=>{
   // Waves 15 / 20 are intentionally distinct; stage 15 remains the existing
   // battle track until its custom audio is provided, stage 20 has Peccatum.
   const requested=!combat?'menu':
-   currentStage===25&&activeBoss('frostjarl')?'nordicBoss':
+   currentStage===35&&activeBoss('nameless')?'nameless':
+   (currentStage===25||currentStage===30)&&activeBoss('frostjarl')?'nordicBoss':
    currentStage===20&&activeBoss('pecado')?'pecado':
-   currentStage>=21&&currentStage<=25?'nordic':'battle';
+   currentStage>=21&&currentStage<=35?'nordic':'battle';
   if(requested!==musicMode){
    musicMode=requested;
    for(const t of all){t.pause();try{t.currentTime=0;}catch(_){}}
   }
   const target=tracks[requested];
-  const gains={menu:.32,battle:.41,pecado:.46,nordic:.42,nordicBoss:.43};
+  const gains={menu:.32,battle:.41,pecado:.46,nordic:.42,nordicBoss:.43,nameless:.47};
   target.volume=Math.min(1,volume*gains[requested]);
   if(target.paused)target.play().catch(()=>{});
  }

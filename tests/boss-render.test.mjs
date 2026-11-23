@@ -22,7 +22,7 @@ const sandbox={window:{innerWidth:1280,innerHeight:720,matchMedia:()=>({matches:
 vm.createContext(sandbox);vm.runInContext(fs.readFileSync(new URL('../public/game.js',import.meta.url),'utf8'),sandbox,{timeout:6000});
 const evaluate=s=>vm.runInContext(s,sandbox,{timeout:7000});
 let checked=0;
-for(const [stage,type] of [[5,'boss'],[10,'reuni'],[15,'tsukuomi'],[20,'pecado'],[25,'frostjarl']]){
+for(const [stage,type] of [[5,'boss'],[10,'reuni'],[15,'tsukuomi'],[20,'pecado'],[25,'frostjarl'],[35,'nameless']]){
  evaluate(`player=createPlayer('loid');player.hp=999999;player.maxHp=999999;stage=${stage};testBossMode=false;spawnStage();`);
  assert.ok(evaluate(`enemies.some(e=>e.type==='${type}')`));
  for(const face of ['down','left','right','up']){
@@ -30,7 +30,7 @@ for(const [stage,type] of [[5,'boss'],[10,'reuni'],[15,'tsukuomi'],[20,'pecado']
    for(let step=0;step<18;step++){
     calls.length=0;
     evaluate(`{const e=enemies.find(e=>e.type==='${type}');e.walking=true;e.mode='${mode}';e.face='${face}';e.step=${step/2};e.phase=undefined;e.attackPose=${mode==='windup'?.25:0};enemySprite(e);}`);
-    const drawn=calls.find(v=>v.src.includes(type==='boss'?'samurai_sheet':type==='frostjarl'?'jarl_v39_atlas':`${type}_sheet`));
+    const drawn=calls.find(v=>v.src.includes(type==='boss'?'samurai_sheet':type==='frostjarl'?'jarl_v39_atlas':type==='nameless'?'nameless_knight':`${type}_sheet`));
     assert.ok(drawn,`Missing ${type} sprite in mode ${mode} with direction ${face}, step ${step}`);
     assert.ok(drawn.args[6]>=50,`Unexpected tiny rendered boss ${type}`);
     checked++;
@@ -38,7 +38,7 @@ for(const [stage,type] of [[5,'boss'],[10,'reuni'],[15,'tsukuomi'],[20,'pecado']
   }
  }
 }
-assert.equal(checked,5*4*3*18);
+assert.equal(checked,6*4*3*18);
 const art=new URL('../public/assets/enemies/jarl_v39_atlas.png',import.meta.url);
 assert.ok(fs.statSync(art).size>50000);
-console.log('ALL FIVE BOSSES RENDER WITHOUT INVALID FRAMES',checked);
+console.log('ALL SIX BOSSES RENDER WITHOUT INVALID FRAMES',checked);

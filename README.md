@@ -1,44 +1,56 @@
-# YGGDRASIL v3.9 — Trilha nórdica e correção dos chefes
+# YGGDRASIL v4.1 — O Cavaleiro Inominável (Nórdico onda 15)
 
-## Atualização 3.9
+**Jogo pronto para Cloudflare Workers.** A campanha japonesa permanece com 20 ondas e Tsukuyomi na onda 15. A campanha nórdica possui agora 15 ondas (etapas internas 21 a 35). O Jarl está nas ondas nórdicas 5 e 10; o Cavaleiro Inominável é o chefe final nórdico da onda 15. A fase do dragão ativa ao chegar a 50% HP, com ataques telegráficos, três selos destrutíveis e carta lendária de recompensa. A OST do cavaleiro é uma composição chiptune original incluída em `nameless_ost.mp3`.
 
-- Japão (20 ondas) e Reino Nórdico (5 ondas) continuam separados no solo e na sala cooperativa; X1 e demais modos preservados.
-- **Sumiço dos chefes resolvido no renderer:** os quadros de caminhada eram calculados com uma propriedade `phase` não inicializada no boss; produziam valores NaN em `canvas.drawImage`. Agora os cinco chefes (Daimyō Oni, Reuni, Tsukuyomi, Pecado e Jarl do Gelo) usam índices inteiros válidos, mesmo quando chegam dados incompletos do online.
-- **Jarl do Gelo:** novo atlas de 16 quadros recortados com transparência (8 poses de caminhada/repouso e 8 de ataque/magia). A sprite agora tem 136 unidades de exibição, sombra de apoio, ataques sinalizados, efeitos glaciais persistentes e barra de vida acima do corpo. Ajustados posição inicial e HP (8200 no Normal), com ataques mais frequentes na segunda fase.
-- **Interface:** cartões de heróis centralizados, responsivos; novos retratos normalizados de Loid, Kris, Xans, Eve Lorey e Kali sem recortes extremos; cartões dos chefes com `contain`; correção de cache das páginas (`game.js?v=39`, `audio.js?v=39`).
-- **Música do Reino Nórdico:** `Warhammer 40,000 Darktide - Immortal Imperium 8-bit cover - Kr4ppy` nas ondas nórdicas, via `assets/audio/nordic_theme.mp3`.
-- **Música do Jarl:** `Dragonforce - Through The Fire And Flames (8 Bit) - pandoozles`, via `assets/audio/nordic_boss.mp3`, apenas durante a luta com o Jarl; após derrotá-lo a trilha retorna ao tema nórdico.
-- **Ondas 15 e 20:** a onda 20 mantém a trilha própria de Pecado já existente. A OST exclusiva da onda 15 ainda depende do áudio a ser fornecido, por isso a trilha antiga permanece para ela por enquanto.
-- As músicas enviadas foram convertidas para MP3 160 kbps para reduzir o tamanho de carregamento, sem alterar a composição.
+**Testes:** `npm run test:server && npm run test:nordic && npm run test:campaign && npm run test:bosses && npm run test:music && npm run test:cards && npm run test:nameless`
 
-## Publicação Cloudflare Workers via GitHub Codespaces
+**Publicar:** `npx wrangler deploy`
 
-1. Envie o arquivo **Yggdrasil_Bosses_Musicas_v39.zip** para a raiz do repositório, sem renomear.
-2. Cole no terminal:
+---
+
+# YGGDRASIL v4.0 — Cartas Nórdicas Exclusivas
+
+## Novo baralho do Reino Nórdico
+
+- **30 cartas nórdicas novas**, com nomes, efeitos, ilustrações em SVG e identidade rúnica própria.
+- Ao **começar diretamente o Reino Nórdico** (solo ou cooperativo), cada personagem recebe **20 cartas sorteadas sem repetição**, sem tela de escolha.
+- Todos os presentes no cooperativo ganham 20 cartas independentes, administradas pelo anfitrião. Os IDs são sincronizados na rede quando a fase muda.
+- Recompensas após cada onda nórdica oferecem somente **cartas nórdicas**; as japonesas não aparecem. O baralho do Japão não foi modificado.
+- As cartas nórdicas aumentam dano, vida, velocidade, recargas, crítico, defesa e efeitos especiais, com **tetos rígidos** para evitar atributos absurdos: dano 2,85x base; vida 3,5x base; velocidade 1,75x base; proteção 58%; crítico 60%; esquiva 44%; outros atributos e tempos também limitados.
+- O jogador não precisa escolher entre as 20 cartas iniciais, mas ainda escolhe 1 de 3 cartas após vencer cada onda.
+
+## Equilíbrio da Eve Lorey
+
+- A ultimate ganha 3% por acerto normal e 4,5% por acerto em chefe (antes 0,7% e 1,2%).
+- Q recarrega em 17,5s (antes 21s), E recarrega em 15s (antes 18s).
+- O Campo Temporal (E) causa dano leve em pulsos de até 6 por alvo a cada 0,9s; continua reduzindo velocidade dos inimigos.
+
+## Mantido da v3.9
+
+- Japão e Nórdico independentes; mapas, trilhas nórdicas, Jarl do Gelo, Tsukuyomi, animações dos chefes, online cooperativo e X1.
+- Warhammer 8-bit continua como trilha nórdica e DragonForce 8-bit como música de chefe nórdico. A OST da onda 15 ainda não havia sido adicionada na v4.0; a v4.1 inclui uma composição original.
+- A arte e implementação do Odin ainda **não** fazem parte deste pacote; esta versão foca nas cartas e no equilíbrio de Eve.
+
+## Instalação v4.1 (dois ZIPs menores que 25 MB)
+
+Envie os dois ZIPs da v4.1 para a raiz do projeto e execute no GitHub Codespaces:
 
 ```bash
 git pull &&
-unzip -o Yggdrasil_Bosses_Musicas_v39.zip -d . &&
+unzip -o Yggdrasil_v41_Parte1_Jogo.zip -d . &&
+unzip -o Yggdrasil_v41_Parte2_Musicas.zip -d . &&
 npm install &&
 npm run test:server &&
 npm run test:nordic &&
 npm run test:campaign &&
 npm run test:bosses &&
 npm run test:music &&
+npm run test:cards &&
+npm run test:nameless &&
 npx wrangler deploy &&
 git add -A public src tests package.json wrangler.jsonc README.md .gitignore &&
-(git diff --cached --quiet || git commit -m "Yggdrasil v3.9 - bosses e musicas") &&
+(git diff --cached --quiet || git commit -m "Yggdrasil v4.1 - Cavaleiro Inominavel Nordico") &&
 git push
 ```
 
-Se o arquivo tiver outro nome dentro do Codespaces, ajuste só o nome após `unzip -o`. Se algum comando falhar, a sequência para nessa etapa e as alterações seguintes não são executadas. Não é necessário enviar o ZIP na hora de `git push`; basta o conteúdo extraído e os arquivos rastreados.
-
-## Testes disponíveis
-
-- `npm run test:server` — rede / X1
-- `npm run test:nordic` — criaturas e chefe nórdico
-- `npm run test:campaign` — reinos independentes, seleção online e recarga de Eve Lorey
-- `npm run test:bosses` — 1080 situações de renderização simuladas nos cinco chefes
-- `npm run test:music` — troca de trilhas por ondas, entrada e derrota do chefe
-
-Os testes automatizados não substituem uma inspeção visual em um navegador real no site publicado. O deploy precisa das credenciais Cloudflare do proprietário. As trilhas são covers fornecidos pelo usuário; confirme as permissões de distribuição pública antes de publicar o jogo.
+Os testes são locais, não substituem o teste visual em dispositivo nem confirmam que o site já foi publicado. Os covers de terceiros continuam sujeitos às respectivas permissões de uso.
