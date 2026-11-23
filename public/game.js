@@ -34,12 +34,16 @@ HERO.kris.src='assets/heroes/kris_sheet.png';
 HERO.cross.src='assets/heroes/cross_sheet.png';
 HERO.eve.src='assets/heroes/eve_sheet.png?v=33';
 HERO.kali.src='assets/heroes/kali_sheet.png?v=33';
-const ENEMY_URLS={walker:'assets/enemies/oni_walker.png',runner:'assets/enemies/oni_runner.png',caster:'assets/enemies/oni_caster.png',boss:'assets/enemies/samurai_sheet.png',reuni:'assets/enemies/reuni_sheet.png',tsukuomi:'assets/enemies/tsukuomi_sheet.png',ghost:'assets/enemies/ghost_sheet.png',yokai:'assets/enemies/yokai_sheet.png',beast:'assets/enemies/beast_sheet.png',pecado:'assets/enemies/pecado_sheet.png'};
+const ENEMY_URLS={walker:'assets/enemies/oni_walker.png',runner:'assets/enemies/oni_runner.png',caster:'assets/enemies/oni_caster.png',boss:'assets/enemies/samurai_sheet.png',reuni:'assets/enemies/reuni_sheet.png',tsukuomi:'assets/enemies/tsukuomi_sheet.png',ghost:'assets/enemies/ghost_sheet.png',yokai:'assets/enemies/yokai_sheet.png',beast:'assets/enemies/beast_sheet.png',pecado:'assets/enemies/pecado_sheet.png',draugr:'assets/enemies/nordic_draugr_sheet.png',frostwolf:'assets/enemies/nordic_frostwolf_sheet.png',berserker:'assets/enemies/nordic_berserker_sheet.png',runewitch:'assets/enemies/nordic_runewitch_sheet.png',frostjarl:'assets/enemies/nordic_frostjarl_sheet.png'};
 const FROG=new Image();FROG.src='assets/heroes/kris_frog_sheet.png';
 const ARENA=new Image(); ARENA.src='assets/japanese_arena.webp';
+const NORDIC_ARENA=new Image();NORDIC_ARENA.src='assets/nordic/frozen_arena.webp?v=37';
+const isNordic=()=>stage>=21;const localNordicWave=()=>Math.max(1,stage-20);
+const NORDIC_VFX={};for(const n of ['ice','rune','rage']){NORDIC_VFX[n]=new Image();NORDIC_VFX[n].src='assets/nordic/vfx_'+n+'.png';}
+
 let testBossMode=false, hazards=[],bossMessage='',bossMessageTimer=0,difficulty='normal',selectedBoss=null,bonusBeam=null;
 const isPecador=()=>difficulty==='pecador';
-const isBossEnemy=e=>['boss','reuni','tsukuomi','pecado'].includes(e.type);
+const isBossEnemy=e=>['boss','reuni','tsukuomi','pecado','frostjarl'].includes(e.type);
 const CARD_IMAGES={heart:'assets/cards/heart.png',blade:'assets/cards/blade.png',fast:'assets/cards/fast.png',speed:'assets/cards/speed.png',armor:'assets/cards/armor.png',reach:'assets/cards/reach.png',dodge:'assets/cards/dodge.png',heal:'assets/cards/heal.png',critical:'assets/cards/critical.png',arc:'assets/cards/arc.png',vigor:'assets/cards/vigor.png',echo:'assets/cards/echo.png',shadowblade:'assets/cards/shadowblade.png',shadowdash:'assets/cards/shadowdash.png',darkburst:'assets/cards/darkburst.png',living:'assets/cards/living.png',black:'assets/cards/black.png',form:'assets/cards/form.png',awakening:'assets/cards/awakening.png',bloodmoon:'assets/cards/bloodmoon.png',ancient:'assets/cards/ancient.png',frog:'assets/cards/frog.png',gaster:'assets/cards/gaster.png',granita:'assets/cards/granita.png',mirror:'assets/cards/arc.png',mirrorguard:'assets/cards/armor.png',voidblade:'assets/cards/blade.png',timeward:'assets/cards/fast.png'};
 const ENEMY_ART={};
 for(const name of Object.keys(ENEMY_URLS)) {ENEMY_ART[name]=new Image();ENEMY_ART[name].src=ENEMY_URLS[name];}
@@ -76,13 +80,14 @@ const cards=[
 {id:'granita',name:'Descarga de Granita',desc:'LOID · Carta exclusiva: raio branco-negro ampliado, mais dano contra chefes. Consome 50% do Supremo. F = uso único.',icon:'ϟ',rarity:'legendary',hero:'loid',effect:p=>{p.cardPower='granita';p.cardPowerUsed=false;}},
 {id:'ancient',name:'Herança de Yggdrasil',desc:'+8% de vida e +5% de dano, velocidade e alcance (com limites).',icon:'♧',rarity:'legendary',effect:p=>{p.maxHp=Math.ceil(p.maxHp*1.08);p.hp=Math.min(p.maxHp,p.hp+12);p.damage=Math.min(p.baseDamage*1.65,p.damage*1.05);p.speed=Math.min(p.baseSpeed*1.35,p.speed*1.05);p.reach=Math.min(p.baseReach*1.25,p.reach*1.05)}},
 ];
-function createPlayer(type){const loid=type==='loid',cross=type==='cross',eve=type==='eve',kali=type==='kali';return {type,x:WORLD_W/2,y:WORLD_H/2+120,face:'down',aim:-Math.PI/2,hp:loid?110:cross?118:eve?115:kali?120:135,maxHp:loid?110:cross?118:eve?115:kali?120:135,damage:loid?26:cross?29:eve?42:kali?23:34,attackDelay:loid?.29:cross?.34:eve?.31:kali?.40:.43,atkTime:0,speed:loid?105:cross?106:eve?125:kali?96:91,reach:loid?33:cross?38:eve?53:kali?85:43,arc:loid?1.85:cross?1.95:2.15,armor:0,crit:cross?.26:eve?.13:.07,echo:0,onKillHeal:0,betweenHeal:11,dashDelay:loid?2.4:cross?2.55:eve?2.2:2.8,dashCd:0,dashTime:0,dashV:{x:0,y:0},invuln:0,skillDelay:loid?9:cross?6.5:eve?21:kali?20:14,skillCd:0,skillAmp:1,darkAuraTime:0,darkAuraTick:0,secondaryCd:0,secondaryDelay:loid?20:cross?9:eve?18:kali?18:8.5,secondaryCharging:false,secondaryCharge:0,transformDuration:6,transformAmp:.55,transformTime:0,shadowDash:false,orbiters:0,orbitTimer:0,waveAttack:false,cardPower:'',cardPowerUsed:false,frogSkill:false,frogUsed:false,frogTime:0,ghost:false,dodgeChance:(cross?.12:eve?.15:0),mirrorGuard:0,mirrorAmp:1,mirrorDuration:4,timeDuration:5,voidField:0,voidTick:0,voidUltimate:0,voidUltTick:0,crossChain:null,curseTime:0,attackCount:0,ultimateCharge:0,ultimateTime:0,ultimateTick:0,ultimateBuff:'',ultimateBuffTime:0,step:0,cards:[],kills:0};}
+function createPlayer(type){const loid=type==='loid',cross=type==='cross',eve=type==='eve',kali=type==='kali';return {type,x:WORLD_W/2,y:WORLD_H/2+120,face:'down',aim:-Math.PI/2,hp:loid?110:cross?118:eve?115:kali?120:135,maxHp:loid?110:cross?118:eve?115:kali?120:135,damage:loid?26:cross?29:eve?42:kali?23:34,attackDelay:loid?.29:cross?.34:eve?.31:kali?.40:.43,atkTime:0,speed:loid?105:cross?106:eve?125:kali?96:91,reach:loid?33:cross?38:eve?53:kali?85:43,arc:loid?1.85:cross?1.95:2.15,armor:0,crit:cross?.26:eve?.13:.07,echo:0,onKillHeal:0,betweenHeal:11,dashDelay:loid?2.4:cross?2.55:eve?2.2:2.8,dashCd:0,dashTime:0,dashV:{x:0,y:0},invuln:0,skillDelay:loid?9:cross?6.5:eve?21:kali?20:14,skillCd:0,skillAmp:1,darkAuraTime:0,darkAuraTick:0,secondaryCd:0,secondaryDelay:loid?20:cross?9:eve?18:kali?18:8.5,secondaryCharging:false,secondaryCharge:0,transformDuration:6,transformAmp:.55,transformTime:0,shadowDash:false,orbiters:0,orbitTimer:0,waveAttack:false,cardPower:'',cardPowerUsed:false,frogSkill:false,frogUsed:false,frogTime:0,ghost:false,dodgeChance:(cross?.12:eve?.15:0),mirrorGuard:0,mirrorAmp:1,mirrorDuration:4,timeDuration:5,voidField:0,voidTick:0,voidUltimate:0,voidUltTick:0,crossChain:null,curseTime:0,frostTime:0,attackCount:0,ultimateCharge:0,ultimateTime:0,ultimateTick:0,ultimateBuff:'',ultimateBuffTime:0,step:0,cards:[],kills:0};}
 const originalCreatePlayer=createPlayer;createPlayer=function(type){const p=originalCreatePlayer(type);p.baseDamage=p.damage;p.baseAttackDelay=p.attackDelay;p.baseSpeed=p.speed;p.baseReach=p.reach;p.baseDashDelay=p.dashDelay;return p;};
-function theme(){return stage===20?{name:'TRONO DO PECADO',floor:'#3a0810',wall:'#160408',accent:'#ff253f',danger:'#de1228'}:stage===15?{name:'DOMÍNIO DA LUA',floor:'#1b1730',wall:'#0c0920',accent:'#b98dff',danger:'#995ac8'}:THEMES[Math.min(THEMES.length-1,Math.floor((stage-1)/4))]}
-const MOB_STATS={walker:{hp:44,speed:47,radius:10},runner:{hp:31,speed:69,radius:10},caster:{hp:54,speed:32,radius:11},ghost:{hp:42,speed:66,radius:10},yokai:{hp:62,speed:46,radius:11},beast:{hp:88,speed:83,radius:13}};
-function waveName(n){if(n===20)return 'PECADO · O DEVORADOR DAS RAÍZES';if(n===15)return 'TSUKUOMI · SENHORA DO ECLIPSE';if(n===10)return 'REUNI · SENHOR DO SANGUE';if(n%5===0)return 'O SAMURAI ONI DESPERTA';const m=n%5;return m===4?'ONDA DOS ESPÍRITOS':m===3?'INVASÃO YOKAI':m===2?'CAÇADA DAS BESTAS':'INVASÃO ONI';}
+function theme(){if(isNordic())return {name:'REINO NÓRDICO · INVERNO ETERNO',floor:'#142934',wall:'#102032',accent:'#b5f0fc',danger:'#9fc4ff'};return stage===20?{name:'TRONO DO PECADO',floor:'#3a0810',wall:'#160408',accent:'#ff253f',danger:'#de1228'}:stage===15?{name:'DOMÍNIO DA LUA',floor:'#1b1730',wall:'#0c0920',accent:'#b98dff',danger:'#995ac8'}:THEMES[Math.min(THEMES.length-1,Math.floor((stage-1)/4))]}
+const MOB_STATS={walker:{hp:44,speed:47,radius:10},runner:{hp:31,speed:69,radius:10},caster:{hp:54,speed:32,radius:11},ghost:{hp:42,speed:66,radius:10},yokai:{hp:62,speed:46,radius:11},beast:{hp:88,speed:83,radius:13},draugr:{hp:125,speed:49,radius:12},frostwolf:{hp:78,speed:92,radius:12},berserker:{hp:180,speed:72,radius:14},runewitch:{hp:107,speed:44,radius:12}};
+function waveName(n){if(n>=21)return n===25?'JARL DO GELO · FÚRIA DA TEMPESTADE':['','FLORESTA DOS DRAUGRS','CAÇADA DOS LOBOS GLACIAIS','BERSERKERS AMALDIÇOADOS','RITUAL DAS FEITICEIRAS'][Math.min(4,n-20)]||'INVERNO ETERNO';if(n===20)return 'PECADO · O DEVORADOR DAS RAÍZES';if(n===15)return 'TSUKUOMI · SENHORA DO ECLIPSE';if(n===10)return 'REUNI · SENHOR DO SANGUE';if(n%5===0)return 'O SAMURAI ONI DESPERTA';const m=n%5;return m===4?'ONDA DOS ESPÍRITOS':m===3?'INVASÃO YOKAI':m===2?'CAÇADA DAS BESTAS':'INVASÃO ONI';}
 function randEnemyType(){
  const r=Math.random();
+ if(isNordic()){if(localNordicWave()===1)return r<.67?'draugr':'frostwolf';if(localNordicWave()===2)return r<.50?'frostwolf':r<.80?'draugr':'berserker';if(localNordicWave()===3)return r<.42?'berserker':r<.70?'draugr':'runewitch';return r<.35?'runewitch':r<.64?'frostwolf':r<.86?'berserker':'draugr';}
  if(stage<=2)return r<.68?'walker':'runner';
  if(stage<=4)return r<.5?'walker':r<.8?'runner':'caster';
  if(stage<=6)return r<.43?'walker':r<.66?'runner':r<.84?'ghost':'caster';
@@ -93,9 +98,9 @@ function randEnemyType(){
 }
 function addMob(type,x,y,elite=false,bossSummon=false){
  const base=MOB_STATS[type]||MOB_STATS.walker;
- const factor=1+(stage-1)*.19;let hp=base.hp*factor*(isPecador()?1.5:1)*(elite?1.72:1)*(bossSummon?.66:1);
+ const factor=isNordic()?(2.15+(localNordicWave()-1)*.27):(1+(stage-1)*.19);let hp=base.hp*factor*(isPecador()?1.5:1)*(elite?1.72:1)*(bossSummon?.66:1);
  const e={id:nextEnemyId++,type,x,y,hp,maxHp:hp,elite,bossSummon,
-  speed:base.speed*(1+Math.min(stage,24)*.019)*(isPecador()?1.16:1)*(elite?1.12:1),radius:base.radius+(elite?1:0),attack:rand(.85,2.15),hurt:0,step:rand(0,6),face:'down',windup:0,chargeTime:0,chargeDir:{x:0,y:1},hitCharge:false,phase:rand(0,6)};
+  speed:base.speed*(1+(isNordic()?.09*localNordicWave():Math.min(stage,24)*.019))*(isPecador()?1.16:1)*(elite?1.12:1),radius:base.radius+(elite?1:0),attack:rand(.85,2.15),hurt:0,step:rand(0,6),face:'down',windup:0,chargeTime:0,chargeDir:{x:0,y:1},hitCharge:false,phase:rand(0,6)};
  enemies.push(e);return e;
 }
 function spawnStage(){
@@ -107,8 +112,8 @@ function spawnStage(){
  if(coop.active&&coop.host){let teamIndex=0;const allyCount=coop.allies.size;for(const [aid,a] of coop.allies){const angle=(teamIndex+++.5)*Math.PI*2/Math.max(allyCount,1);a.x=player.x+Math.cos(angle)*62;a.y=player.y+Math.sin(angle)*62;a.hp=a.hp<=0?Math.ceil(a.maxHp*.5):Math.min(a.maxHp,a.hp+a.betweenHeal);a.ghost=false;a.invuln=2;a.skillCd=0;a.dashCd=0;a.darkAuraTime=0;a.ultimateTime=0;a.ultimateBuffTime=0;a.curseTime=0;a.secondaryCharging=false;}}
  camera.x=clamp(player.x-W/2,0,WORLD_W-W);camera.y=clamp(player.y-H/2,0,WORLD_H-H);
  waveIntro=2.3;YG_AUDIO.play('waveStart',.8);
- const isBoss=stage%5===0;const bossType=stage===20?'pecado':stage===15?'tsukuomi':stage===10?'reuni':'boss';
- const total=testBossMode?0:isBoss?(stage===20?12:stage===15?2:stage===10?4:3):Math.min(isPecador()?23:18,3+Math.floor(stage*1.02)+(isPecador()?3:0));
+ const isBoss=stage%5===0;const bossType=stage===25?'frostjarl':stage===20?'pecado':stage===15?'tsukuomi':stage===10?'reuni':'boss';
+ const total=testBossMode?0:isNordic()?(isBoss?5:Math.min(isPecador()?21:16,5+localNordicWave()*2+(isPecador()?3:0))):isBoss?(stage===20?12:stage===15?2:stage===10?4:3):Math.min(isPecador()?23:18,3+Math.floor(stage*1.02)+(isPecador()?3:0));
  for(let i=0;i<total;i++){
   const pos=spawnAroundPlayer(120,270);
   const type=isBoss&&stage===15?(i%2?'beast':'ghost'):randEnemyType();
@@ -118,14 +123,14 @@ function spawnStage(){
  if(isBoss){
   YG_AUDIO.play('bossWarning',1.1);
   const pos=spawnAroundPlayer(120,170);
-  const hp=(bossType==='pecado'?11200:bossType==='tsukuomi'?5100:bossType==='reuni'?3600:1500+stage*120)*(isPecador()?1.65:1)*(coop.active&&coop.host?1+0.68*(coop.allies.size):1);
+  const hp=(bossType==='frostjarl'?6800:bossType==='pecado'?11200:bossType==='tsukuomi'?5100:bossType==='reuni'?3600:1500+stage*120)*(isPecador()?1.65:1)*(coop.active&&coop.host?1+0.68*(coop.allies.size):1);
   const e={id:nextEnemyId++,type:bossType,x:pos.x,y:pos.y,hp,maxHp:hp,
-   speed:(bossType==='pecado'?86:bossType==='tsukuomi'?77:bossType==='reuni'?100:38+stage*.8)*(isPecador()?1.14:1),
-   radius:bossType==='pecado'?25:bossType==='tsukuomi'?19:bossType==='reuni'?20:23,attack:bossType==='pecado'?1.05:bossType==='tsukuomi'?1.12:bossType==='reuni'?1.0:1.35,
+   speed:(bossType==='frostjarl'?65:bossType==='pecado'?86:bossType==='tsukuomi'?77:bossType==='reuni'?100:38+stage*.8)*(isPecador()?1.14:1),
+   radius:bossType==='frostjarl'?28:bossType==='pecado'?25:bossType==='tsukuomi'?19:bossType==='reuni'?20:23,attack:bossType==='frostjarl'?1.2:bossType==='pecado'?1.05:bossType==='tsukuomi'?1.12:bossType==='reuni'?1.0:1.35,
    hurt:0,step:0,face:'down',mode:'walk',specialIndex:0,rage:false,guardTime:0,
    chargeTime:0,chargeDir:{x:0,y:1},counterCd:0,summonTimer:bossType==='pecado'?4.8:bossType==='tsukuomi'?5.5:4.1,windup:0,corruptionPhase:0};
   enemies.push(e);
-  bossMessage=bossType==='pecado'?'PECADO · O FIM DAS SETE RAÍZES':bossType==='tsukuomi'?'TSUKUOMI · A VOZ DA LUA':bossType==='reuni'?'REUNI · SENHOR DO SANGUE':'DAIMYŌ ONI · SENHOR DOS ONIS';
+  bossMessage=bossType==='frostjarl'?'JARL DO GELO · O REI DA TEMPESTADE':bossType==='pecado'?'PECADO · O FIM DAS SETE RAÍZES':bossType==='tsukuomi'?'TSUKUOMI · A VOZ DA LUA':bossType==='reuni'?'REUNI · SENHOR DO SANGUE':'DAIMYŌ ONI · SENHOR DOS ONIS';
   bossMessageTimer=3;
  }
  updateHud();
@@ -139,7 +144,7 @@ function spawnAroundPlayer(minD,maxD){
  }
  return {x,y};
 }
-function start(type, bossTest=false, frogTest=false){selectedBoss=null;testBossMode=!!bossTest;player=createPlayer(type);if(coop.active&&coop.host)coop.hostAvatar=player;if(type==='kris'&&frogTest){player.frogSkill=true;player.cards.push('frog');}stage=bossTest==='pecado'?20:bossTest==='tsukuomi'?15:(bossTest==='reuni'?10:(bossTest?5:1));essence=0;elapsed=0;flash=0;mouseAim=null;keys.clear();$('titleScreen').classList.add('hidden');$('selectScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('supremeScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('gameOverScreen').classList.add('hidden');$('hud').style.display='flex';$('mobileControls').style.display='';document.body.classList.add('is-playing');adaptViewport();YG_AUDIO.play('choose');if(coop.active&&coop.host)coopInitAllies();
+function start(type, bossTest=false, frogTest=false){selectedBoss=null;testBossMode=!!bossTest&&bossTest!=='nordic';player=createPlayer(type);if(coop.active&&coop.host)coop.hostAvatar=player;if(type==='kris'&&frogTest){player.frogSkill=true;player.cards.push('frog');}stage=bossTest==='nordic'?21:bossTest==='frostjarl'?25:bossTest==='pecado'?20:bossTest==='tsukuomi'?15:(bossTest==='reuni'?10:(bossTest?5:1));essence=0;elapsed=0;flash=0;mouseAim=null;keys.clear();$('titleScreen').classList.add('hidden');$('selectScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('supremeScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('gameOverScreen').classList.add('hidden');$('hud').style.display='flex';$('mobileControls').style.display='';document.body.classList.add('is-playing');adaptViewport();YG_AUDIO.play('choose');if(coop.active&&coop.host)coopInitAllies();
  if(coop.active&&!coop.host){
    phase='play';enemies=[];projectiles=[];hazards=[];healthDrops=[];shadowClones=[];slashes=[];rings=[];
    camera.x=clamp(player.x-W/2,0,WORLD_W-W);camera.y=clamp(player.y-H/2,0,WORLD_H-H);
@@ -190,7 +195,7 @@ function nearestLivingHero(e){
 }
 function slash(x,y,ang,r,color){slashes.push({x,y,ang,r,color,life:.15,max:.15});shake=Math.max(shake,1.5)}
 function ring(x,y,r,color){rings.push({x,y,r,life:.44,max:.44,color})}
-function hitEnemy(e,dmg,chargesSupreme=false,trueDamage=false){if(e.hp<=0)return;let isCrit=!trueDamage&&Math.random()<Math.min(.95,player.crit+(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?.27:0)),amount=dmg*(isCrit?1.7:1)*(player.curseTime>0&&!trueDamage?.62:1)*(e.corruptTime>0&&!trueDamage?1.16:1)*(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?1.35:1);if(!trueDamage&&Math.random()<player.echo)amount*=1.6;if(isBossEnemy(e)&&!trueDamage)amount=Math.min(amount,e.maxHp*.04);if(!trueDamage&&e.type==='boss'&&e.mode==='guard'&&e.guardTime>0){amount*=.3;if(e.counterCd<=0&&dist(e,player)<62){e.counterCd=1.25;ring(e.x,e.y,60,'#ff5374');bossMessage='CONTRA-ATAQUE DO SHOGUN';bossMessageTimer=.8;hurtPlayer(e.rage?25:18);}}e.hp-=amount;e.hurt=.14;if(player.type==='cross'&&e.hp>0&&e.hp<=e.maxHp*.5&&!e.corruptTime){e.corruptTime=5.5;e.slow=Math.max(e.slow||0,1.2);textPop(e.x,e.y-28,'CORROMPIDO','#c89cff');ring(e.x,e.y,27,'#8344af');}YG_AUDIO.play(isBossEnemy(e)?'heavyHit':'hit',isCrit?1.2:.82);if(chargesSupreme&&player.ultimateTime<=0&&player.ultimateBuffTime<=0)player.ultimateCharge=Math.min(100,player.ultimateCharge+(player.type==='eve'?(isBossEnemy(e)?3.2:1.8):(isBossEnemy(e)?12:9)));textPop(e.x,e.y-12,Math.round(amount)+(isCrit?'!':''),isCrit?'#ffd67b':'#f0ccdc',e.id);makeParticles(e.x,e.y,player.type==='loid'?'#ae7de3':player.type==='cross'?'#b167ef':'#709cff',4);if(e.hp<=0){YG_AUDIO.play(isBossEnemy(e)?'bossDefeat':'oniDeath',e.type==='boss'?1.2:.65);player.kills++;essence+=isBossEnemy(e)?150:10;makeParticles(e.x,e.y,isBossEnemy(e)?'#e4b7ff':'#b1519d',18,1.3);player.hp=Math.min(player.maxHp,player.hp+player.onKillHeal);if(!isBossEnemy(e)&&Math.random()<.05&&healthDrops.length<35){healthDrops.push({x:e.x,y:e.y,amount:12,life:16,phase:Math.random()*6.28});}if(isBossEnemy(e)){player.hp=player.maxHp;if(coop.active&&coop.host){const host=coop.hostAvatar||player;host.hp=host.maxHp;host.ghost=false;for(const ally of coop.allies.values()){ally.hp=ally.maxHp;ally.ghost=false;}}textPop(player.x,player.y-31,'VIDA RESTAURADA!','#b5ffad');hazards=[];eclipseTime=0;for(const add of enemies){if(add!==e&&!isBossEnemy(add))add.hp=0;}bossMessage=e.type==='pecado'?'PECADO DERROTADO!':e.type==='tsukuomi'?'TSUKUOMI DERROTADA!':e.type==='reuni'?'REUNI DERROTADO!':'DAIMYŌ ONI DERROTADO!';bossMessageTimer=2.4;}}}
+function hitEnemy(e,dmg,chargesSupreme=false,trueDamage=false){if(e.hp<=0)return;let isCrit=!trueDamage&&Math.random()<Math.min(.95,player.crit+(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?.27:0)),amount=dmg*(isCrit?1.7:1)*(player.curseTime>0&&!trueDamage?.62:1)*(e.corruptTime>0&&!trueDamage?1.16:1)*(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?1.35:1);if(!trueDamage&&Math.random()<player.echo)amount*=1.6;if(isBossEnemy(e)&&!trueDamage)amount=Math.min(amount,e.maxHp*.04);if(!trueDamage&&e.type==='boss'&&e.mode==='guard'&&e.guardTime>0){amount*=.3;if(e.counterCd<=0&&dist(e,player)<62){e.counterCd=1.25;ring(e.x,e.y,60,'#ff5374');bossMessage='CONTRA-ATAQUE DO SHOGUN';bossMessageTimer=.8;hurtPlayer(e.rage?25:18);}}e.hp-=amount;e.hurt=.14;if(player.type==='cross'&&e.hp>0&&e.hp<=e.maxHp*.5&&!e.corruptTime){e.corruptTime=5.5;e.slow=Math.max(e.slow||0,1.2);textPop(e.x,e.y-28,'CORROMPIDO','#c89cff');ring(e.x,e.y,27,'#8344af');}YG_AUDIO.play(isBossEnemy(e)?'heavyHit':'hit',isCrit?1.2:.82);if(chargesSupreme&&player.ultimateTime<=0&&player.ultimateBuffTime<=0)player.ultimateCharge=Math.min(100,player.ultimateCharge+(player.type==='eve'?(isBossEnemy(e)?3.2:1.8):(isBossEnemy(e)?12:9)));textPop(e.x,e.y-12,Math.round(amount)+(isCrit?'!':''),isCrit?'#ffd67b':'#f0ccdc',e.id);makeParticles(e.x,e.y,player.type==='loid'?'#ae7de3':player.type==='cross'?'#b167ef':'#709cff',4);if(e.hp<=0){YG_AUDIO.play(isBossEnemy(e)?'bossDefeat':'oniDeath',e.type==='boss'?1.2:.65);player.kills++;essence+=isBossEnemy(e)?150:10;makeParticles(e.x,e.y,isBossEnemy(e)?'#e4b7ff':'#b1519d',18,1.3);player.hp=Math.min(player.maxHp,player.hp+player.onKillHeal);if(!isBossEnemy(e)&&Math.random()<.05&&healthDrops.length<35){healthDrops.push({x:e.x,y:e.y,amount:12,life:16,phase:Math.random()*6.28});}if(isBossEnemy(e)){player.hp=player.maxHp;if(coop.active&&coop.host){const host=coop.hostAvatar||player;host.hp=host.maxHp;host.ghost=false;for(const ally of coop.allies.values()){ally.hp=ally.maxHp;ally.ghost=false;}}textPop(player.x,player.y-31,'VIDA RESTAURADA!','#b5ffad');hazards=[];eclipseTime=0;for(const add of enemies){if(add!==e&&!isBossEnemy(add))add.hp=0;}bossMessage=e.type==='frostjarl'?'JARL DO GELO DERROTADO!':e.type==='pecado'?'PECADO DERROTADO!':e.type==='tsukuomi'?'TSUKUOMI DERROTADA!':e.type==='reuni'?'REUNI DERROTADO!':'DAIMYŌ ONI DERROTADO!';bossMessageTimer=2.4;}}}
 
 // Card-exclusive, one-use frog form: the next attack performs a shadow-frog leap.
 function frogSmash(){
@@ -705,11 +710,11 @@ for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.life-=dt;p.x+=p.vx*d
 for(let i=dashShadows.length-1;i>=0;i--){dashShadows[i].life-=dt;if(dashShadows[i].life<=0)dashShadows.splice(i,1)}
 updateDamageFloats(dt);
 if(phase!=='play')return;
-updateCardBeam(dt);updateXansSkulls(dt);applyTimeFields(dt);updateMirrorIllusions(dt);tickEveUltimate(dt);voidCollapse=Math.max(0,voidCollapse-dt);if(player.crossChain){player.crossChain.time-=dt;if(player.crossChain.time<=0)player.crossChain=null;}player.mirrorGuard=Math.max(0,(player.mirrorGuard||0)-dt);player.frogTime=Math.max(0,player.frogTime-dt);if(player.type==='kris'&&player.frogSkill&&player.frogUsed&&player.frogTime<=0){player.frogSkill=false;player.skillCd=0;}player.curseTime=Math.max(0,player.curseTime-dt);player.atkTime=Math.max(0,player.atkTime-dt);player.dashCd=Math.max(0,player.dashCd-dt);player.skillCd=Math.max(0,player.skillCd-dt);player.secondaryCd=Math.max(0,player.secondaryCd-dt);if(player.type==='kris'&&player.secondaryCharging)player.secondaryCharge=Math.min(1.6,player.secondaryCharge+dt);if(player.type==='cross')updateCrossBones(player,dt,coop.id);player.ultimateTime=Math.max(0,player.ultimateTime-dt);player.ultimateBuffTime=Math.max(0,player.ultimateBuffTime-dt);player.invuln=Math.max(0,player.invuln-dt);player.transformTime=Math.max(0,player.transformTime-dt);player.darkAuraTime=Math.max(0,player.darkAuraTime-dt);
+updateCardBeam(dt);updateXansSkulls(dt);applyTimeFields(dt);updateMirrorIllusions(dt);tickEveUltimate(dt);voidCollapse=Math.max(0,voidCollapse-dt);if(player.crossChain){player.crossChain.time-=dt;if(player.crossChain.time<=0)player.crossChain=null;}player.mirrorGuard=Math.max(0,(player.mirrorGuard||0)-dt);player.frogTime=Math.max(0,player.frogTime-dt);if(player.type==='kris'&&player.frogSkill&&player.frogUsed&&player.frogTime<=0){player.frogSkill=false;player.skillCd=0;}player.curseTime=Math.max(0,player.curseTime-dt);player.frostTime=Math.max(0,(player.frostTime||0)-dt);player.atkTime=Math.max(0,player.atkTime-dt);player.dashCd=Math.max(0,player.dashCd-dt);player.skillCd=Math.max(0,player.skillCd-dt);player.secondaryCd=Math.max(0,player.secondaryCd-dt);if(player.type==='kris'&&player.secondaryCharging)player.secondaryCharge=Math.min(1.6,player.secondaryCharge+dt);if(player.type==='cross')updateCrossBones(player,dt,coop.id);player.ultimateTime=Math.max(0,player.ultimateTime-dt);player.ultimateBuffTime=Math.max(0,player.ultimateBuffTime-dt);player.invuln=Math.max(0,player.invuln-dt);player.transformTime=Math.max(0,player.transformTime-dt);player.darkAuraTime=Math.max(0,player.darkAuraTime-dt);
 let m=getMove(),moving=!!(mobileMove.x||mobileMove.y||['w','a','s','d','arrowup','arrowleft','arrowdown','arrowright'].some(k=>keys.has(k)));
 movingNow=moving||player.dashTime>0;footstepClock-=dt;if(moving&&player.dashTime<=0&&footstepClock<=0){footstepClock=.33;YG_AUDIO.play('footstep',.32);}
 if(player.type==='cross'&&player.crossTp){updateCrossTeleport(player,dt);}
-else if(player.dashTime>0){player.dashTime=Math.max(0,player.dashTime-dt);player.x+=player.dashV.x*(player.type==='eve'?590:340)*dt;player.y+=player.dashV.y*(player.type==='eve'?590:340)*dt;if(player.type==='loid'){dashGhostTimer-=dt;if(dashGhostTimer<=0){dashGhostTimer=.035;if(dashShadows.length>18)dashShadows.shift();dashShadows.push({x:player.x,y:player.y,face:player.face,step:player.step,life:.30,max:.30});}if(Math.random()<.75)makeParticles(player.x+rand(-6,6),player.y+rand(-8,4),'#301739',2,.5);}else if(player.shadowDash&&Math.random()<.5)makeParticles(player.x,player.y,'#ab6bf2',2)}else if(moving&&(player.hp>0||(coop.active&&coop.host))){let haste=player.type==='loid'&&player.ultimateTime>0?1.65:player.ultimateBuff==='piedade'&&player.ultimateBuffTime>0?1.5:1;const moveSpeed=player.hp<=0?116:player.speed*haste*(player.curseTime>0?.78:1);player.x+=m.x*moveSpeed*dt;player.y+=m.y*moveSpeed*dt;player.step+=dt*11;player.aim=Math.atan2(m.y,m.x);}
+else if(player.dashTime>0){player.dashTime=Math.max(0,player.dashTime-dt);player.x+=player.dashV.x*(player.type==='eve'?590:340)*dt;player.y+=player.dashV.y*(player.type==='eve'?590:340)*dt;if(player.type==='loid'){dashGhostTimer-=dt;if(dashGhostTimer<=0){dashGhostTimer=.035;if(dashShadows.length>18)dashShadows.shift();dashShadows.push({x:player.x,y:player.y,face:player.face,step:player.step,life:.30,max:.30});}if(Math.random()<.75)makeParticles(player.x+rand(-6,6),player.y+rand(-8,4),'#301739',2,.5);}else if(player.shadowDash&&Math.random()<.5)makeParticles(player.x,player.y,'#ab6bf2',2)}else if(moving&&(player.hp>0||(coop.active&&coop.host))){let haste=player.type==='loid'&&player.ultimateTime>0?1.65:player.ultimateBuff==='piedade'&&player.ultimateBuffTime>0?1.5:1;const moveSpeed=player.hp<=0?116:player.speed*haste*(player.curseTime>0?.78:1)*(player.frostTime>0?.72:1);player.x+=m.x*moveSpeed*dt;player.y+=m.y*moveSpeed*dt;player.step+=dt*11;player.aim=Math.atan2(m.y,m.x);}
 if(moving){if(Math.abs(m.x)>Math.abs(m.y))player.face=m.x<0?'left':'right';else player.face=m.y<0?'up':'down';}
 if(touchUI&&attackMobile&&!attackManualAim)mobileAutoAim(false);
 if(mouseAim){player.aim=Math.atan2(mouseAim.y-player.y,mouseAim.x-player.x);}
@@ -738,6 +743,11 @@ else if(e.type==='boss'){updateSamurai(e,dt,d,dir,spd);}
 else if(e.type==='reuni'){updateReuni(e,dt,d,dir,spd);}
 else if(e.type==='tsukuomi'){updateTsukuomi(e,dt,d,dir,spd);}
 else if(e.type==='pecado'){updatePecado(e,dt,d,dir,spd);}
+else if(e.type==='frostjarl'){updateFrostJarl(e,dt,d,dir,spd);}
+else if(e.type==='runewitch'){if(d>145){e.x+=dir.x*spd*dt;e.y+=dir.y*spd*dt;}else if(d<96){e.x-=dir.x*spd*.7*dt;e.y-=dir.y*spd*.7*dt;}if(e.attack<=0){e.attack=rand(1.7,2.6);const a=Math.atan2(dir.y,dir.x);for(const da of [-.26,0,.26])shoot(e,{x:Math.cos(a+da),y:Math.sin(a+da)},100+localNordicWave()*7,13+localNordicWave()*1.6,'#a5e7ff');ring(e.x,e.y,24,'#9bbfff');}}
+else if(e.type==='frostwolf'){if(e.windup>0){e.windup-=dt;if(e.windup<=0){e.chargeTime=.24;e.chargeDir=dir;e.hitCharge=false;}}else if(e.chargeTime>0){e.chargeTime-=dt;e.x+=e.chargeDir.x*spd*3.25*dt;e.y+=e.chargeDir.y*spd*3.25*dt;if(!e.hitCharge&&d<e.radius+12){e.hitCharge=true;hurtPlayer(17+localNordicWave()*1.9);}}else{if(d>32){e.x+=dir.x*spd*dt;e.y+=dir.y*spd*dt;}if(e.attack<=0&&d<165){e.attack=1.8;e.windup=.43;ring(e.x,e.y,18,'#a6e8ff');}}}
+else if(e.type==='berserker'){let furious=e.hp/e.maxHp<.47;if(furious)spd*=1.33;if(d>e.radius+10){e.x+=dir.x*spd*dt;e.y+=dir.y*spd*dt;}if(d<e.radius+17&&e.attack<=0){e.attack=furious?.6:1.05;slash(e.x,e.y,Math.atan2(dir.y,dir.x),39,'#ff7665');hurtPlayer((furious?27:21)+localNordicWave()*2);}}
+else if(e.type==='draugr'){if(d>e.radius+9){e.x+=dir.x*spd*dt;e.y+=dir.y*spd*dt;}if(d<e.radius+15&&e.attack<=0){e.attack=1.48;e.windup=.14;slash(e.x,e.y,Math.atan2(dir.y,dir.x),32,'#c6eafb');hurtPlayer(16+localNordicWave()*1.5);}}
 else if(e.type==='ghost'){
  // Ghosts glide through obstacles, retreat while shooting and appear/disappear subtly.
  const sway=Math.sin(elapsed*2.1+e.phase)*.42;
@@ -760,14 +770,14 @@ else if(e.type==='beast'){
 else{if(d>e.radius+8){e.x+=dir.x*spd*dt;e.y+=dir.y*spd*dt}if(d<e.radius+12&&e.attack<=0){e.attack=e.type==='runner'?.95:1.3;hurtPlayer((e.type==='runner'?9+stage*.65:12+stage*.7)*(e.elite?1.4:1))}}
 applyBoundaries(e,e.radius);player=__hostPlayer;}
 updateBossHazards(dt);for(let i=0;i<enemies.length;i++){let a=enemies[i];if(a.hp<=0)continue;for(let j=i+1;j<enemies.length;j++){let b=enemies[j];if(b.hp<=0)continue;let dx=b.x-a.x,dy=b.y-a.y,min=a.radius+b.radius+1;if(Math.abs(dx)>=min||Math.abs(dy)>=min)continue;let d=Math.hypot(dx,dy)||1;if(d<min){let push=(min-d)*.15;a.x-=dx/d*push;a.y-=dy/d*push;b.x+=dx/d*push;b.y+=dy/d*push}}}
-for(let i=projectiles.length-1;i>=0;i--){let b=projectiles[i];const td=b.from==='enemy'?(b.timeSlow??1):1;b.x+=b.vx*dt*td;b.y+=b.vy*dt*td;b.life-=dt;if(b.life<0||b.x<92||b.x>WORLD_W-92||b.y<148||b.y>WORLD_H-97){projectiles.splice(i,1);continue}if(b.from==='enemy'&&player.hp>0&&Math.hypot(b.x-player.x,b.y-player.y)<b.r+7){hurtPlayer(b.damage);makeParticles(b.x,b.y,b.color,7);projectiles.splice(i,1)}else if(b.from==='enemy'&&coop.active&&coop.host){const target=[...coop.allies.values()].find(p=>p.hp>0&&Math.hypot(b.x-p.x,b.y-p.y)<b.r+7);if(target){const old=player;player=target;hurtPlayer(b.damage);player=old;makeParticles(b.x,b.y,b.color,7);projectiles.splice(i,1);}}else if(b.from==='player'){let hit=enemies.find(e=>e.hp>0&&Math.hypot(b.x-e.x,b.y-e.y)<b.r+e.radius);if(hit){const prior=player;if(coop.active&&coop.host&&b.ownerId&&b.ownerId!==coop.id){player=coop.allies.get(b.ownerId)||player;}hitEnemy(hit,b.damage,true);player=prior;if(b.mirror){YG_AUDIO.play('mirrorHit',.85);ring(b.x,b.y,28,'#e7c9ff');makeParticles(b.x,b.y,'#c8a2f4',12,.65);makeParticles(b.x,b.y,'#f7e7ff',6,.45);}if(b.bone==='azul'){hit.slow=Math.max(hit.slow||0,1.9);}if(b.bone==='laranja'){hit.burnTime=3.3;hit.burnTick=.3;}if(b.bone){makeParticles(hit.x,hit.y,b.color,12);ring(hit.x,hit.y,22,b.color);}projectiles.splice(i,1)}}}
+for(let i=projectiles.length-1;i>=0;i--){let b=projectiles[i];const td=b.from==='enemy'?(b.timeSlow??1):1;b.x+=b.vx*dt*td;b.y+=b.vy*dt*td;b.life-=dt;if(b.life<0||b.x<92||b.x>WORLD_W-92||b.y<148||b.y>WORLD_H-97){projectiles.splice(i,1);continue}if(b.from==='enemy'&&player.hp>0&&Math.hypot(b.x-player.x,b.y-player.y)<b.r+7){if(isNordic()&&b.color==='#a5e7ff'||isNordic()&&b.color==='#98eaff')player.frostTime=Math.max(player.frostTime||0,1.7);hurtPlayer(b.damage);makeParticles(b.x,b.y,b.color,7);projectiles.splice(i,1)}else if(b.from==='enemy'&&coop.active&&coop.host){const target=[...coop.allies.values()].find(p=>p.hp>0&&Math.hypot(b.x-p.x,b.y-p.y)<b.r+7);if(target){const old=player;player=target;if(isNordic()&&(b.color==='#98eaff'||b.color==='#a5e7ff'))target.frostTime=Math.max(target.frostTime||0,1.7);hurtPlayer(b.damage);player=old;makeParticles(b.x,b.y,b.color,7);projectiles.splice(i,1);}}else if(b.from==='player'){let hit=enemies.find(e=>e.hp>0&&Math.hypot(b.x-e.x,b.y-e.y)<b.r+e.radius);if(hit){const prior=player;if(coop.active&&coop.host&&b.ownerId&&b.ownerId!==coop.id){player=coop.allies.get(b.ownerId)||player;}hitEnemy(hit,b.damage,true);player=prior;if(b.mirror){YG_AUDIO.play('mirrorHit',.85);ring(b.x,b.y,28,'#e7c9ff');makeParticles(b.x,b.y,'#c8a2f4',12,.65);makeParticles(b.x,b.y,'#f7e7ff',6,.45);}if(b.bone==='azul'){hit.slow=Math.max(hit.slow||0,1.9);}if(b.bone==='laranja'){hit.burnTime=3.3;hit.burnTick=.3;}if(b.bone){makeParticles(hit.x,hit.y,b.color,12);ring(hit.x,hit.y,22,b.color);}projectiles.splice(i,1)}}}
 enemies=enemies.filter(e=>e.hp>0);
 for(let i=healthDrops.length-1;i>=0;i--){const h=healthDrops[i];h.life-=dt;if(h.life<=0){healthDrops.splice(i,1);continue;}const target=(coop.active&&coop.host?[player,...coop.allies.values()]:[player]).find(p=>p.hp>0&&Math.hypot(h.x-p.x,h.y-p.y)<16);if(target){let gain=Math.min(h.amount,target.maxHp-target.hp);target.hp+=gain;if(gain>0){textPop(target.x,target.y-22,'+'+Math.round(gain)+' VIDA','#9af8a7');YG_AUDIO.play('card',.5);}healthDrops.splice(i,1);}}
 // After killing the final Oni the player can explore for three real seconds.
 // No countdown overlay appears; projectiles/hazards are removed for safety.
 if(enemies.length===0&&phase==='play'){
  if(waveClearTimer<0){waveClearTimer=3;projectiles=[];hazards=[];}
- else {waveClearTimer=Math.max(0,waveClearTimer-dt);if(waveClearTimer===0){waveClearTimer=-1;if(stage===20){phase='over';player.hp=player.maxHp;$('endTitle').textContent='PECADO FOI DERROTADO';$('endText').textContent='Os heróis resistiram ao fim das raízes. Você venceu a batalha final na onda 20!';$('gameOverScreen').classList.remove('hidden');}else{phase='reward';showRewards();}}}
+ else {waveClearTimer=Math.max(0,waveClearTimer-dt);if(waveClearTimer===0){waveClearTimer=-1;if(stage===25){phase='over';player.hp=player.maxHp;$('endTitle').textContent='REINO NÓRDICO CONQUISTADO!';$('endText').textContent='Você derrotou o Jarl do Gelo e sobreviveu ao Inverno Eterno!';$('gameOverScreen').classList.remove('hidden');}else{phase='reward';showRewards();}}}
 }
 updateHud();}
 // Boss state machine. Boss damages only when the visible warning resolves and the hitbox connects.
@@ -1026,11 +1036,32 @@ function updatePecado(e,dt,d,dir,spd){
  if(e.attack<=0)pecadoMove(e);
 }
 
+// Stage 25 — Frozen Jarl. Attacks are telegraphed and synced by the host in co-op.
+function updateFrostJarl(e,dt,d,dir,spd){
+ if(!Number.isFinite(e.specialCd))e.specialCd=1.7; else e.specialCd-=dt;
+ const fury=e.hp<e.maxHp*.45;
+ if(fury&&!e.rage){e.rage=true;e.speed*=1.18;bossMessage='JARL DO GELO · SEGUNDA FASE: INVERNO ETERNO';bossMessageTimer=3;ring(e.x,e.y,105,'#80dfff');makeParticles(e.x,e.y,'#bdf4ff',30,1.7);YG_AUDIO.play('bossRage',1.15);}
+ if(e.mode==='windup'){
+  e.windup-=dt;
+  if(e.windup<=0){
+   const move=e.move;
+   if(move==='blizzard'){for(let i=0;i<(e.rage?9:6);i++){let a=i*TAU/(e.rage?9:6)+e.phase;hazards.push({type:'ice',x:clamp(e.x+Math.cos(a)*rand(60,125),103,WORLD_W-103),y:clamp(e.y+Math.sin(a)*rand(60,125),154,WORLD_H-102),r:27,delay:.18+i*.045,active:.32,done:false});}YG_AUDIO.play('bossRain',.85);}
+   else if(move==='shards'){let a=e.angle;for(let i=-2;i<=2;i++){const an=a+i*.23;shoot(e,{x:Math.cos(an),y:Math.sin(an)},e.rage?155:134,e.rage?24:19,'#98eaff');}YG_AUDIO.play('oniCast',1.15);}
+   else if(move==='crush'){let count=e.rage?6:4;for(let i=0;i<count;i++){const ang=TAU*i/count;hazards.push({type:'ice',x:clamp(player.x+Math.cos(ang)*38,104,WORLD_W-104),y:clamp(player.y+Math.sin(ang)*38,154,WORLD_H-104),r:22,delay:.22+i*.12,active:.33,done:false});}YG_AUDIO.play('bossEclipse',.8);}
+   else if(move==='summon'){let count=enemies.filter(a=>a.hp>0&&!isBossEnemy(a)).length;for(let i=0;i<(e.rage?3:2)&&count<14;i++){let a=rand(0,TAU);addMob(i%2?'draugr':'frostwolf',clamp(e.x+Math.cos(a)*75,102,WORLD_W-102),clamp(e.y+Math.sin(a)*75,156,WORLD_H-106));count++;}YG_AUDIO.play('bossRage',.7);}
+   e.mode='walk';e.attack=e.rage?.8:1.2;ring(e.x,e.y,45,'#b8f1ff');
+  }
+  return;
+ }
+ if(d>e.radius+27){e.x+=dir.x*spd*dt;e.y+=dir.y*spd*dt;}
+ else if(e.attack<=0){hurtPlayer(e.rage?29:22);e.attack=.75;slash(e.x,e.y,Math.atan2(dir.y,dir.x),74,'#b7efff');}
+ if(e.specialCd<=0){e.specialCd=e.rage?2.1:2.9;e.move=['shards','blizzard','crush','summon'][e.specialIndex++%4];e.angle=Math.atan2(dir.y,dir.x);e.mode='windup';e.windup=e.rage?.48:.72;e.attack=1.6;bossMessage='JARL DO GELO · '+({shards:'LANÇAS GLACIAIS',blizzard:'CHUVA DE GELO',crush:'RUÍNA RÚNICA',summon:'CHAMADO DOS DRAUGRS'}[e.move]);bossMessageTimer=1.6;YG_AUDIO.play('bossWarning',1);}
+}
 function updateBossHazards(dt){
  for(let i=hazards.length-1;i>=0;i--){
   const h=hazards[i];h.delay-=dt;
   if(h.delay<=0){
-   if(!h.done){h.done=true;h.active=.32;slash(h.x,h.y-Math.min(17,h.r),Math.PI/2,h.r*.9,h.type==='sin'?'#ff1747':h.type==='void'?'#c38bff':h.type==='blood'?'#f8173e':'#f94b7f');makeParticles(h.x,h.y,'#ff537d',8);for(const t of coop.active&&coop.host?[player,...coop.allies.values()]:[player]){if(t.hp<=0||Math.hypot(h.x-t.x,h.y-t.y)>=h.r+6)continue;const original=player;player=t;if(h.type==='sin')applyCurse(5);hurtPlayer(h.type==='sin'?(isPecador()?36:26):h.type==='void'?(isPecador()?30:22):h.type==='blood'?(isPecador()?25:20):(15+stage*.45));player=original;}
+   if(!h.done){h.done=true;h.active=.32;slash(h.x,h.y-Math.min(17,h.r),Math.PI/2,h.r*.9,h.type==='ice'?'#8ce8ff':h.type==='sin'?'#ff1747':h.type==='void'?'#c38bff':h.type==='blood'?'#f8173e':'#f94b7f');makeParticles(h.x,h.y,h.type==='ice'?'#c0f4ff':'#ff537d',8);for(const t of coop.active&&coop.host?[player,...coop.allies.values()]:[player]){if(t.hp<=0||Math.hypot(h.x-t.x,h.y-t.y)>=h.r+6)continue;const original=player;player=t;if(h.type==='sin')applyCurse(5);if(h.type==='ice'){t.frostTime=Math.max(t.frostTime||0,2.3);textPop(t.x,t.y-34,'GELADO','#c1f5ff');}hurtPlayer(h.type==='sin'?(isPecador()?36:26):h.type==='void'?(isPecador()?30:22):h.type==='blood'?(isPecador()?25:20):(15+stage*.45));player=original;}
    }
    h.active-=dt;if(h.active<=0)hazards.splice(i,1);
   }
@@ -1039,13 +1070,14 @@ function updateBossHazards(dt){
 function drawBossWarnings(){
  if(phase!=='play')return;
  for(const h of hazards){
-  ctx.save();ctx.strokeStyle=h.type==='sin'?'#ff153c':h.type==='void'?'#c48bff':h.type==='blood'?'#ff1e45':h.done?'#fff0e7':'#ff5476';ctx.fillStyle=h.type==='sin'?'#df001c66':h.type==='void'?'#7030a34c':h.type==='blood'?'#a909324a':h.done?'#ff5a8666':'#f74a6047';ctx.lineWidth=2;ctx.beginPath();ctx.arc(h.x,h.y,h.r,0,TAU);ctx.fill();ctx.stroke();
+  ctx.save();ctx.strokeStyle=h.type==='ice'?'#a1edff':h.type==='sin'?'#ff153c':h.type==='void'?'#c48bff':h.type==='blood'?'#ff1e45':h.done?'#fff0e7':'#ff5476';ctx.fillStyle=h.type==='ice'?'#8bcdf455':h.type==='sin'?'#df001c66':h.type==='void'?'#7030a34c':h.type==='blood'?'#a909324a':h.done?'#ff5a8666':'#f74a6047';ctx.lineWidth=2;ctx.beginPath();ctx.arc(h.x,h.y,h.r,0,TAU);ctx.fill();ctx.stroke();
   if(h.done){ctx.strokeStyle='#fff2f5';ctx.beginPath();ctx.moveTo(h.x-8,h.y-17);ctx.lineTo(h.x,h.y+16);ctx.lineTo(h.x+8,h.y-17);ctx.stroke();}
   ctx.restore();
  }
  for(const e of enemies){if(!isBossEnemy(e)||e.mode!=='windup')continue;
   ctx.save();ctx.fillStyle='#f3385652';ctx.strokeStyle='#fe6284';ctx.lineWidth=1.6;
-  if(e.move==='curse'){const r=210;ctx.fillStyle='#f5193e55';ctx.strokeStyle='#ff5367';ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.arc(e.x,e.y,r,e.angle-.58,e.angle+.58);ctx.closePath();ctx.fill();ctx.stroke();}
+  if(e.type==='frostjarl'){ctx.fillStyle='#80dcff30';ctx.strokeStyle='#bdf4ff';ctx.beginPath();ctx.arc(e.x,e.y,e.move==='blizzard'?135:70,0,TAU);ctx.fill();ctx.stroke();}
+  else if(e.move==='curse'){const r=210;ctx.fillStyle='#f5193e55';ctx.strokeStyle='#ff5367';ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.arc(e.x,e.y,r,e.angle-.58,e.angle+.58);ctx.closePath();ctx.fill();ctx.stroke();}
   else if(e.move==='gaze'){const r=165;ctx.fillStyle='#8c43bf55';ctx.strokeStyle='#d59bfa';ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.arc(e.x,e.y,r,e.angle-.52,e.angle+.52);ctx.closePath();ctx.fill();ctx.stroke();}
   else if(e.move==='eclipse'&&e.type==='tsukuomi'){ctx.strokeStyle='#a37be5';ctx.beginPath();ctx.arc(e.x,e.y,125,0,TAU);ctx.stroke();}
   else if(e.move==='claws'){const r=e.rage?71:59;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.arc(e.x,e.y,r,e.angle-.9,e.angle+.9);ctx.closePath();ctx.fill();ctx.stroke();}
@@ -1061,20 +1093,21 @@ function drawBossWarnings(){
 function shoot(e,vec,speed,damage,color){if(projectiles.length>155)return;YG_AUDIO.play('oniCast',.56);projectiles.push({x:e.x,y:e.y,vx:vec.x*speed,vy:vec.y*speed,life:3,r:3.5,damage,from:'enemy',color});}
 function drawR(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),w,h)}
 function drawMap(){
- if(ARENA.complete&&ARENA.naturalWidth){
+ const activeArena=isNordic()?NORDIC_ARENA:ARENA;
+ if(activeArena.complete&&activeArena.naturalWidth){
   const sx=Math.round(camera.x),sy=Math.round(camera.y);
-  ctx.drawImage(ARENA,sx,sy,W,H,sx,sy,W,H);
-  ctx.fillStyle=stage===20?'rgba(142,0,8,.66)':'#07071126';ctx.fillRect(sx,sy,W,H);
+  ctx.drawImage(activeArena,sx,sy,W,H,sx,sy,W,H);
+  ctx.fillStyle=isNordic()?'rgba(5,22,43,.15)':stage===20?'rgba(142,0,8,.66)':'#07071126';ctx.fillRect(sx,sy,W,H);
   if(stage===20){ctx.fillStyle='rgba(255,25,40,.09)';ctx.fillRect(sx,sy,W,H);}
  }else{
   ctx.fillStyle='#211e30';ctx.fillRect(0,0,WORLD_W,WORLD_H);
  }
- // Sparse decorative falling leaves; only draw ones close to the camera.
+ // Sparse drifting snow in the Nordic kingdom, falling leaves in Japan.
  for(let i=0;i<24;i++){
   const px=(123+i*127+Math.sin(elapsed*.45+i)*10)%WORLD_W;
   const py=(187+i*151+elapsed*11)%WORLD_H;
   if(px<camera.x-10||px>camera.x+W+10||py<camera.y-10||py>camera.y+H+10)continue;
-  ctx.globalAlpha=.48;drawR(px,py,2,2,i%2?'#c33d56':'#e9a58a');
+  ctx.globalAlpha=.48;drawR(px,py,2,2,isNordic()?(i%2?'#bdeafa':'#e9faff'):(i%2?'#c33d56':'#e9a58a'));
  }
  ctx.globalAlpha=1;
 }
@@ -1120,7 +1153,14 @@ function enemySprite(e){
  const img=ENEMY_ART[e.type];
  if(img&&img.complete&&img.naturalWidth){
   ctx.save();ctx.translate(Math.round(e.x),Math.round(e.y));
-  if(isBossEnemy(e)){
+  if(isNordic()&&['draugr','frostwolf','berserker','runewitch','frostjarl'].includes(e.type)){
+   const row={down:0,left:1,right:2,up:3}[e.face||'down']??0;
+   const col=Math.floor(elapsed*(e.mode==='windup'?5:8)+e.phase)%3;
+   const sz=e.type==='frostjarl'?110:e.type==='frostwolf'?48:e.type==='berserker'?52:e.type==='runewitch'?48:45;
+   ctx.imageSmoothingEnabled=false;ctx.drawImage(img,col*112,row*112,112,112,-sz/2,-sz+(e.type==='frostjarl'?22:9),sz,sz);ctx.imageSmoothingEnabled=true;
+   if(e.rage){ctx.strokeStyle='#a4e9ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,-sz*.36,sz*.55+Math.sin(elapsed*5)*3,0,TAU);ctx.stroke();}
+   if(e.hurt>0){ctx.globalAlpha=Math.min(.27,e.hurt*2);ctx.fillStyle='#fff';ctx.fillRect(-sz/2,-sz+9,sz,sz);}
+  }else if(isBossEnemy(e)){
    const row={down:0,left:1,right:2,up:3}[e.face||'down']??0;
    const col=Math.floor(elapsed*(e.mode==='charge'?15:6))%3;
    if(e.rage){ctx.shadowColor=e.type==='pecado'?'#f10d2c':e.type==='tsukuomi'?'#9f59ea':e.type==='reuni'?'#fa1e3e':'#f7367c';ctx.shadowBlur=lowFx()?0:10;ctx.fillStyle='#9e1d5166';ctx.beginPath();ctx.ellipse(0,-10,23,25,0,0,TAU);ctx.fill();ctx.shadowBlur=0;}
@@ -1140,8 +1180,8 @@ function enemySprite(e){
  }else{ctx.fillStyle='#4f274d';ctx.fillRect(e.x-8,e.y-18,16,18)}
  if(e.corruptTime>0){ctx.save();ctx.strokeStyle='#bb58f7';ctx.globalAlpha=.72;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.x,e.y-12,e.radius+6,e.radius+11,0,0,TAU);ctx.stroke();ctx.restore();}
  if(isBossEnemy(e)){
-  drawR(e.x-37,e.y-54,74,6,'#160c18');
-  drawR(e.x-36,e.y-53,72*Math.max(0,e.hp/e.maxHp),4,e.type==='pecado'?'#ff243b':e.type==='tsukuomi'?'#bc80ff':e.type==='reuni'?'#f61943':e.rage?'#f52d56':'#d97687');
+  drawR(e.x-37,e.y-(e.type==='frostjarl'?96:54),74,6,'#160c18');
+  drawR(e.x-36,e.y-(e.type==='frostjarl'?95:53),72*Math.max(0,e.hp/e.maxHp),4,e.type==='frostjarl'?'#9deaff':e.type==='pecado'?'#ff243b':e.type==='tsukuomi'?'#bc80ff':e.type==='reuni'?'#f61943':e.rage?'#f52d56':'#d97687');
  }
 }
 function drawTsukuomiNight(){
@@ -1219,7 +1259,7 @@ function drawDashShadows(){
  }
 }
 function drawNewFields(){ctx.save();for(const t of timeFields){ctx.globalAlpha=.22;ctx.fillStyle='#3f61ac';ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,TAU);ctx.fill();ctx.globalAlpha=.7;ctx.strokeStyle='#9ccaff';ctx.lineWidth=2;ctx.stroke();}for(const v of mirrorIllusions){ctx.globalAlpha=Math.min(.5,v.life/6*.5);heroSprite(v.x,v.y,v.owner?.type||'kali','down',elapsed*12,false,.85,v.owner);}ctx.restore();}
-function drawEffects(){drawNewFields();for(const b of projectiles){if(b.mirror){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(elapsed*10);ctx.shadowColor='#d6a7ff';ctx.shadowBlur=lowFx()?0:7;if(MIRROR_SPRITE.complete&&MIRROR_SPRITE.naturalWidth){ctx.imageSmoothingEnabled=false;ctx.drawImage(MIRROR_SPRITE,-15,-15,30,30);ctx.imageSmoothingEnabled=true;}else{ctx.fillStyle='#ae70d8';ctx.fillRect(-8,-8,16,16);}ctx.restore();continue;}ctx.fillStyle=b.color;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,TAU);ctx.fill();if(b.bone){ctx.strokeStyle='#fff9f4';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle=b.color;ctx.fillRect(b.x-7,b.y-2,14,4);}drawR(b.x-1,b.y-1,2,2,'#f4d8ff')}
+function drawEffects(){drawNewFields();for(const b of projectiles){if(b.mirror){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(elapsed*10);ctx.shadowColor='#d6a7ff';ctx.shadowBlur=lowFx()?0:7;if(MIRROR_SPRITE.complete&&MIRROR_SPRITE.naturalWidth){ctx.imageSmoothingEnabled=false;ctx.drawImage(MIRROR_SPRITE,-15,-15,30,30);ctx.imageSmoothingEnabled=true;}else{ctx.fillStyle='#ae70d8';ctx.fillRect(-8,-8,16,16);}ctx.restore();continue;}if(isNordic()&&b.from==='enemy'&&(b.color==='#a5e7ff'||b.color==='#98eaff')){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx)+Math.PI/2);ctx.fillStyle='#e6fcff';ctx.strokeStyle='#77cfff';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(5,2);ctx.lineTo(0,9);ctx.lineTo(-5,2);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}else{ctx.fillStyle=b.color;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,TAU);ctx.fill();}if(b.bone){ctx.strokeStyle='#fff9f4';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle=b.color;ctx.fillRect(b.x-7,b.y-2,14,4);}drawR(b.x-1,b.y-1,2,2,'#f4d8ff')}
 for(const s of slashes){ctx.save();ctx.globalAlpha=s.life/s.max;ctx.strokeStyle=s.color;ctx.lineWidth=6;ctx.beginPath();ctx.arc(s.x,s.y,s.r*.62,s.ang-1.25,s.ang+1.25);ctx.stroke();ctx.strokeStyle='#faf2fe';ctx.lineWidth=1;ctx.stroke();ctx.restore()}
 for(const ring of rings){ctx.save();ctx.globalAlpha=ring.life/ring.max;ctx.strokeStyle=ring.color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(ring.x,ring.y,ring.r*(1.35-ring.life/ring.max*.35),0,TAU);ctx.stroke();ctx.restore()}
 for(const p of particles){if(lowFx()&&(p.x<camera.x-15||p.x>camera.x+W+15||p.y<camera.y-15||p.y>camera.y+H+15))continue;ctx.save();ctx.globalAlpha=Math.min(1,p.life/p.max);if(p.text){ctx.font='bold 9px system-ui';ctx.textAlign='center';ctx.fillStyle='#17111c';ctx.fillText(p.text,p.x+1,p.y+1);ctx.fillStyle=p.color;ctx.fillText(p.text,p.x,p.y)}else{drawR(p.x,p.y,p.size,p.size,p.color)}ctx.restore()}}
@@ -1319,7 +1359,7 @@ function updateHud(){
  $('btnSecondary').style.setProperty('--readiness', (player.secondaryCharging?player.secondaryCharge/1.6*100:Math.max(0,100*(1-player.secondaryCd/player.secondaryDelay)))+'%');
  $('cooldownDashSlot').style.setProperty('--readiness',Math.max(0,100*(1-player.dashCd/player.dashDelay))+'%');
  $('cooldownUltimateSlot').style.setProperty('--readiness',charge+'%');
- $('stageText').textContent='ONDA '+String(stage).padStart(2,'0')+(stage===20?' · PECADO':stage===15?' · TSUKUOMI':stage===10?' · REUNI':stage%5===0?' · CHEFE':'')+(isPecador()?' ✦ PECADOR':'');
+ $('stageText').textContent='ONDA '+String(stage).padStart(2,'0')+(isNordic()?' · NÓRDICO '+String(localNordicWave()).padStart(2,'0'):stage===20?' · PECADO':stage===15?' · TSUKUOMI':stage===10?' · REUNI':stage%5===0?' · CHEFE':'')+(isPecador()?' ✦ PECADOR':'');
  $('themeText').textContent=theme().name;
  $('counterText').textContent=`INIMIGOS ${enemies.filter(e=>e.hp>0).length} · ESSÊNCIA ${essence}`+(coop.active?` · ONLINE ${coop.members.length}/5`:'');
 }
@@ -1541,16 +1581,17 @@ function openSelection(bossId=null){
  YG_AUDIO.play('menu');phase='select';selectedBoss=bossId;
  $('titleScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('selectScreen').classList.remove('hidden');
  $('selectionTitle').textContent=bossId?'ESCOLHA QUEM ENFRENTA O CHEFE':'ESCOLHA SEU HERÓI';
- const names={samurai:'DAIMYŌ ONI · ONDA 5',reuni:'REUNI · ONDA 10',tsukuomi:'TSUKUOMI · ONDA 15',pecado:'PECADO · ONDA 20'};
- $('selectionIntro').textContent=bossId?'TESTE IMEDIATO: '+names[bossId]+' — escolha um dos três protagonistas.':'Enfrente ondas de Onis, yokais e fantasmas; escolha uma carta de poder após cada onda.';
+ const names={nordic:'REINO NÓRDICO · 1ª ONDA',frostjarl:'JARL DO GELO · ONDA 25',samurai:'DAIMYŌ ONI · ONDA 5',reuni:'REUNI · ONDA 10',tsukuomi:'TSUKUOMI · ONDA 15',pecado:'PECADO · ONDA 20'};
+ $('selectionIntro').textContent=bossId?'TESTE IMEDIATO: '+names[bossId]+' — escolha um dos cinco protagonistas.':'Japão: 20 ondas; depois Reino Nórdico: 5 ondas mais difíceis. Escolha uma carta após cada onda.';
  $('selectionBack').textContent=bossId?'← VOLTAR AOS CHEFES':'← VOLTAR À ABERTURA';
 }
 function openBossList(){YG_AUDIO.play('menu');phase='bosslist';$('titleScreen').classList.add('hidden');$('selectScreen').classList.add('hidden');$('bossScreen').classList.remove('hidden');}
 function launchHero(type){start(type,selectedBoss,false);}
 $('titleStart').addEventListener('click',()=>openSelection());
+$('nordicRealmBtn').addEventListener('click',()=>openSelection('nordic'));
 $('titleSelect').addEventListener('click',openBossList);
 $('bossBack').addEventListener('click',()=>{phase='title';$('bossScreen').classList.add('hidden');$('titleScreen').classList.remove('hidden')});
-$('selectionBack').addEventListener('click',()=>{if(selectedBoss)openBossList();else{phase='title';$('selectScreen').classList.add('hidden');$('titleScreen').classList.remove('hidden')}});
+$('selectionBack').addEventListener('click',()=>{if(selectedBoss&&selectedBoss!=='nordic')openBossList();else{phase='title';$('selectScreen').classList.add('hidden');$('titleScreen').classList.remove('hidden')}});
 for(const b of document.querySelectorAll('[data-boss]'))b.addEventListener('click',()=>openSelection(b.dataset.boss));
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>setDifficulty(b.dataset.mode)));setDifficulty('normal');
 for(const btn of document.querySelectorAll('[data-supreme]'))btn.addEventListener('click',()=>chooseUltimate(btn.dataset.supreme));
@@ -1674,7 +1715,7 @@ function coopRemotePress(id,action,value,aim,dx,dy){
 }
 function coopAdvance(dt){
  for(const [id,a] of coop.allies){
-   for(const k of ['dashCd','skillCd','secondaryCd','invuln','curseTime','atkTime','darkAuraTime','ultimateTime','ultimateBuffTime','transformTime','frogTime'])a[k]=Math.max(0,(a[k]||0)-dt);
+   for(const k of ['dashCd','skillCd','secondaryCd','invuln','curseTime','frostTime','atkTime','darkAuraTime','ultimateTime','ultimateBuffTime','transformTime','frogTime'])a[k]=Math.max(0,(a[k]||0)-dt);
    if(a.secondaryCharging)a.secondaryCharge=Math.min(1.6,a.secondaryCharge+dt);
    if(a.type==='cross')updateCrossBones(a,dt,id);
    // V3.4: a guest's Eve Lorey ultimate must tick on the HOST as well.
@@ -1697,8 +1738,8 @@ function coopAdvance(dt){
    const dir=norm(inp.x,inp.y);const active=Math.hypot(inp.x,inp.y)>.08;
    if(a.type==='cross'&&a.crossTp){updateCrossTeleport(a,dt);}
    else if(a.dashTime>0){a.dashTime=Math.max(0,a.dashTime-dt);a.x+=a.dashV.x*340*dt;a.y+=a.dashV.y*340*dt;}
-   else if(active){a.x+=dir.x*a.speed*(a.type==='loid'&&a.ultimateTime>0?1.65:1)*(a.curseTime>0?.78:1)*dt;
-     a.y+=dir.y*a.speed*(a.type==='loid'&&a.ultimateTime>0?1.65:1)*(a.curseTime>0?.78:1)*dt;a.step+=dt*11;
+   else if(active){a.x+=dir.x*a.speed*(a.type==='loid'&&a.ultimateTime>0?1.65:1)*(a.curseTime>0?.78:1)*(a.frostTime>0?.72:1)*dt;
+     a.y+=dir.y*a.speed*(a.type==='loid'&&a.ultimateTime>0?1.65:1)*(a.curseTime>0?.78:1)*(a.frostTime>0?.72:1)*dt;a.step+=dt*11;
      a.face=Math.abs(dir.x)>Math.abs(dir.y)?dir.x<0?'left':'right':dir.y<0?'up':'down';}
    if(Number.isFinite(inp.aim))a.aim=inp.aim;
    applyBoundaries(a,8);

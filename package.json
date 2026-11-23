@@ -1,13 +1,14 @@
 {
   "name": "yggdrasil-online-cloudflare",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "test:protocol": "npm run test:server",
     "deploy": "wrangler deploy",
-    "test:server": "node tests/authoritative.test.mjs && node tests/network-server.test.mjs"
+    "test:server": "node tests/authoritative.test.mjs && node tests/network-server.test.mjs",
+    "test:nordic": "node tests/nordic.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.50.0"

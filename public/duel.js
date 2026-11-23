@@ -1,4 +1,4 @@
-// YGGDRASIL v3.6 PvP — optimised shared online arena with locally predicted input.
+// YGGDRASIL v3.7 PvP — optimised shared online arena with locally predicted input.
 // The host is the authority for damage, cooldowns, positions and the outcome.
 const $ = id => document.getElementById(id);
 const W=960,H=576,MAP_W=1920,MAP_H=1400,HP=11200,ROUND_TIME=180;

@@ -8,7 +8,7 @@
 .music-controls button{padding:8px 11px;font-size:11px}.music-controls label{display:flex;gap:6px;align-items:center}
 .music-controls input{width:82px;accent-color:#c18aff}
 
-/* v3.6: illustrated abilities instead of letters; one full-screen arena without repeats. */
+/* v3.7: illustrated abilities instead of letters; one full-screen arena without repeats. */
 .skills button[data-act="q"],.skills button[data-act="e"],.skills button[data-act="r"]{padding:0;position:relative;display:grid;place-items:center;border-color:#b797cd;overflow:hidden;background:#21132e}
 .skill-icon{height:90%;width:90%;object-fit:contain;image-rendering:pixelated;pointer-events:none;filter:drop-shadow(0 0 4px #70468e)}
 .skill-key{position:absolute;right:2px;bottom:1px;font:900 10px system-ui;background:#10091acc;border-radius:4px;padding:1px 3px;color:#fff2cf;pointer-events:none;text-shadow:0 1px black}
@@ -17,7 +17,7 @@
 .hero img{image-rendering:pixelated;object-position:center 26%;border:1px solid #a886b1}
 @media (pointer:coarse) and (orientation:portrait){.skills{gap:6px}.skill-key{font-size:9px}}
 
-/* v3.6: make card illustrations large, decorative and recognisable at mobile resolutions. */
+/* v3.7: make card illustrations large, decorative and recognisable at mobile resolutions. */
 .illustrated-card{position:relative;overflow:hidden;background:radial-gradient(circle at 50% 19%,#453164 0%,#271c36 39%,#110e1e 100%);border:2px solid #9676af;box-shadow:inset 0 0 0 2px #191126,0 5px 10px #05020a;min-height:204px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;text-align:center}
 .illustrated-card[data-rarity="rare"]{border-color:#6aade6}.illustrated-card[data-rarity="epic"]{border-color:#e9bd6c;box-shadow:0 0 12px #b48b4a44,inset 0 0 0 2px #191126}
 .illustrated-card .card-art{width:90px;height:94px;max-width:90%;object-fit:contain;image-rendering:pixelated;z-index:1;filter:drop-shadow(0 3px 6px #11091f)}
@@ -45,22 +45,30 @@
 .selection-hotspot.selected{border:3px solid #ffe3a5;box-shadow:inset 0 0 0 2px #9168c3,0 0 24px #9e4deed0;background:#be83ff16}
 .selection-hotspot:disabled{filter:grayscale(.9);opacity:.35;cursor:not-allowed}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+</style><style id="duel-portrait-ui-v37">
+.duel-portrait-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;max-width:880px;margin:12px auto}
+.duel-portrait-grid .duel-hero-portrait{display:flex;min-width:0;flex-direction:column;align-items:center;gap:6px;padding:6px 5px 8px;border:2px solid #795c9f;border-radius:8px;background:linear-gradient(#241932,#0d1423);color:#f8e3b3}
+.duel-hero-portrait img{width:100%;height:158px;object-fit:cover;object-position:center 34%;image-rendering:auto;border-radius:4px}
+.duel-hero-portrait strong{font:700 clamp(9px,1.6vw,14px) Georgia;letter-spacing:.07em}
+.duel-hero-portrait.selected{border-color:#f8d2a2;box-shadow:0 0 20px #bd87f7a5}
+.duel-hero-portrait:disabled{opacity:.36;filter:grayscale(1)}
+@media(max-width:620px){.duel-portrait-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.duel-hero-portrait img{height:100px}.duel-hero-portrait strong{font-size:10px}}
 </style></head>
 <body><div class="wrap">
-<header class="heading"><div><h1>⚔ YGGDRASIL · X1 ONLINE · V3.6</h1><small>Duelo das sete raízes · 11.200 de vida por lutador</small></div><a class="return" href="./">← VOLTAR AO COOPERATIVO</a></header>
+<header class="heading"><div><h1>⚔ YGGDRASIL · X1 ONLINE · V3.7</h1><small>Duelo das sete raízes · 11.200 de vida por lutador</small></div><a class="return" href="./">← VOLTAR AO COOPERATIVO</a></header>
 <div id="duelMusicControls" class="music-controls"><label for="duelQuality">QUALIDADE <select id="duelQuality" aria-label="Qualidade do X1"><option value="auto">Auto</option><option value="high">HD</option><option value="light">Leve</option><option value="performance">Desempenho</option></select></label><button type="button" id="duelMusicToggle" aria-pressed="false">♫ ATIVAR OST DO X1</button><label for="duelMusicVolume">VOL <input aria-label="Volume da música" id="duelMusicVolume" type="range" min="0" max="100" value="26"></label></div><audio id="duelMusic" src="assets/audio/duel_theme.mp3" preload="none" loop></audio>
 <div id="notice" class="status" role="status" aria-live="polite">Conectando à arena online…</div>
 <section class="panel" id="entry"><div class="tag">◆ NOVO MODO ◆</div><h2>Duelo e espectadores</h2><p class="quiet">Dois lutadores se enfrentam. Outras pessoas podem assistir ao vivo, inclusive entrando depois que a luta começar.</p>
 <div class="flex"><button class="primary glow" id="create">CRIAR SALA X1</button><input class="field" id="roomCode" placeholder="CÓDIGO" maxlength="6" aria-label="Código da sala"/><button id="joinFighter">ENTRAR PARA LUTAR</button><button id="joinSpectator">ASSISTIR COMO ESPECTADOR</button></div></section>
-<section id="lobby" class="panel hidden"><div class="tag">◆ ARENA DO X1 · V3.6 ◆</div><h2>Sala <span id="codeLabel" class="code"></span> <button id="copyCode">COPIAR</button></h2><div id="participants" class="players"></div><p id="roleHint" class="quiet"></p>
-<div id="selectArea"><h3>1. Escolha seu personagem</h3><div class="selection-canvas-v36" id="heroOptions"><img src="assets/ui/selection_exact_v36.webp?v=36" alt="Arte oficial de seleção Yggdrasil: Loid, Kris e Xans acima, Eve Lorey e Kali abaixo" draggable="false"/><button class="selection-hotspot" data-hero="loid" style="--sl:6%;--st:27%;--sw:27%;--sh:32%;" aria-label="Selecionar LOID" title="Selecionar LOID"><span class="sr-only">Selecionar LOID</span></button><button class="selection-hotspot" data-hero="kris" style="--sl:36%;--st:27%;--sw:27%;--sh:32%;" aria-label="Selecionar KRIS" title="Selecionar KRIS"><span class="sr-only">Selecionar KRIS</span></button><button class="selection-hotspot" data-hero="cross" style="--sl:66%;--st:27%;--sw:27%;--sh:32%;" aria-label="Selecionar XANS" title="Selecionar XANS"><span class="sr-only">Selecionar XANS</span></button><button class="selection-hotspot" data-hero="eve" style="--sl:18%;--st:61%;--sw:29%;--sh:33%;" aria-label="Selecionar EVE LOREY" title="Selecionar EVE LOREY"><span class="sr-only">Selecionar EVE LOREY</span></button><button class="selection-hotspot" data-hero="kali" style="--sl:52%;--st:61%;--sw:29%;--sh:33%;" aria-label="Selecionar KALI" title="Selecionar KALI"><span class="sr-only">Selecionar KALI</span></button></div><h3>2. Escolha 3 cartas antes do combate <span id="chosenCount">(0/3)</span></h3><div class="cards" id="draftCards"></div></div>
+<section id="lobby" class="panel hidden"><div class="tag">◆ ARENA DO X1 · V3.7 ◆</div><h2>Sala <span id="codeLabel" class="code"></span> <button id="copyCode">COPIAR</button></h2><div id="participants" class="players"></div><p id="roleHint" class="quiet"></p>
+<div id="selectArea"><h3>1. Escolha seu personagem</h3><div class="duel-portrait-grid" id="heroOptions"><button type="button" class="duel-hero-portrait" data-hero="loid" aria-label="Escolher LOID" title="LOID"><img src="assets/ui/nordic_select_loid.webp?v=37" alt="Retrato de LOID"><strong>LOID</strong></button><button type="button" class="duel-hero-portrait" data-hero="kris" aria-label="Escolher KRIS" title="KRIS"><img src="assets/ui/nordic_select_kris.webp?v=37" alt="Retrato de KRIS"><strong>KRIS</strong></button><button type="button" class="duel-hero-portrait" data-hero="cross" aria-label="Escolher XANS" title="XANS"><img src="assets/ui/nordic_select_cross.webp?v=37" alt="Retrato de XANS"><strong>XANS</strong></button><button type="button" class="duel-hero-portrait" data-hero="eve" aria-label="Escolher EVE LOREY" title="EVE LOREY"><img src="assets/ui/nordic_select_eve.webp?v=37" alt="Retrato de EVE LOREY"><strong>EVE LOREY</strong></button><button type="button" class="duel-hero-portrait" data-hero="kali" aria-label="Escolher KALI" title="KALI"><img src="assets/ui/nordic_select_kali.webp?v=37" alt="Retrato de KALI"><strong>KALI</strong></button></div><h3>2. Escolha 3 cartas antes do combate <span id="chosenCount">(0/3)</span></h3><div class="cards" id="draftCards"></div></div>
 <div class="flex"><button id="begin" class="primary" disabled>COMEÇAR DUELO</button><button id="leave">SAIR DA SALA</button><span class="quiet" id="waitText">Aguardando participantes…</span></div></section>
 <section id="battle" class="hidden"><div class="arena-shell"><canvas id="arena" width="1920" height="1152" aria-label="Arena X1 em pixel art com os personagens de Yggdrasil"></canvas>
 <div class="match-hud"><div class="fighter-hud"><strong id="leftName">LUTADOR 1</strong><div class="meter"><div class="health" id="leftHp"></div></div><span id="leftNum" class="info">11.200 / 11.200</span></div><div class="top-info"><strong id="timer">03:00</strong><div id="netInfo">ONLINE</div></div><div class="fighter-hud right"><strong id="rightName">LUTADOR 2</strong><div class="meter"><div class="health" id="rightHp"></div></div><span id="rightNum" class="info">11.200 / 11.200</span></div></div>
 <div id="roundCountdown" class="countdown"></div><div id="spectatorMark" class="speclabel hidden">👁 ESPECTADOR · ASSISTINDO AO VIVO</div>
 <div class="touchbar" id="touchControls"><div class="stick" id="moveStick"><div class="knob" id="moveKnob"></div></div><div class="skills"><button data-act="q">Q</button><button data-act="e">E</button><button data-act="attack" class="attack">⚔</button><button data-act="r">R</button><button data-act="dash">↝</button></div></div>
 <div class="game-over hidden" id="resultOverlay"><div><div class="tag">◆ FIM DO DUELO ◆</div><h2 id="winnerTitle"></h2><p id="winnerNote" class="quiet"></p><button class="primary" id="rematch">JOGAR NOVAMENTE · MESMA SALA</button><button id="backLobby">VOLTAR À SALA</button></div></div></div>
-<div class="help desktop"><b>YGGDRASIL v3.6 · X1 PIXEL ART</b> · PC: <b>WASD</b> movimenta · <b>Mouse / J</b> ataca · <b>Espaço</b> esquiva · <b>Q/E/R</b> habilidades · <b>Segurar E</b> carrega o Corte Dimensional do Kris</div><div class="help">No celular, ataque com mira automática. O anfitrião deve manter o jogo aberto para a luta continuar.</div>
+<div class="help desktop"><b>YGGDRASIL v3.7 · X1 PIXEL ART</b> · PC: <b>WASD</b> movimenta · <b>Mouse / J</b> ataca · <b>Espaço</b> esquiva · <b>Q/E/R</b> habilidades · <b>Segurar E</b> carrega o Corte Dimensional do Kris</div><div class="help">No celular, ataque com mira automática. O anfitrião deve manter o jogo aberto para a luta continuar.</div>
 </section>
-</div><script type="module" src="duel.js?v=36"></script></body></html>
+</div><script type="module" src="duel.js?v=37"></script></body></html>
 

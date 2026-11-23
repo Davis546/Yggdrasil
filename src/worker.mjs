@@ -5,7 +5,7 @@ import { DurableObject } from 'cloudflare:workers';
 
 const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali']);
 const MAX_COOP_PLAYERS = HEROES.size; // five unique heroes, including the host
-const BOSSES = new Set(['samurai', 'reuni', 'tsukuomi', 'pecado']);
+const BOSSES = new Set(['samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl']);
 const ACTIONS = new Set(['attack', 'q', 'eDown', 'eUp', 'dash', 'ultimate', 'card', 'ultimateChoice', 'f']);
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 // The PvP draft is server-generated and server-validated. No instant-kill cards in PvP.

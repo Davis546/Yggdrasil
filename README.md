@@ -1,47 +1,32 @@
-# YGGDRASIL v3.6 — seleção oficial + X1 com simulação no servidor
+# YGGDRASIL v3.7 — Reino Nórdico (expansão jogável)
 
-## Principais mudanças
+## O que foi adicionado
 
-- **Seleção de personagens:** a arte indicada pelo usuário é usada como tela visual de seleção em **jornada, cooperativo e X1**. Os cinco retratos da imagem permanecem intactos. As cinco áreas sobrepostas são clicáveis, inclusive no celular.
-- **X1 autoritativo no Cloudflare:** a simulação de posições, golpes, recargas, dano e desfecho saiu do navegador do anfitrião e roda no **Durable Object**. Os dois lutadores enviam comandos de movimentação/ação para o servidor. Os espectadores recebem o mesmo estado de combate.
-- **Rede:** movimento em pacotes menores a até 20 Hz e estado completo com efeitos e vida a cerca de 10 Hz, além de estado imediato após usar uma habilidade. Os clientes fazem predição visual e interpolação; **não podem escolher quanto dano causaram**.
-- **Movimento fantasma/tecla presa:** o servidor zera o movimento se não receber comandos em aproximadamente 250 ms. Quando a janela perde foco, o cliente tenta enviar movimento neutro.
-- **Gráficos, músicas e habilidades:** usam os arquivos da v3.5 sem alterações; a OST do duelo permanece em `public/assets/audio/duel_theme.mp3`.
-- **Cooperativo (até 5 jogadores):** mantido como estava na v3.5. O modo coop ainda usa simulação no anfitrião. **Somente o X1 passa a ser autoritativo no servidor** nesta atualização.
+- A campanha japonesa vai até a **onda 20 (Pecado)** e segue automaticamente para o **Reino Nórdico, ondas 21–25**, sem perder as cartas ou habilidades já obtidas.
+- **Arena nórdica grande (1448 x 1086)**, em pixel art, com câmera seguindo o jogador. Carregamento automático do mapa congelado a partir da onda 21.
+- **Inimigos nórdicos com sprites animados nas quatro direções:** Draugr (machado), Lobo Glacial (investida), Berserker (fica mais agressivo com pouca vida), Feiticeira Rúnica (projéteis de gelo em leque). Há lentidão temporária por gelo; o modo Pecador aumenta o desafio.
+- **Onda 25: Jarl do Gelo**, chefe de duas fases com lanças glaciais, chuva de gelo com aviso no chão, runas e invocações. Ao derrotá-lo, a campanha conclui o capítulo nórdico.
+- **Acesso rápido:** na abertura, clique em **TESTAR REINO NÓRDICO** para entrar na onda 21, ou use **TESTAR CHEFES → JARL DO GELO** para a luta imediata.
+- **Cooperativo online (até cinco):** o anfitrião pode selecionar Reino Nórdico no menu da sala; os novos inimigos e seus estados estão sincronizados com o protocolo existente. X1 foi preservado.
+- **Seleção de personagens** agora apresenta cinco cartões individualmente clicáveis, mantendo a arte aprovada em recortes individuais; a seleção do X1 também foi atualizada.
+- **Xans:** rosto esquelético adicionado aos sprites de combate, preservando a capa, roupas e poderes.
+- Versão atualizada na UI para **v3.7**.
 
-## Cloudflare, não servidor físico exclusivo
+## Publicar no Cloudflare usando o mesmo repositório
 
-O X1 passa a ser executado por uma instância de **Cloudflare Durable Object** em vez de depender do computador do dono da sala. Isso é uma **simulação centralizada no servidor**, não o aluguel de uma máquina física dedicada. O DO da versão ainda compartilha uma única instância para todas as salas da aplicação. Existe custo potencial de tempo ativo para timers durante partidas.
-
-## Publicação com GitHub Codespaces
-
-1. Faça backup do repositório e envie o ZIP `Yggdrasil_Cloudflare_Servidor_X1_v36.zip` para a raiz do repositório **ou** envie os arquivos extraídos, mantendo `public/`, `src/` e `wrangler.jsonc` na raiz.
-2. Dentro do terminal, execute:
-
-```bash
-# Execute a linha do unzip somente se o ZIP estiver presente no Codespaces:
-unzip -o Yggdrasil_Cloudflare_Servidor_X1_v36.zip -d .
-npm install
-npm run test:server
-npx wrangler deploy
-```
-
-3. Abra o domínio `.workers.dev` confirmado pelo `wrangler deploy`. Recarregue o jogo nos dois aparelhos para evitar arquivos em cache.
-4. Entre no **X1 Online**, crie a sala, escolha dois personagens e três cartas por lutador. Um espectador pode participar.
-
-## Testes que rodaram localmente
+1. No GitHub, faça upload deste ZIP para a raiz do repositório (ou envie os arquivos extraídos).
+2. No Codespaces, execute:
 
 ```bash
-node --check public/duel.js
-node --check src/worker.mjs
-node --check src/duel-engine.mjs
-npm run test:server
+git pull && unzip -o Yggdrasil_Reino_Nordico_v37.zip -d . && npm install && npm run test:server && npx wrangler deploy
 ```
 
-- Simulação central: dois lutadores andaram e atacaram; o servidor calculou os danos.
-- Anfitrião, convidado e espectador receberam os mesmos números de vida nos snapshots.
-- O servidor ignorou um snapshot falso enviado pelo cliente.
-- O mecanismo de quatro sombras do Loid continuou no conjunto de habilidades.
-- Verificado HTML: cinco botões clicáveis em cada tela de seleção, e arte oficial presente.
+3. Abra o endereço `.workers.dev` informado pelo Wrangler. No PC, atualize com Ctrl+Shift+R; no celular, feche a aba anterior e abra o endereço novamente.
 
-**Não foram medidos FPS ou latência real no Cloudflare com dois celulares.** O teste automatizado do navegador local foi bloqueado pelo ambiente. Esta é uma atualização para testes de internet, não garantia de “lag zero”.
+**Observação:** `git pull` baixa arquivos do GitHub, mas não os envia; para persistir as mudanças do Codespaces, faça `git add . && git commit -m "Yggdrasil v3.7" && git push` depois de conferir o conteúdo. Antes de executar `git add .`, evite versionar ZIPs antigos ou segredos.
+
+## Qualidade, validação e limites
+
+Scripts executados: `node --check public/game.js`, `node --check public/duel.js`, `node --check src/worker.mjs`, `npm run test:server` e testes isolados de progressão e criação de ondas 20/21/25. O serviço Cloudflare real, efeitos visuais e sincronização sob carga com cinco celulares ainda precisam de testes no seu site. Nenhum link público foi criado nesta entrega.
+
+**Arquivos principais:** `public/index.html`, `public/game.html`, `public/game.js`, `public/duel.html`, `public/duel.js`, `public/assets/nordic/`, `public/assets/enemies/nordic_*`, `src/worker.mjs`.
