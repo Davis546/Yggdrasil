@@ -1,3 +1,4 @@
+import { createDuel } from './duel-engine.mjs';
 // Yggdrasil Online v3.4 — Cloudflare Workers + Durable Objects (prototype)
 // Host-authoritative: the host simulates combat; this Durable Object relays inputs/states.
 import { DurableObject } from 'cloudflare:workers';
@@ -22,6 +23,7 @@ export class Lobby extends DurableObject {
     this.rooms = new Map();
     this.players = new Map();
     this.nextId = 1;
+    this.duelTicker = null;
 
     // Rebuild in-memory lobby from WebSocket attachments after DO hibernation.
     for (const socket of ctx.getWebSockets()) {
@@ -36,7 +38,7 @@ export class Lobby extends DurableObject {
       if (!a.code) continue;
       let room = this.rooms.get(a.code);
       if (!room) {
-        room = { code: a.code, members: new Set(), host: null, started: !!a.started, kind:a.kind||'coop', lastSnapshot:null, finished:false };
+        room = { code: a.code, members: new Set(), host: null, started: false, kind:a.kind||'coop', lastSnapshot:null, finished:false };
         this.rooms.set(a.code, room);
       }
       room.members.add(c);
@@ -138,6 +140,43 @@ export class Lobby extends DurableObject {
     this.safeSend(room.host, { t: 'left', id: c.id });
   }
 
+  // Cloudflare Durable Object is the only authority for the duel. Neither browser runs combat.
+  // One 20-Hz tick loop is shared across all active duels; stopped when no duels remain.
+  ensureDuelTicker(){
+    if(this.duelTicker)return;
+    this.duelTicker=setInterval(()=>{
+      let active=0;
+      for(const room of this.rooms.values()){
+        if(room.kind!=='pvp'||!room.started||room.finished||!room.match)continue;
+        active++;
+        try{
+          room.match.tick();
+          // 20Hz small motion updates, ~10Hz combat snapshots: fast movement without
+          // resending spell FX, projectiles and all cooldowns on every frame.
+          room.netTick=(room.netTick||0)+1;
+          const actors=room.match.getActors();
+          const motion={t:'pvpMotion',data:{seq:room.netTick,stamp:room.match.getClock(),time:room.match.getTime(),starting:room.match.getStarting(),players:actors.map((a,i)=>({id:a.id,x:Number(a.x.toFixed(2)),y:Number(a.y.toFixed(2)),face:a.face,step:a.step,aim:a.aim}))}};
+          if(room.netTick%2===1 || !room.lastSnapshot){
+            const packet={t:'pvpSnapshot',data:room.match.snapshot()};
+            room.lastSnapshot=packet.data;
+            for(const p of room.members)this.safeSend(p,packet);
+          }else{
+            for(const p of room.members)this.safeSend(p,motion);
+          }
+          if(room.match.finished){
+            room.finished=true;
+            const result={t:'pvpResult',winner:room.match.winner,reason:'DUELO ENCERRADO'};
+            for(const p of room.members)this.safeSend(p,result);
+            this.pvpLobby(room);
+          }
+        }catch(e){
+          room.finished=true;
+          for(const p of room.members)this.safeSend(p,{t:'error',message:'Erro na simulação do duelo. Volte à sala e tente novamente.'});
+        }
+      }
+      if(!active){clearInterval(this.duelTicker);this.duelTicker=null;}
+    },50);
+  }
   pvpMembers(room){
     return [...room.members].map(c=>({id:c.id,role:c.role,hero:c.hero||null,chosen:(c.picks||[]).length,ready:(c.picks||[]).length===3&&!!c.hero}));
   }
@@ -172,7 +211,7 @@ export class Lobby extends DurableObject {
     this.pvpLobby(room);
     if(room.started){
       this.safeSend(c,{t:'pvpBegin',fighters:this.pvpMembers(room).filter(x=>x.role==='fighter').map(x=>({...x,cards:this.players.get(x.id)?.picks||[]})),
-        hp:11200,host:room.host.id,spectator:true});
+        hp:11200,host:room.host.id,spectator:true,authority:'server'});
       if(room.lastSnapshot)this.safeSend(c,{t:'pvpSnapshot',data:room.lastSnapshot});
     }
   }
@@ -242,10 +281,28 @@ export class Lobby extends DurableObject {
           this.safeSend(c,{t:'error',message:'Aguarde dois lutadores com personagem e 3 cartas escolhidas.'});return;
         }
         r.started=true;r.finished=false;r.lastSnapshot=null;
-        const started={t:'pvpBegin',host:r.host.id,hp:11200,
+        r.match=createDuel(fighters.map(p=>({id:p.id,hero:p.hero,cards:p.picks})));
+        this.ensureDuelTicker();
+        const started={t:'pvpBegin',host:r.host.id,authority:'server',hp:11200,
           fighters:fighters.map(p=>({id:p.id,hero:p.hero,cards:p.picks}))};
         for(const p of r.members){this.persist(p);this.safeSend(p,started);}this.pvpLobby(r);return;
       }
+      // Server-authoritative movement and skills: applies equally to both fighters.
+      if(m.t==='pvpInput'&&r.started&&!r.finished&&c.role==='fighter'&&r.match){
+        const seq=Number.isSafeInteger(m.seq)&&m.seq>0?m.seq:0;
+        r.match.input(c.id,{x:m.x,y:m.y,aim:m.aim,attack:m.attack},seq);
+        return;
+      }
+      if(m.t==='pvpAction'&&r.started&&!r.finished&&c.role==='fighter'&&r.match){
+        if(!['dash','q','e','eDown','eUp','r'].includes(m.action))return;
+        // Rate limit actions even if a client attempts to spam websocket packets.
+        const now=Date.now();if(!['eDown','eUp'].includes(m.action)&&c.lastSkillAt&&now-c.lastSkillAt<50)return;if(!['eDown','eUp'].includes(m.action))c.lastSkillAt=now;
+        r.match.action(c.id,m.action,typeof m.variant==='string'?m.variant.slice(0,12):'',Number.isFinite(m.aim)?m.aim:0);
+        const packet={t:'pvpSnapshot',data:r.match.snapshot()};r.lastSnapshot=packet.data;
+        for(const p of r.members)this.safeSend(p,packet);
+        return;
+      }
+      if(r.match)return; // Legacy host/P2P transport is intentionally disabled for this duel.
       // Secure WebRTC signaling within an active X1 room. Only the two verified
       // fighters may exchange offer/answer/ICE; spectators cannot inject signals.
       if(m.t==='pvpSignal'&&r.started&&!r.finished&&c.role==='fighter'){
@@ -287,7 +344,7 @@ export class Lobby extends DurableObject {
         this.pvpLobby(r);return;
       }
       if(m.t==='pvpRematch'&&r.host===c&&r.started){
-        r.started=false;r.finished=false;r.lastSnapshot=null;
+        r.started=false;r.finished=false;r.lastSnapshot=null;r.match=null;
         for(const p of r.members){p.picks=[];p.offer=p.role==='fighter'&&p.hero?pvpOffer(p.hero):[];this.persist(p);
           this.safeSend(p,{t:'pvpReset',offer:p.offer});}
         this.pvpLobby(r);return;

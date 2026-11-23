@@ -1,4 +1,4 @@
-// YGGDRASIL v3.5 PvP — optimised shared online arena with locally predicted input.
+// YGGDRASIL v3.6 PvP — optimised shared online arena with locally predicted input.
 // The host is the authority for damage, cooldowns, positions and the outcome.
 const $ = id => document.getElementById(id);
 const W=960,H=576,MAP_W=1920,MAP_H=1400,HP=11200,ROUND_TIME=180;
@@ -26,6 +26,7 @@ const sprites={};for(const h of Object.keys(heroes)){let im=new Image();im.src=`
 // A return to the original understated controls: symbol + small key label.
 // Character abilities remain EXACTLY as defined by the actual gameplay code.
 let duelIconHero='';
+let serverDuel=false;
 function showSkillArt(hero){
  if(!hero||!heroes[hero])return;duelIconHero=hero;
  const sigils={q:'✦',e:'✧',r:'✶'};
@@ -163,13 +164,14 @@ function directSend(channel,msg,limit=18000){
  try{channel.send(JSON.stringify(msg));directLastActive=performance.now();return true;}catch(_){return false;}
 }
 function sendDuelInput(msg){
+ if(serverDuel){send(msg);return;}
  if(!directSend(directFast,msg,9000))send(msg);
  else if(performance.now()-lastInputCloudFallback>700){
   // Low-frequency cloud backup so a disrupted peer path never permanently locks controls.
   send(msg);lastInputCloudFallback=performance.now();
  }
 }
-function sendDuelAction(msg){if(!directSend(directEvents,msg,12000))send(msg);}
+function sendDuelAction(msg){if(serverDuel){send(msg);return;}if(!directSend(directEvents,msg,12000))send(msg);}
 let lastInputCloudFallback=0,inputSequence=0;
 
 let authoritativePrevious=new Map(),authoritativeVelocity=new Map(),smoothPacketCount=0;
@@ -214,15 +216,16 @@ function handleMessage(m){
  }
  if(m.t==='pvpDraft'){state.picks=m.picks||[];state.offer=m.offer||state.offer;renderDraft();refreshLobby();return;}
  if(m.t==='pvpBegin'){
+   serverDuel=m.authority==='server';
    closeDirect();directFailed=false;inputSequence=0;lastCloudSnapshot=0;
    state.started=true;state.finished=false;
    if(!state.id)return;
-   battle={host:state.id===m.host,fighters:m.fighters,players:[],particles:[],projectiles:[],fx:[],clones:[],clock:0,remaining:ROUND_TIME,starting:3,resultSent:false};latestSeq=-1;hostSeq=0;lastMotionSeq=-1;lastViewStamp=-1;motionSeq=0;lastMotionSent=0;lastSnapAt=0;authoritativePrevious.clear();authoritativeVelocity.clear();smoothPacketCount=0;lastInputHeartbeat=0;lastInputSent={x:0,y:0,aim:0,attack:false};rendered.clear();
+   battle={host:!serverDuel&&state.id===m.host,fighters:m.fighters,players:[],particles:[],projectiles:[],fx:[],clones:[],clock:0,remaining:ROUND_TIME,starting:3,resultSent:false};latestSeq=-1;hostSeq=0;lastMotionSeq=-1;lastViewStamp=-1;motionSeq=0;lastMotionSent=0;lastSnapAt=0;authoritativePrevious.clear();authoritativeVelocity.clear();smoothPacketCount=0;lastInputHeartbeat=0;lastInputSent={x:0,y:0,aim:0,attack:false};rendered.clear();
    for(let i=0;i<m.fighters.length;i++)battle.players.push(makeActor(m.fighters[i],i));
    view=null;rendered.clear();showScene('battle');show('resultOverlay',false);showSkillArt(m.fighters.find(p=>p.id===state.id)?.hero||'');
    show('spectatorMark',state.role==='spectator');show('touchControls',state.role==='fighter');
    $('roundCountdown').textContent='3';playDuelMusic();
-   if(state.role==='fighter'&&m.fighters?.length===2){
+   if(!serverDuel&&state.role==='fighter'&&m.fighters?.length===2){
     const other=m.fighters.find(x=>x.id!==state.id);
     if(other&&battle.host)startDirect(other.id,true);
    }note(state.role==='spectator'?'Espectando o X1.':'Duelo iniciado!');return;
@@ -304,6 +307,7 @@ function handleMessage(m){
    return;
  }
  if(m.t==='pvpReset'){
+   serverDuel=false;
    closeDirect();stopDuelMusic();state.started=false;state.finished=false;state.offer=m.offer||[];state.picks=[];
    battle=null;view=null;rendered.clear();showScene('lobby');renderDraft();refreshLobby();note('Nova disputa: escolham três cartas para a revanche!');return;
  }
@@ -319,7 +323,7 @@ function refreshLobby(){
  $('roleHint').textContent=spectator?'Você está como espectador. Os dois jogadores escolhem suas cartas antes do início.':'Cada lutador escolhe 1 personagem e 3 cartas entre 6 sorteadas. Os personagens não podem se repetir.';
  const mine=people.find(p=>p.id===state.id);state.selectedHero=mine?.hero||'';showSkillArt(state.selectedHero);
  for(const b of document.querySelectorAll('[data-hero]')){
-   b.classList.toggle('chosen',b.dataset.hero===mine?.hero);
+   b.classList.toggle('chosen',b.dataset.hero===mine?.hero);b.classList.toggle('selected',b.dataset.hero===mine?.hero);
    b.disabled=spectator||people.some(p=>p.id!==state.id&&p.role==='fighter'&&p.hero===b.dataset.hero);
  }
  renderDraft();
@@ -765,7 +769,7 @@ function paint(s,dt){
 function renderHud(s){if(!s||!s.players?.length)return;
  for(let i=0;i<2;i++){const p=s.players[i];if(!p)continue;$(i?'rightName':'leftName').textContent=heroes[p.hero]?.name||'LUTADOR';$(i?'rightHp':'leftHp').style.width=(clamp(p.hp/p.maxHp,0,1)*100)+'%';$(i?'rightNum':'leftNum').textContent=`${nfmt(p.hp)} / ${nfmt(p.maxHp)} · ULT ${p.ult|0}%`;}
  let remain=Math.max(0,s.time||0),secs=Math.ceil(remain);$('timer').textContent=`${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
- $('netInfo').textContent=`${fps} FPS · ${directActive()?'DIRETO P2P':'CLOUDFLARE'} · ${directRtt>0&&directActive()?Math.round(directRtt):state.ping}ms · jitter ${Math.round(networkJitter)}ms`;
+ $('netInfo').textContent=`${fps} FPS · ${serverDuel?'SERVIDOR':directActive()?'DIRETO P2P':'CLOUDFLARE'} · ${directRtt>0&&directActive()?Math.round(directRtt):state.ping}ms · jitter ${Math.round(networkJitter)}ms`;
  $('roundCountdown').textContent=s.starting>0?String(Math.ceil(s.starting)):s.players.some(p=>p.hero==='eve'&&p.voidUlt>0)?'EXPANSÃO DO VAZIO':'';
 }
 function renderGuests(dt){
@@ -829,7 +833,7 @@ function tick(ms){let dt=clamp((ms-last)/1000,0,.045);last=ms;gameTime+=dt;fpsTi
    else if(performance.now()-lastSend>45){
     const now=performance.now();
     const changed=Math.abs(controls.x-lastInputSent.x)>.06||Math.abs(controls.y-lastInputSent.y)>.06||Math.abs(Math.atan2(Math.sin(controls.aim-lastInputSent.aim),Math.cos(controls.aim-lastInputSent.aim)))>.13||controls.attack!==lastInputSent.attack;
-    if(ws?.bufferedAmount<7000&&(changed||now-lastInputHeartbeat>140)){
+    if(ws?.bufferedAmount<12000&&(changed||now-lastInputHeartbeat>(serverDuel?90:140))){
       sendDuelInput({t:'pvpInput',seq:++inputSequence,...controls});lastInputSent={...controls};lastInputHeartbeat=now;
     }
     lastSend=now;
@@ -895,4 +899,5 @@ setInterval(async()=>{
  }}catch(_){/* unsupported browser stats */}
 },3200);
 if(new URLSearchParams(location.search).has('debug'))window.YGG_DEBUG={snapshot:()=>view,actor:()=>rendered.get(state.id),host:()=>battle?.host,actors:()=>battle?.players};
+window.addEventListener('blur',()=>{keySet.clear();touchX=touchY=0;controls.x=controls.y=0;controls.attack=false;sendDuelInput({t:'pvpInput',seq:++inputSequence,x:0,y:0,aim:controls.aim,attack:false});});
 connect();requestAnimationFrame(tick);
