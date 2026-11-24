@@ -3,7 +3,7 @@
 const HP=11200,MAP_W=1920,MAP_H=1400;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-const heroes={loid:{name:'LOID',dmg:128,speed:175,attack:.37,range:46,crit:.09,skill:9,second:20,dash:2.4,color:'#cda4f2'},kris:{name:'KRIS',dmg:158,speed:157,attack:.43,range:109,crit:.08,skill:14,second:8.5,dash:2.8,color:'#6dbbff'},cross:{name:'XANS',dmg:137,speed:174,attack:.40,range:98,crit:.26,skill:6.5,second:9,dash:2.55,color:'#bb74ff'},eve:{name:'EVE LOREY',dmg:175,speed:197,attack:.34,range:113,crit:.15,skill:21,second:18,dash:2.2,color:'#916aff'},kali:{name:'KALI',dmg:113,speed:162,attack:.44,range:157,crit:.08,skill:20,second:18,dash:2.6,color:'#dfaafa'}};
+const heroes={loid:{name:'LOID',dmg:128,speed:175,attack:.37,range:46,crit:.09,skill:9,second:20,dash:2.4,color:'#cda4f2'},kris:{name:'KRIS',dmg:158,speed:157,attack:.43,range:109,crit:.08,skill:14,second:8.5,dash:2.8,color:'#6dbbff'},cross:{name:'XANS',dmg:137,speed:174,attack:.40,range:98,crit:.26,skill:6.5,second:9,dash:2.55,color:'#bb74ff'},eve:{name:'EVE LOREY',dmg:175,speed:197,attack:.34,range:113,crit:.15,skill:21,second:18,dash:2.2,color:'#916aff'},kali:{name:'KALI',dmg:113,speed:162,attack:.44,range:157,crit:.08,skill:20,second:18,dash:2.6,color:'#dfaafa'},mollitiam:{name:'MOLLITIAM',dmg:245,speed:105,attack:1.16,range:112,crit:.10,skill:12,second:30,dash:4.0,color:'#e6bb7c'}};
 const cards={
   heart:['Coração da Raiz','+1.100 de vida máxima.'],blade:['Fio da Ruína','+12% de dano.'],fast:['Dança das Lâminas','+10% de rapidez de ataque.'],speed:['Passos Leves','+8% velocidade de movimento.'],armor:['Casca Ancestral','9% menos dano recebido.'],reach:['Alcance da Raiz','+10% alcance (máximo 25%).'],dodge:['Reflexos Antigos','Esquiva recarrega mais rápido.'],critical:['Olho do Predador','+8% chance de crítico.'],arc:['Corte Crescente','Aumenta o arco do ataque.'],echo:['Eco da Lâmina','12% chance de segundo golpe.'],ancient:['Herança de Yggdrasil','+6% vida, dano e velocidade.'],shadowblade:['Lâmina Sombria','Loid: +14% de dano.'],shadowdash:['Passo Sombrio','Loid: esquiva 18% mais rápida.'],darkburst:['Abismo Desperto','Loid: aura mais forte.'],black:['Fúria Negra','Kris: +25% dano transformado.'],form:['Forma Perfeita','Kris: +3s de transformação.'],awakening:['Despertar','Kris: Q recarrega mais rápido.'],bloodmoon:['Lua do Abismo','Kris: corte transformado causa mais dano.'],mirror:['Reflexo Duplo','Kali: +12% de dano de ilusão.'],mirrorguard:['Espelho Protetor','Kali: defesa ilusória dura mais.'],voidblade:['Espada Voraz','Eve: +12% dano da espada.'],timeward:['Tempo Dilatado','Eve: área de tempo mais duradoura.']
 };
@@ -13,7 +13,7 @@ export function createDuel(fighters){
  let state={finished:false,id:'__server__'}, hostSeq=0;
  let lastAt=performance.now();
 function makeActor(p,i){const def=heroes[p.hero]||heroes.loid;
- const a={id:p.id,hero:p.hero,x:i?1160:760,y:710,face:i?'left':'right',step:0,hp:HP,maxHp:HP,damage:def.dmg,speed:def.speed,attackDelay:def.attack,reach:def.range,crit:def.crit,armor:0,echo:0,dashDelay:def.dash,skillDelay:def.skill,eDelay:def.second,extraArc:0,shape:0,aim:i?Math.PI:0,attackCd:0,dashCd:0,qCd:0,eCd:0,invuln:0,dashTime:0,dx:0,dy:0,charge:0,ultCharge:0,ultTimer:0,ultMode:'',aura:0,auraTick:0,shadows:0,shadowsTick:0,corruption:0,slow:0,burn:0,attackFx:0,hitFx:0,blink:0,teleports:[],skullFx:0,transform:0,transAmp:1.5,transDuration:6,defend:0,ultBuff:0,burst:0,stun:0,energy:0,energyCd:0,input:{x:0,y:0,aim:i?Math.PI:0,attack:false},moving:false,orbit:0,mirrorGuard:0,temporalField:0,temporalRadius:0,portalEcho:0,voidUlt:0,voidUltHit:false,fieldX:0,fieldY:0,fieldRadius:105,fieldDuration:5,mirrorImages:0,dodgeChance:p.hero==='cross'?.12:p.hero==='eve'?.15:0};
+ const a={id:p.id,hero:p.hero,x:i?1160:760,y:710,face:i?'left':'right',step:0,hp:p.hero==='mollitiam'?Math.round(HP*1.45):HP,maxHp:p.hero==='mollitiam'?Math.round(HP*1.45):HP,damage:def.dmg,speed:def.speed,attackDelay:def.attack,reach:def.range,crit:def.crit,armor:p.hero==='mollitiam'?.18:0,echo:0,dashDelay:def.dash,skillDelay:def.skill,eDelay:def.second,extraArc:0,shape:0,aim:i?Math.PI:0,attackCd:0,dashCd:0,qCd:0,eCd:0,invuln:0,dashTime:0,dx:0,dy:0,charge:0,ultCharge:0,ultTimer:0,ultMode:'',aura:0,auraTick:0,shadows:0,shadowsTick:0,corruption:0,slow:0,burn:0,attackFx:0,hitFx:0,blink:0,teleports:[],skullFx:0,transform:0,transAmp:1.5,transDuration:6,defend:0,ultBuff:0,burst:0,stun:0,energy:0,energyCd:0,input:{x:0,y:0,aim:i?Math.PI:0,attack:false},moving:false,orbit:0,mirrorGuard:0,temporalField:0,temporalRadius:0,portalEcho:0,voidUlt:0,voidUltHit:false,fieldX:0,fieldY:0,fieldRadius:105,fieldDuration:5,mirrorImages:0,dodgeChance:p.hero==='cross'?.12:p.hero==='eve'?.15:0};
  for(const id of p.cards||[]){switch(id){case 'heart':a.maxHp+=1100;a.hp+=1100;break;case 'blade':a.damage*=1.12;break;case 'fast':a.attackDelay*=.9;break;case 'speed':a.speed*=1.08;break;case 'armor':a.armor=1-(1-a.armor)*.91;break;case 'reach':a.reach=Math.min(a.reach*1.1,def.range*1.25);break;case 'dodge':a.dashDelay*=.88;break;case 'critical':a.crit=Math.min(.45,a.crit+.08);break;case 'arc':a.extraArc+=.15;break;case 'echo':a.echo+=.12;break;case 'ancient':a.maxHp=Math.ceil(a.maxHp*1.06);a.hp=a.maxHp;a.damage*=1.06;a.speed*=1.06;break;case 'shadowblade':a.damage*=1.14;break;case 'shadowdash':a.dashDelay*=.82;break;case 'darkburst':a.shape+=.18;break;case 'black':a.transAmp+=.25;break;case 'form':a.transDuration+=3;break;case 'awakening':a.skillDelay*=.85;break;case 'bloodmoon':a.burst+=.25;break;case 'mirror':a.damage*=1.12;break;case 'mirrorguard':a.shape+=.18;break;case 'voidblade':a.damage*=1.12;break;case 'timeward':a.fieldDuration+=1;break;}}
  return a;
 }
@@ -40,14 +40,15 @@ function previewGuestAction(name){
 function hit(a,b,amount,from='hit'){
  if(!b||b.hp<=0||a.hp<=0||b.invuln>0||b.defend>0)return 0; if(b.mirrorGuard>0&&Math.random()<.5){drawFx(b.x,b.y,'ring',.26,25,'#ddbbff');return 0;}if(b.dodgeChance>0&&Math.random()<b.dodgeChance){drawFx(b.x,b.y,'ring',.28,21,'#a2bcff');return 0;}
  let dealt=amount*(1-b.armor);
- const crit=Math.random()<Math.min(.75,a.crit+(a.ultMode==='xans'&&a.ultTimer>0?.27:0));if(crit&&from==='hit')dealt*=1.7;
+ const crit=Math.random()<Math.min(.75,a.crit+(a.ultMode==='xans'&&a.ultTimer>0?.27:0));if(crit&&from==='hit')dealt*=a.hero==='mollitiam'?200/130:1.7;
  if(a.ultMode==='xans'&&a.ultTimer>0)dealt*=1.35;
  if(a.ultMode==='fight'&&a.ultTimer>0&&from==='hit')dealt*=2;
+ if(a.hero==='mollitiam'&&a.ultMode==='mollitiam'&&a.ultTimer>0)dealt*=1.35;
  if(a.transform>0&&from==='hit')dealt*=a.transAmp;
  if(b.corruption>0)dealt*=1.16;
  dealt=Math.round(dealt);
  b.hp=Math.max(0,b.hp-dealt);b.hitFx=.18;
- a.ultCharge=Math.min(100,a.ultCharge+(a.hero==='eve'?3.2:from==='hit'?9:Math.min(9,Math.max(2,Math.round(dealt/135)))));
+ a.ultCharge=Math.min(100,a.ultCharge+(a.hero==='mollitiam'?(from==='hit'?4.2:2):a.hero==='eve'?3.2:from==='hit'?9:Math.min(9,Math.max(2,Math.round(dealt/135)))));
  drawFx(b.x,b.y-38,'text',.55,0,crit?'#ffdf81':'#ffe2f4',dealt,0);
  if(a.hero==='cross'&&b.hp<=b.maxHp*.5&&b.hp>0){b.corruption=Math.max(b.corruption,4);b.slow=Math.max(b.slow,1.3);}
  if(b.hp<=0)finish(a.id);
@@ -55,7 +56,7 @@ function hit(a,b,amount,from='hit'){
 }
 function finish(id){if(!battle||battle.resultSent)return;battle.resultSent=true;state.finished=true;battle.winner=id;}
 function basic(a){if(a.hp<=0||a.stun>0||a.attackCd>0||battle?.starting>0||battle?.resultSent)return;
- const b=enemyOf(a),angle=a.input.aim;a.aim=angle;a.attackCd=a.attackDelay;
+ const b=enemyOf(a),angle=a.input.aim;a.aim=angle;a.attackCd=a.attackDelay*(a.hero==='mollitiam'&&a.ultMode==='mollitiam'&&a.ultTimer>0?.66:1);
  a.attackFx=.15;a.attackAngle=angle;
  if(a.hero==='kali'){battle.projectiles.push({x:a.x,y:a.y-10,vx:Math.cos(angle)*410,vy:Math.sin(angle)*410,damage:a.damage,color:'#e4bfff',from:a.id,life:1.1,kind:3,spin:0});drawFx(a.x,a.y-12,'mirrorcast',.30,20,'#e4bfff');return;}const slashReach=a.hero==='loid'?Math.min(49,a.reach+3):a.reach;
  drawFx(a.x+Math.cos(angle)*slashReach*.36,a.y+Math.sin(angle)*slashReach*.36,'slash',.23,slashReach,heroes[a.hero].color,angle,0);
@@ -78,7 +79,8 @@ function act(a,action,variant){if(!battle?.host||!a||a.hp<=0||a.stun>0||battle.s
  }
  if(action==='q'){
   if(a.qCd>0)return;a.qCd=a.skillDelay;
-  if(a.hero==='loid'){a.aura=4.1;a.auraTick=0;drawFx(a.x,a.y,'ring',.65,112,'#33204d');}
+  if(a.hero==='mollitiam'){drawFx(a.x,a.y,'ring',.8,165,'#dbbb78');if(b&&b.hp>0&&dist(a,b)<160)hit(a,b,620,'skill');}
+  else if(a.hero==='loid'){a.aura=4.1;a.auraTick=0;drawFx(a.x,a.y,'ring',.65,112,'#33204d');}
   else if(a.hero==='kris'){a.transform=a.transDuration;drawFx(a.x,a.y,'ring',.6,70,'#6967fa');}
   else if(a.hero==='eve'){
    // Same 45px desintegration zone used in the co-op campaign. PvP opponents
@@ -108,7 +110,8 @@ function act(a,action,variant){if(!battle?.host||!a||a.hp<=0||a.stun>0||battle.s
  }
  if(action==='e'){
   if(a.eCd>0)return;a.eCd=a.eDelay;
-  if(a.hero==='loid'){
+  if(a.hero==='mollitiam'){a.hp=Math.min(a.maxHp,a.hp+Math.ceil(a.maxHp*.25));drawFx(a.x,a.y,'ring',.8,120,'#c3e6aa');}
+  else if(a.hero==='loid'){
     a.shadows=8;a.shadowsTick=.1;
     battle.clones=(battle.clones||[]).filter(c=>c.owner!==a.id);
     for(let i=0;i<4;i++){
@@ -133,6 +136,7 @@ function act(a,action,variant){if(!battle?.host||!a||a.hp<=0||a.stun>0||battle.s
   if(a.ultCharge<100||a.ultTimer>0)return;
   if(a.hero==='kris'&&!['fight','defesa','itens','piedade'].includes(variant))return;
   a.ultCharge=0;a.ultMode=a.hero==='kris'?variant:a.hero;a.ultTimer=a.hero==='loid'?5:a.hero==='eve'?2.5:a.hero==='kali'?6:8;
+  if(a.hero==='mollitiam'){a.invuln=.6;drawFx(a.x,a.y,'ring',1.4,175,'#ffc16c');}
   if(a.hero==='loid'){a.dashCd=0;drawFx(a.x,a.y,'ring',1,230,'#110b23');}
   if(a.hero==='eve'){
    a.voidUlt=2.5;a.voidUltHit=false;a.invuln=Math.max(a.invuln,2.5);

@@ -1,43 +1,54 @@
-# Yggdrasil v4.7 — Pecado na onda 20 do Reino Nórdico
+# Yggdrasil v4.8 — Mollitiam e Desafio Pecador Nórdico
 
-Patch incremental **sobre a versão v4.6 já instalada**. Não substitui os arquivos gráficos, as trilhas sonoras ou os sprites existentes; só altera o código, os testes e as telas.
+**Atualização incremental sobre a versão v4.7 completa já instalada.** Todos os assets, músicas, cartas, reinos e bosses da v4.7 permanecem inalterados, exceto pelos ajustes de dificuldade listados abaixo. Este ZIP sozinho não substitui a instalação base.
 
-## Campanhas e chefes
+## Novo personagem jogável: Mollitiam
 
-- **Japão** continua com 20 ondas, incluindo Tsukuyomi (onda 15) e o Pecado original (onda 20), que permanece com 11.200 HP base e seus ataques atuais.
-- **Nórdico** passa a ter 20 ondas; Jarl do Gelo na 5ª, Odin na 10ª, Cavaleiro Inominável e seu dragão na 15ª, e **Pecado na onda 20**, sem substituir a luta do Japão.
-- O Pecado nórdico reutiliza seu sprite e seus padrões originais com as três fases já existentes (100–70%, 70–35%, 35–0%). Tem 17.500 HP base no modo Normal, além dos multiplicadores existentes de dificuldade e cooperativo.
-- Exclusivamente na luta nórdica, Pecado invoca ecos de chefes anteriores de tipo aleatório, com **25% da vida base** do chefe imitado, golpes menos fortes e limite de um eco ativo. Reaproveita os sprites existentes.
-- Menu de teste direto e escolha no online incluem o novo **Pecado — Nórdico**.
+Mollitiam é um gigante ancestral de pele rochosa, armadura de pedras e um machado imenso. Tank de linha de frente: muita vida, dano pesado, movimento e ataques lentos. Disponível na seleção solo, cooperativo, desafio direto contra chefes e X1.
 
-## Heróis e cartas
+- **Vida:** 320 HP, **dano base:** 130 por golpe; **crítico:** 200 antes de modificadores e defesa.
+- **Ataque básico:** machado, intervalo de 1,36 s; **velocidade:** 57, abaixo dos demais heróis.
+- **Q — Pisão de Guerra:** onda de choque circular (112 px), elimina inimigos comuns atingidos; causa dano controlado contra bosses. Recarga de 11,5 s.
+- **E — Raízes de Yggdrasil:** cura Mollitiam e os aliados vivos em 25% de suas vidas máximas; 30 s de recarga.
+- **R — Titã Rúnico:** supremo de carga lenta (3%/5% por acerto normal/chefe); dura 8 segundos, golpes contra chefes causam o dobro do dano e o machado ataca 35% mais rápido.
+- **Carta especial F — Coração de Yggdrasil:** após obter a carta, uso único por partida; por 8 s reduz em 40% o dano recebido, aumenta em 30% a velocidade de ataque e em 50% o dano contra chefes, aumenta o raio do Q, cura 35% com E e evita efeitos leves de lentidão/maldição. **F não substitui Q, E nem R.**
+- **Arte:** retrato de seleção, sprite sheet real de 16 quadros (4×4, 1280×1280, PNG com transparência) e carta em PNG. As imagens foram mantidas sem redução de resolução e os quadros recortados sem esticar ou perder detalhes.
+- **Campanhas:** Japão e Nórdico; regra nórdica de cinco cartas japonesas, passivas e runas permanece. Mollitiam pode ganhar sua carta especial nas recompensas ou começar com ela no desafio direto contra chefes.
+- **X1:** selecionável e reconhecido pelo servidor. Para balancear PvP, os valores de HP/dano seguem a escala original do duelo; Q, E e R funcionam em relação aos adversários, sem efeitos de dano infinito.
 
-- Loid permanece rápido (0,24 s por golpe), mas a carga do supremo por acerto caiu de 9% para **1,4% nos inimigos comuns** e de 12% para **2,2% nos chefes**. O combate e o dano dos golpes não foram enfraquecidos.
-- Kris mantém **Q = transformação**, **R = supremo** e **F = Forma do Sapo**, somente depois de conseguir a carta. O celular usa o botão F já existente. A carta continua de uso único por partida.
-- Jornadas normais e cooperativas começam com **5 cartas japonesas comuns/raras**, sem cartas especiais gratuitas. Após superar a onda 5 nórdica, a especial do herói aparece entre as recompensas Futhark. No teste direto contra chefe, a carta especial pode ser entregue no início.
-- Odin, Eve Lorey, cartas Futhark, passivas nórdicas, dragão, música da onda 15 e todos os outros recursos da v4.6 foram preservados.
+## Chefes do modo Pecador — apenas Reino Nórdico
 
-## Instalação
+Em relação à dificuldade Pecador nórdica da v4.7, os chefes recebem:
 
-1. Garanta que **Yggdrasil v4.6 já esteja instalado** no seu repositório.
-2. Envie `Yggdrasil_v47_Patch_sobre_v46.zip` para a raiz do repositório GitHub.
-3. No Codespaces:
+- **×1,60 de vida** além do multiplicador Pecador já existente;
+- **×1,38 de dano extra** para golpes de chefes e seus projéteis;
+- **+22% de frequência de ataques**, ao reduzir temporizadores de ataque mais depressa;
+- **+13% de velocidade de movimento** comparado ao Pecador anterior;
+- Reforço também para o dragão da onda 15 (vida e ataques).
+
+**Nenhum reforço adicional** no modo Normal, nos chefes do Japão nem nos inimigos comuns. Não foram alteradas a música, o visual, a ordem das ondas (Jarl 5, Odin 10, Cavaleiro 15, Pecado 20) ou os demais personagens.
+
+## Instalação no GitHub Codespaces (já com v4.7 instalada)
+
+1. Faça upload de `Yggdrasil_v48_Mollitiam_PecadorNordico.zip` na **raiz** do repositório GitHub (aba *Code*).
+2. Abra o Codespaces e execute o bloco:
 
 ```bash
 git pull --ff-only &&
-unzip -o Yggdrasil_v47_Patch_sobre_v46.zip -d . &&
-bash aplicar_v47.sh &&
+unzip -o Yggdrasil_v48_Mollitiam_PecadorNordico.zip -d . &&
 npm install &&
-npm run test:pecado47 &&
-npm run test:campaign &&
-npm run test:heroes &&
-npm run test:cards &&
-npm run test:eve &&
+npm run test:mollitiam &&
+npm run test:pecador48 &&
 npm run test:server &&
+npm run test:nordic &&
+npm run test:campaign &&
+npm run test:bosses &&
+npm run test:cards &&
+npm run test:pecado47 &&
 npx wrangler deploy &&
-git add -A public src tests package.json README.md aplicar_v47.sh &&
-(git diff --cached --quiet || git commit -m "Yggdrasil v4.7 - Pecado Nordico e balanceamento") &&
+git add -A public src tests package.json README.md &&
+(git diff --cached --quiet || git commit -m "Yggdrasil v4.8 - Mollitiam e Pecador Nordico") &&
 git push
 ```
 
-Os testes automatizados verificam as regras; o jogo publicado deve ser testado visualmente no celular, especialmente a fase 3 e as invocações do Pecado nórdico.
+**Limitação da validação:** testes automatizados de integridade, regras e servidor passaram. A publicação no Cloudflare e o teste visual no Android/celular ainda precisam ser confirmados após o deploy.

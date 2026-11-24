@@ -3,8 +3,8 @@ import { createDuel } from './duel-engine.mjs';
 // Host-authoritative: the host simulates combat; this Durable Object relays inputs/states.
 import { DurableObject } from 'cloudflare:workers';
 
-const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali']);
-const MAX_COOP_PLAYERS = HEROES.size; // five unique heroes, including the host
+const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali', 'mollitiam']);
+const MAX_COOP_PLAYERS = 5; // five players per room; six selectable heroes
 const BOSSES = new Set(['japan', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'odin', 'nameless', 'pecadoNordic']);
 const NORSE_BOSSES=new Set(['nordic','frostjarl','odin','nameless','pecadoNordic']);
 const PASSIVE_IDS=new Set(['odin','tyr','ymir','sleipnir','eir','huginn']);
