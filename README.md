@@ -1,3 +1,15 @@
+# Yggdrasil v4.2 — Sprites animados do Cavaleiro e Dragão
+
+Base: v4.1 completa (cartas da v4.0, Japão e Reino Nórdico, coop, X1 e músicas mantidos). A jornada nórdica inicia com **5 cartas aleatórias únicas por jogador**, em vez de 20.
+
+- Cavaleiro Inominável da onda nórdica 15 agora usa folha de 16 quadros com idle, caminhada, preparo de golpe, corte e invocação; tamanho normal de personagem (88 unidades visuais), alinhado pelo chão.
+- Dragão ancestral gigante usa outra folha de 16 quadros, anima cabeça, asas, sopro e garras conforme o golpe. Fica completamente visível na tela, atrás dos personagens, no celular e computador.
+- Quadros 4×4 de 320 px em PNG RGBA sem perdas, baseados nos sprites enviados, com corte exato e sem amostragem de quadros vizinhos.
+- Estado de ataque e efeitos do dragão sincronizados pelo anfitrião online; manutenção dos ataques e valores originais da v4.1.
+- Teste novo: `npm run test:sprites`. Para publicar: `npx wrangler deploy` após extrair as partes do pacote.
+
+---
+
 # YGGDRASIL v4.1 — O Cavaleiro Inominável (Nórdico onda 15)
 
 **Jogo pronto para Cloudflare Workers.** A campanha japonesa permanece com 20 ondas e Tsukuyomi na onda 15. A campanha nórdica possui agora 15 ondas (etapas internas 21 a 35). O Jarl está nas ondas nórdicas 5 e 10; o Cavaleiro Inominável é o chefe final nórdico da onda 15. A fase do dragão ativa ao chegar a 50% HP, com ataques telegráficos, três selos destrutíveis e carta lendária de recompensa. A OST do cavaleiro é uma composição chiptune original incluída em `nameless_ost.mp3`.
@@ -13,11 +25,11 @@
 ## Novo baralho do Reino Nórdico
 
 - **30 cartas nórdicas novas**, com nomes, efeitos, ilustrações em SVG e identidade rúnica própria.
-- Ao **começar diretamente o Reino Nórdico** (solo ou cooperativo), cada personagem recebe **20 cartas sorteadas sem repetição**, sem tela de escolha.
-- Todos os presentes no cooperativo ganham 20 cartas independentes, administradas pelo anfitrião. Os IDs são sincronizados na rede quando a fase muda.
+- Ao **começar diretamente o Reino Nórdico** (solo ou cooperativo), cada personagem recebe **5 cartas sorteadas sem repetição**, sem tela de escolha.
+- Todos os presentes no cooperativo ganham 5 cartas independentes, administradas pelo anfitrião. Os IDs são sincronizados na rede quando a fase muda.
 - Recompensas após cada onda nórdica oferecem somente **cartas nórdicas**; as japonesas não aparecem. O baralho do Japão não foi modificado.
 - As cartas nórdicas aumentam dano, vida, velocidade, recargas, crítico, defesa e efeitos especiais, com **tetos rígidos** para evitar atributos absurdos: dano 2,85x base; vida 3,5x base; velocidade 1,75x base; proteção 58%; crítico 60%; esquiva 44%; outros atributos e tempos também limitados.
-- O jogador não precisa escolher entre as 20 cartas iniciais, mas ainda escolhe 1 de 3 cartas após vencer cada onda.
+- O jogador não precisa escolher entre as 5 cartas iniciais, mas ainda escolhe 1 de 3 cartas após vencer cada onda.
 
 ## Equilíbrio da Eve Lorey
 

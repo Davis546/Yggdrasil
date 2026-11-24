@@ -14,7 +14,7 @@ let seen=new Set();
 for(let j=0;j<120;j++){
  const hero=['loid','kris','cross','eve','kali'][j%5];
  const p=evaluate(`selectedCampaign='nordic';start('${hero}');player`);
- assert.equal(evaluate('stage'),21);assert.equal(p.nordicStarterGranted,true);assert.equal(p.cards.length,20);assert.equal(new Set(p.cards).size,20);
+ assert.equal(evaluate('stage'),21);assert.equal(p.nordicStarterGranted,true);assert.equal(p.cards.length,5);assert.equal(new Set(p.cards).size,5);
  for(const id of p.cards){assert.ok(id.startsWith('n_'));seen.add(id);}
  assert.ok(p.maxHp<=p.baseMaxHp*3.5+1e-6);assert.ok(p.damage<=p.baseDamage*2.85+1e-6);
  assert.ok(p.attackDelay>=p.baseAttackDelay*.52-1e-6);assert.ok(p.speed<=p.baseSpeed*1.75+1e-6);
@@ -25,9 +25,9 @@ for(let j=0;j<120;j++){
  const options=evaluate('pickCards().map(c=>c.id)');assert.equal(options.length,3);assert.ok(options.every(id=>id.startsWith('n_')));
 }
 assert.equal(seen.size,30);
-assert.ok(evaluate('player.cards.length')===20);
+assert.ok(evaluate('player.cards.length')===5);
 const a=evaluate("selectedCampaign='nordic';activeCampaign='nordic';coop.active=true;coop.host=true;coop.id='host';coop.members=[{id:'host',hero:'loid'},{id:'guest',hero:'eve'}];coopInitAllies();coop.allies.get('guest')");
-assert.equal(a.cards.length,20);assert.ok(a.cards.every(id=>id.startsWith('n_')));
+assert.equal(a.cards.length,5);assert.ok(a.cards.every(id=>id.startsWith('n_')));
 evaluate("coop.active=false;selectedCampaign='japan';start('kris');");
 assert.equal(evaluate('player.cards.length'),0);
 assert.ok(evaluate('pickCards().every(c=>!c.id.startsWith("n_"))'));
@@ -37,4 +37,4 @@ evaluate("player=createPlayer('eve');stage=1;const e=addMob('walker',player.x,pl
 assert.equal(evaluate('player.ultimateCharge'),3.0);
 evaluate("player.secondaryCd=0;timeFields=[{x:player.x,y:player.y,radius:105,life:5,tick:.01}];enemies[enemies.length-1].hp=10000;applyTimeFields(.15);");
 const drop=evaluate('10000-enemies[enemies.length-1].hp');assert.ok(drop>0&&drop<=6.001,drop);
-console.log(`NORDIC EXCLUSIVE DECK PASS: ${all.length} unique cards, 120 randomized 20-card builds, online ally, limits, Japan separation, Eve cooldown/field`);
+console.log(`NORDIC EXCLUSIVE DECK PASS: ${all.length} unique cards, 120 randomized 5-card builds, online ally, limits, Japan separation, Eve cooldown/field`);

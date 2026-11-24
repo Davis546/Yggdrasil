@@ -1,6 +1,6 @@
 {
   "name": "yggdrasil-online-cloudflare",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,8 @@
     "test:bosses": "node tests/boss-render.test.mjs",
     "test:music": "node tests/music.test.mjs",
     "test:cards": "node tests/nordic-cards.test.mjs",
-    "test:nameless": "node tests/nameless.test.mjs"
+    "test:nameless": "node tests/nameless.test.mjs",
+    "test:sprites": "node tests/nordic-sprites.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.50.0"
