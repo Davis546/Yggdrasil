@@ -6,19 +6,38 @@ vm.createContext(sandbox);vm.runInContext(fs.readFileSync(new URL('../public/gam
 const ev=s=>vm.runInContext(s,sandbox,{timeout:5000});
 const runes=ev('nordicCards.map(c=>({id:c.id,icon:c.icon}))');assert.equal(runes.length,20);assert.equal(new Set(runes.map(c=>c.icon)).size,20);
 for(const r of runes){assert.ok(fs.statSync(new URL(`../public/assets/cards/futhark/${r.id.slice(2)}.png`,import.meta.url)).size>1000)}
-const heroes=['loid','kris','cross','eve','kali'];const specialIds={loid:'granita',kris:'frog',cross:'gaster',eve:'eveprime',kali:'mirrorguard'};
-const seen=new Set();for(let n=0;n<150;n++){
+const heroes=['loid','kris','cross','eve','kali'];
+const specialIds={loid:'granita',kris:'frog',cross:'gaster',eve:'eveprime',kali:'mirrorguard'};
+const seenRunes=new Set(), seenJapan=new Set();
+for(let n=0;n<150;n++){
  const hero=heroes[n%5];const p=ev(`selectedCampaign='nordic';start('${hero}');player`);
  assert.equal(ev('stage'),21);assert.equal(p.cards.length,5);assert.equal(new Set(p.cards).size,5);
- assert.equal(p.cards.filter(x=>x.startsWith('n_')).length,4);assert.ok(p.cards.includes(specialIds[hero]),`Missing special for ${hero}`);
- for(const id of p.cards.filter(x=>x.startsWith('n_')))seen.add(id);
+ assert.equal(p.cards.filter(x=>x.startsWith('n_')).length,0,'Starting cards cannot be Futhark');
+ assert.equal(p.runes.length,0,'Runes must be selected AFTER defeating waves');
+ assert.ok(p.cards.includes(specialIds[hero]),`Missing Japanese special for ${hero}`);
+ for(const id of p.cards)seenJapan.add(id);
  assert.ok(p.maxHp<=p.baseMaxHp*1.45+1e-6);assert.ok(p.damage<=p.baseDamage*1.30+1e-6);
- const original=p.cards.join(',');ev("awardCard(player,nordicCards[0]);");assert.equal(ev('player.cards.join(",")'),original);
+ const offers=ev('pickCards().map(c=>c.id)');assert.equal(offers.length,3);
+ assert.equal(new Set(offers).size,3);assert.ok(offers.every(x=>x.startsWith('n_')),'Futhark belongs in wave rewards');
+ for(const id of offers)seenRunes.add(id);
+ const original=p.cards.join(',');
+ for(let i=0;i<5;i++){
+   const id=ev('pickCards()[0].id');
+   assert.ok(ev(`awardCard(player,nordicCards.find(c=>c.id==='${id}'))`));
+ }
+ assert.equal(ev('player.runes.length'),5);
+ assert.equal(new Set(ev('player.runes')).size,5);
+ assert.equal(ev('player.cards.join(",")'),original,'Japanese starters must not be overwritten');
+ assert.equal(ev('awardCard(player,nordicCards[0])'),false,'5-rune cap not enforced');
  assert.deepEqual([...ev('pickCards().map(c=>c.id)')],['supply_heal','supply_rest','supply_recover']);
 }
-assert.equal(seen.size,20,'Runic RNG never used some runes');
-const a=ev("selectedCampaign='nordic';activeCampaign='nordic';coop.active=true;coop.host=true;coop.id='host';coop.members=[{id:'host',hero:'loid'},{id:'guest',hero:'eve'}];coopInitAllies();coop.allies.get('guest')");assert.equal(a.cards.length,5);assert.ok(a.cards.includes('eveprime'));ev('coop.active=false');
+assert.equal(seenRunes.size,20,'Some of 20 runes never appear in reward draw');
+assert.ok(seenJapan.size>=10,'Japanese deck not used at start');
+const a=ev("selectedCampaign='nordic';activeCampaign='nordic';coop.active=true;coop.host=true;coop.id='host';coop.members=[{id:'host',hero:'loid'},{id:'guest',hero:'eve'}];coopInitAllies();coop.allies.get('guest')");
+assert.equal(a.cards.length,5);assert.ok(a.cards.includes('eveprime'));assert.equal(a.runes.length,0);
+ev("awardCard(coop.allies.get('guest'),nordicCards[0])");
+assert.equal(ev("coop.allies.get('guest').runes.length"),1);
+ev('coop.active=false');
 ev("selectedCampaign='japan';start('kris')");assert.equal(ev('player.cards.length'),0);
-ev("selectedCampaign='nordic';start('eve');skill()");assert.equal(ev('player.evePrimeTime'),6);assert.ok(ev('player.evePrimeCard'));
-ev('update(.5)');assert.ok(ev('player.evePrimeTime')<6);
-console.log('FUTHARK 20 symbols, 150 draws, 5 hero specials, caps, co-op and Eve Q PASS');
+ev("selectedCampaign='nordic';start('eve');skill()");assert.equal(ev('player.evePrimeTime||0'),0);assert.ok(ev('player.evePrimeCard'));assert.equal(ev('player.cardPower'),'eveprime');ev('cardPower()');assert.equal(ev('player.evePrimeTime'),6);assert.equal(ev('player.cardPowerUsed'),true);ev('update(.5)');assert.ok(ev('player.evePrimeTime')<6);
+console.log('FUTHARK as wave rewards, 5 JAPANESE starter cards, cap, co-op and Eve F PASS');

@@ -5,7 +5,10 @@ import { DurableObject } from 'cloudflare:workers';
 
 const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali']);
 const MAX_COOP_PLAYERS = HEROES.size; // five unique heroes, including the host
-const BOSSES = new Set(['japan', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'nameless']);
+const BOSSES = new Set(['japan', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'odin', 'nameless']);
+const NORSE_BOSSES=new Set(['nordic','frostjarl','odin','nameless']);
+const PASSIVE_IDS=new Set(['odin','tyr','ymir','sleipnir','eir','huginn']);
+const validPassives=p=>Array.isArray(p)&&p.length===3&&new Set(p).size===3&&p.every(id=>PASSIVE_IDS.has(id));
 const ACTIONS = new Set(['attack', 'q', 'eDown', 'eUp', 'dash', 'ultimate', 'card', 'ultimateChoice', 'f']);
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 // The PvP draft is server-generated and server-validated. No instant-kill cards in PvP.
@@ -30,7 +33,7 @@ export class Lobby extends DurableObject {
       const a = socket.deserializeAttachment() || {};
       const id = typeof a.id === 'string' ? a.id : String(this.nextId++);
       this.nextId = Math.max(this.nextId, (Number(id) || 0) + 1);
-      const c = { id, socket, hero: a.hero || null, room: null, role:a.role||'fighter', offer:a.offer||[], picks:a.picks||[] };
+      const c = { id, socket, hero: a.hero || null, room: null, role:a.role||'fighter', offer:a.offer||[], picks:a.picks||[], passives:a.passives||[] };
       this.players.set(id, c);
     }
     for (const c of this.players.values()) {
@@ -38,7 +41,7 @@ export class Lobby extends DurableObject {
       if (!a.code) continue;
       let room = this.rooms.get(a.code);
       if (!room) {
-        room = { code: a.code, members: new Set(), host: null, started: false, kind:a.kind||'coop', lastSnapshot:null, finished:false };
+        room = { code: a.code, members: new Set(), host: null, started: false, kind:a.kind||'coop', selectedBoss:a.boss||'japan', lastSnapshot:null, finished:false };
         this.rooms.set(a.code, room);
       }
       room.members.add(c);
@@ -61,7 +64,7 @@ export class Lobby extends DurableObject {
       hero: c.hero || null,
       isHost: !!c.room && c.room.host === c,
       started: !!c.room?.started,
-      kind:c.room?.kind||'coop', role:c.role||'fighter', offer:c.offer||[], picks:c.picks||[]
+      kind:c.room?.kind||'coop', role:c.role||'fighter', offer:c.offer||[], picks:c.picks||[],passives:c.passives||[]
     });
   }
 
@@ -77,12 +80,12 @@ export class Lobby extends DurableObject {
   }
 
   members(room) {
-    return [...room.members].map(c => ({ id: c.id, hero: c.hero || null }));
+    return [...room.members].map(c => ({ id: c.id, hero: c.hero || null, passives:c.passives||[] }));
   }
 
   notify(room) {
     if (!room?.host) return;
-    const state = { t: 'lobby', members: this.members(room), host: room.host.id, code: room.code, started: room.started };
+    const state = { t: 'lobby', members: this.members(room), host: room.host.id, code: room.code, started: room.started, boss:room.selectedBoss||'japan' };
     for (const c of room.members) this.safeSend(c, state);
   }
 
@@ -108,7 +111,7 @@ export class Lobby extends DurableObject {
     if (c.room) this.leaveRoom(c);
     room.members.add(c);
     c.room = room;
-    c.hero = null;
+    c.hero = null;c.passives=[];
     this.persist(c);
     this.safeSend(c, { t: 'welcome', id: c.id, code: room.code, host: room.host.id, members: this.members(room) });
     this.notify(room);
@@ -118,7 +121,7 @@ export class Lobby extends DurableObject {
     const room = c.room;
     if (!room) return;
     c.room = null;
-    c.hero = null;
+    c.hero = null;c.passives=[];
     room.members.delete(c);
     this.persist(c);
     if (room.kind === 'pvp') { this.pvpLeave(c,room); return; }
@@ -355,7 +358,7 @@ export class Lobby extends DurableObject {
       // New host room. If already in one, leave it before creating another.
       if (c.room) this.leaveRoom(c);
       const code = this.makeCode();
-      const room = { code, host: c, members: new Set(), started: false };
+      const room = { code, host: c, members: new Set(), started: false, selectedBoss:'japan' };
       this.rooms.set(code, room);
       this.joinRoom(c, room);
       return;
@@ -378,13 +381,25 @@ export class Lobby extends DurableObject {
       this.notify(r);
       return;
     }
+    if(m.t==='mode' && !r.started && r.host===c){
+      r.selectedBoss=BOSSES.has(m.boss)?m.boss:'japan';
+      this.notify(r);return;
+    }
+    if(m.t==='passives' && !r.started){
+      const picked=m.passives;
+      if(!Array.isArray(picked)||picked.length>3||new Set(picked).size!==picked.length||!picked.every(id=>PASSIVE_IDS.has(id)))return;
+      c.passives=picked.slice();this.persist(c);this.notify(r);return;
+    }
     if (m.t === 'begin' && r.host === c && !r.started) {
       if (r.members.size < 2 || [...r.members].some(p => !p.hero) || new Set([...r.members].map(p=>p.hero)).size !== r.members.size) {
         this.safeSend(c, { t: 'error', message: 'São necessários de 2 a 5 jogadores com personagens diferentes selecionados.' });
         return;
       }
-      r.started = true;
       const boss = BOSSES.has(m.boss) ? m.boss : null;
+      if(NORSE_BOSSES.has(boss)&&[...r.members].some(p=>!validPassives(p.passives))){
+        this.safeSend(c,{t:'error',message:'Todos precisam escolher 3 passivas nórdicas antes de começar.'});return;
+      }
+      r.started = true;
       const difficulty = m.difficulty === 'pecador' ? 'pecador' : 'normal';
       const members = this.members(r);
       for (const p of r.members) {
@@ -395,8 +410,8 @@ export class Lobby extends DurableObject {
     }
     if (m.t === 'rematchRequest' && r.started && r.host !== c) { this.safeSend(r.host,{t:'rematchRequest',id:c.id});return; }
     if (m.t === 'rematch' && r.started && r.host === c) {
-      r.started=false;
-      for (const p of r.members) {p.hero=null;this.persist(p);this.safeSend(p,{t:'lobbyReset'});}
+      r.started=false;r.selectedBoss='japan';
+      for (const p of r.members) {p.passives=[];p.hero=null;this.persist(p);this.safeSend(p,{t:'lobbyReset'});}
       this.notify(r);return;
     }
     if (!r.started) return;
