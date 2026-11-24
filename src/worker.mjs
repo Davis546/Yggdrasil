@@ -5,8 +5,8 @@ import { DurableObject } from 'cloudflare:workers';
 
 const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali']);
 const MAX_COOP_PLAYERS = HEROES.size; // five unique heroes, including the host
-const BOSSES = new Set(['japan', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'odin', 'nameless']);
-const NORSE_BOSSES=new Set(['nordic','frostjarl','odin','nameless']);
+const BOSSES = new Set(['japan', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'odin', 'nameless', 'pecadoNordic']);
+const NORSE_BOSSES=new Set(['nordic','frostjarl','odin','nameless','pecadoNordic']);
 const PASSIVE_IDS=new Set(['odin','tyr','ymir','sleipnir','eir','huginn']);
 const validPassives=p=>Array.isArray(p)&&p.length===3&&new Set(p).size===3&&p.every(id=>PASSIVE_IDS.has(id));
 const ACTIONS = new Set(['attack', 'q', 'eDown', 'eUp', 'dash', 'ultimate', 'card', 'ultimateChoice', 'f']);

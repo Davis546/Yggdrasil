@@ -1,0 +1,48 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+const noop=()=>{};
+const elements=new Map();
+function el(id){if(!elements.has(id))elements.set(id,{id,style:{setProperty:noop},classList:{add:noop,remove:noop,toggle:noop,contains:()=>false},dataset:{},value:'normal',textContent:'',hidden:false,innerHTML:'',addEventListener:noop,querySelector:()=>el('child'),getContext:()=>new Proxy({}, {get:()=>noop}),getBoundingClientRect:()=>({width:480,height:288,left:0,top:0})});return elements.get(id);}
+const context={window:{innerWidth:1280,innerHeight:720,matchMedia:()=>({matches:false}),addEventListener:noop},navigator:{maxTouchPoints:0,userAgent:'Desktop'},document:{body:el('body'),documentElement:el('html'),getElementById:el,querySelectorAll:()=>[],querySelector:()=>el('query'),createElement:()=>el('created'),addEventListener:noop},Image:class{complete=true;naturalWidth=1280;naturalHeight=1280;set src(v){this._src=v}get src(){return this._src}},performance:{now:()=>1000},requestAnimationFrame:noop,localStorage:{getItem:()=>null,setItem:noop},YG_AUDIO:{play:noop,syncMusic:noop},console,Math,Date,Map,Set,WebSocket:class{},location:{protocol:'https:',host:'local.test'},setTimeout:noop,clearTimeout:noop};
+vm.createContext(context);
+vm.runInContext(fs.readFileSync(new URL('../public/game.js',import.meta.url),'utf8'),context,{timeout:5000});
+const run=s=>vm.runInContext(s,context,{timeout:7000});
+run("selectedCampaign='japan';start('kris');stage=20;spawnStage()");
+assert.equal(run("enemies.find(e=>e.type==='pecado').maxHp"),11200);
+assert.equal(run('isCampaignFinalWave()'),true);
+run("selectedCampaign='nordic';start('kris');stage=35;spawnStage()");
+assert.equal(run("enemies.some(e=>e.type==='nameless')"),true);
+assert.equal(run('isCampaignFinalWave()'),false);
+run('stage=40;spawnStage()');
+assert.equal(run("enemies.some(e=>e.type==='pecado')"),true);
+assert.equal(run('isCampaignFinalWave()'),true);
+assert.equal(run("enemies.find(e=>e.type==='pecado').maxHp"),17500);
+run("{const p=enemies.find(e=>e.type==='pecado');p.hp=p.maxHp*.68;updatePecado(p,.016,130,{x:1,y:0},p.speed)}");
+assert.equal(run("enemies.find(e=>e.type==='pecado').corruptionPhase"),1);
+assert.equal(run("enemies.filter(e=>e.type==='pecadoEcho').length"),1);
+assert.equal(run("enemies.find(e=>e.type==='pecadoEcho').maxHp"),run("enemies.find(e=>e.type==='pecadoEcho').hp"));
+assert.ok([625,900,1275,2050,1550].includes(run("enemies.find(e=>e.type==='pecadoEcho').hp")));
+run("{const p=enemies.find(e=>e.type==='pecado');p.hp=p.maxHp*.32;updatePecado(p,.016,130,{x:1,y:0},p.speed)}");
+assert.equal(run("enemies.find(e=>e.type==='pecado').corruptionPhase"),2);
+assert.equal(run("enemies.filter(e=>e.type==='pecadoEcho').length"),1,'Only one echo at a time');
+run("selectedCampaign='nordic';start('loid');");
+assert.equal(run('player.cards.length'),5);
+assert.equal(run("player.cardPower"),'','No free exclusive F at beginning');
+run("stage=25");assert.equal(run("pickCards().some(c=>c.id==='granita')"),true);
+run("selectedCampaign='nordic';start('kris','pecadoNordic');");
+assert.equal(run('stage'),40);assert.equal(run('activeCampaign'),'nordic');assert.equal(run('player.cardPower'),'frog');
+run('player.ultimateCharge=100;skill()');assert.ok(run('player.skillCd')>0,'Kris Q must remain original');assert.equal(run('player.frogTime'),0);
+run('cardPower()');assert.ok(run('player.frogTime')>0,'Kris F did not activate the special');
+run("selectedCampaign='japan';start('loid');");
+assert.equal(run('player.attackDelay'),.24);
+run("{const e={id:202,type:'beast',hp:500,maxHp:500,x:player.x+20,y:player.y,radius:10,corruptTime:0};enemies=[e];player.ultimateCharge=0;hitEnemy(e,1,true);}");
+assert.equal(run('player.ultimateCharge'),1.4,'Loid charge nerf not applied');
+for(const path of ['index.html','game.html']){
+ const html=fs.readFileSync(new URL('../public/'+path,import.meta.url),'utf8');
+ assert.match(html,/20 ondas · Jarl, Odin, Cavaleiro Inominável e Pecado/);
+ assert.match(html,/data-boss="pecadoNordic"/);
+ assert.match(html,/game\.js\?v=470/);
+}
+assert.match(fs.readFileSync(new URL('../src/worker.mjs',import.meta.url),'utf8'),/pecadoNordic/);
+console.log('V4.7: Japan Pecado retained, Nordic wave 20, mini boss, 3 phases, Loid charge, Kris F, progressive cards, server routes PASS');

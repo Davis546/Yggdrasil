@@ -14,7 +14,7 @@ for(let n=0;n<150;n++){
  assert.equal(ev('stage'),21);assert.equal(p.cards.length,5);assert.equal(new Set(p.cards).size,5);
  assert.equal(p.cards.filter(x=>x.startsWith('n_')).length,0,'Starting cards cannot be Futhark');
  assert.equal(p.runes.length,0,'Runes must be selected AFTER defeating waves');
- assert.ok(p.cards.includes(specialIds[hero]),`Missing Japanese special for ${hero}`);
+ assert.ok(!p.cards.includes(specialIds[hero]),`Special should be earned later for ${hero}`);
  for(const id of p.cards)seenJapan.add(id);
  assert.ok(p.maxHp<=p.baseMaxHp*1.45+1e-6);assert.ok(p.damage<=p.baseDamage*1.30+1e-6);
  const offers=ev('pickCards().map(c=>c.id)');assert.equal(offers.length,3);
@@ -34,10 +34,10 @@ for(let n=0;n<150;n++){
 assert.equal(seenRunes.size,20,'Some of 20 runes never appear in reward draw');
 assert.ok(seenJapan.size>=10,'Japanese deck not used at start');
 const a=ev("selectedCampaign='nordic';activeCampaign='nordic';coop.active=true;coop.host=true;coop.id='host';coop.members=[{id:'host',hero:'loid'},{id:'guest',hero:'eve'}];coopInitAllies();coop.allies.get('guest')");
-assert.equal(a.cards.length,5);assert.ok(a.cards.includes('eveprime'));assert.equal(a.runes.length,0);
+assert.equal(a.cards.length,5);assert.ok(!a.cards.includes('eveprime'));assert.equal(a.runes.length,0);
 ev("awardCard(coop.allies.get('guest'),nordicCards[0])");
 assert.equal(ev("coop.allies.get('guest').runes.length"),1);
 ev('coop.active=false');
 ev("selectedCampaign='japan';start('kris')");assert.equal(ev('player.cards.length'),0);
-ev("selectedCampaign='nordic';start('eve');skill()");assert.equal(ev('player.evePrimeTime||0'),0);assert.ok(ev('player.evePrimeCard'));assert.equal(ev('player.cardPower'),'eveprime');ev('cardPower()');assert.equal(ev('player.evePrimeTime'),6);assert.equal(ev('player.cardPowerUsed'),true);ev('update(.5)');assert.ok(ev('player.evePrimeTime')<6);
-console.log('FUTHARK as wave rewards, 5 JAPANESE starter cards, cap, co-op and Eve F PASS');
+ev("selectedCampaign='nordic';start('eve');skill()");assert.equal(ev('player.evePrimeTime||0'),0);assert.ok(!ev('player.evePrimeCard'));ev('stage=25');assert.ok(ev("pickCards().some(c=>c.id==='eveprime')"));ev("awardCard(player,cards.find(c=>c.id==='eveprime'))");assert.equal(ev('player.cardPower'),'eveprime');ev('cardPower()');assert.equal(ev('player.evePrimeTime'),6);assert.equal(ev('player.cardPowerUsed'),true);ev('update(.5)');assert.ok(ev('player.evePrimeTime')<6);
+console.log('FUTHARK rewards, 5 ordinary JAPANESE starters, unlockable specials and Eve F PASS');

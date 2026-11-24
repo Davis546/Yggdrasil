@@ -17,8 +17,8 @@ assert.deepEqual([0,1,2,3].map(i=>ev(`namelessKnightFrame({dragonIntro:4.5-${i}*
 assert.deepEqual([0,1,2,3].map(i=>ev(`namelessDragonFrame({dragonIntro:4.5-${i}*1.125})`)),[0,1,2,3]);
 assert.deepEqual([0,1,2].map(i=>ev(`namelessDragonFrame({dragonIntro:0,mode:'idle',dragonFxMove:'claws',dragonFxTime:1.25*(1-${i}/3)})`)),[12,13,14]);
 assert.deepEqual([0,1].map(i=>ev(`namelessDragonFrame({dragonIntro:0,mode:'idle',dragonFxMove:'breath',dragonFxTime:1*(1-${i}/2)})`)),[10,11]);
-assert.match(fs.readFileSync(new URL('../public/index.html',import.meta.url),'utf8'),/game\.js\?v=460/);
-assert.match(fs.readFileSync(new URL('../public/game.html',import.meta.url),'utf8'),/game\.js\?v=460/);
+assert.match(fs.readFileSync(new URL('../public/index.html',import.meta.url),'utf8'),/game\.js\?v=470/);
+assert.match(fs.readFileSync(new URL('../public/game.html',import.meta.url),'utf8'),/game\.js\?v=470/);
 assert.ok(fs.statSync(new URL('../public/assets/nordic/nameless_knight_sheet.png',import.meta.url)).size>100000);
 assert.ok(fs.statSync(new URL('../public/assets/nordic/ancient_dragon_sheet.png',import.meta.url)).size>100000);
 console.log('BOSS 15 FRAME PROGRESS / V43 CACHE / ORIGINAL SPRITES PASS');

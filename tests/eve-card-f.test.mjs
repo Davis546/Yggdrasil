@@ -20,7 +20,7 @@ evalGame('skill()');assert.equal(evalGame('player.evePrimeTime||0'),0);
 evalGame('cardPower()');assert.equal(evalGame('player.evePrimeTime'),6);
 // With the card, Q still casts void, R remains void expansion, and F activates the time buff.
 evalGame("selectedCampaign='nordic';start('eve')");
-assert.equal(evalGame('player.cardPower'),'eveprime');assert.equal(evalGame('player.cardPowerUsed'),false);
+assert.equal(evalGame('player.cardPower'),'');evalGame('stage=25;awardCard(player,cards.find(c=>c.id==="eveprime"))');assert.equal(evalGame('player.cardPower'),'eveprime');assert.equal(evalGame('player.cardPowerUsed'),false);
 assert.equal(evalGame('player.cards.length'),5);
 evalGame('skill()');assert.ok(evalGame('player.skillCd')>0);assert.equal(evalGame('player.evePrimeTime||0'),0);
 evalGame('player.ultimateCharge=100;ultimate()');assert.equal(evalGame('player.voidUltimate'),2.5);
@@ -30,7 +30,7 @@ evalGame('player.dashCd=0;dash()');assert.ok(Math.abs(evalGame('player.dashCd')-
 evalGame('cardPower()');assert.equal(evalGame('player.evePrimeTime'),6,'F card cannot activate twice');
 evalGame('player.voidUltimate=0;update(6)');assert.equal(evalGame('player.evePrimeTime'),0);
 // Co-op host: guest Eve's special is executed on that guest, not on host avatar.
-evalGame("selectedCampaign='nordic';start('loid');coop.active=true;coop.host=true;coop.id='host';coop.members=[{id:'host',hero:'loid'},{id:'guest',hero:'eve'}];coopInitAllies();");
+evalGame("selectedCampaign='nordic';start('loid','pecadoNordic');coop.active=true;coop.host=true;coop.id='host';coop.members=[{id:'host',hero:'loid'},{id:'guest',hero:'eve'}];coopInitAllies();");
 assert.equal(evalGame("coop.allies.get('guest').cardPower"),'eveprime');
 evalGame("coopRemotePress('guest','f')");assert.equal(evalGame("coop.allies.get('guest').evePrimeTime"),6);
 assert.equal(evalGame('player.type'),'loid');

@@ -9,7 +9,7 @@ vm.createContext(sandbox);vm.runInContext(fs.readFileSync(new URL('../public/gam
 const run=s=>vm.runInContext(s,sandbox,{timeout:7000});
 run("selectedCampaign='nordic';start('loid','nameless');player.hp=100000;player.maxHp=100000;");
 assert.equal(run('stage'),35);assert.equal(run('activeCampaign'),'nordic');assert.equal(run("enemies.filter(e=>e.type==='nameless').length"),1);
-assert.equal(run('isCampaignFinalWave()'),true);
+assert.equal(run('isCampaignFinalWave()'),false);
 run("{let boss=enemies.find(e=>e.type==='nameless');boss.hp=boss.maxHp*.5;update(.016)}");
 assert.equal(run("enemies.find(e=>e.type==='nameless').rage"),true);
 assert.equal(run("enemies.filter(e=>e.type==='runeSeal').length"),3);

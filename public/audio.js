@@ -96,8 +96,8 @@ const YG_AUDIO=(()=>{
   const requested=!combat?'menu':
    currentStage===35&&(activeBoss('nameless')||activeBoss('ancestralDragon'))?'nameless':
    (currentStage===25||currentStage===30)&&activeBoss('frostjarl')?'nordicBoss':
-   currentStage===20&&activeBoss('pecado')?'pecado':
-   currentStage>=21&&currentStage<=35?'nordic':'battle';
+   (currentStage===20||currentStage===40)&&activeBoss('pecado')?'pecado':
+   currentStage>=21&&currentStage<=40?'nordic':'battle';
   if(requested!==musicMode){
    musicMode=requested;
    for(const t of all){t.pause();try{t.currentTime=0;}catch(_){}}

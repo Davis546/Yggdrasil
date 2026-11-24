@@ -1,6 +1,6 @@
 {
   "name": "yggdrasil-online-cloudflare",
-  "version": "4.6.0",
+  "version": "4.7.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -19,7 +19,8 @@
     "test:animations": "node tests/real-boss-animation.test.mjs",
     "test:odin": "node tests/odin-dragon.test.mjs",
     "test:eve": "node tests/eve-card-f.test.mjs",
-    "test:heroes": "node tests/hero-rebalance.test.mjs"
+    "test:heroes": "node tests/hero-rebalance.test.mjs",
+    "test:pecado47": "node tests/pecado-nordic-v47.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.50.0"
