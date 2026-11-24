@@ -1,3 +1,33 @@
+# YGGDRASIL v4.5 — ODIN, FUTHARK E DRAGÃO DE FOGO
+
+Base: v4.4. Japão e X1 mantidos. No Reino Nórdico, o Jarl é chefe da onda 5, Odin da 10, e o Cavaleiro Inominável da 15.
+
+## Novidades da versão
+- **Odin (onda 10)**: sprites 4x4, 16 quadros de caminhada, Gungnir, investida, corvos, escudo e tempestade rúnica; ataques com aviso antes do dano.
+- **Onda 15**: ao chegar a 50% de HP, o Cavaleiro invoca um dragão que passa a ser uma **criatura inimiga autônoma**, com HP próprio. Ele permanece lançando fogo a cada 2–3 segundos com aviso de 1,05 s, e pode ser atingido. Ambos precisam ser derrotados para concluir a onda. Destruir três selos silencia brevemente o dragão.
+- **Música**: `public/assets/audio/nameless_wave15.m4a`, arquivo fornecido pelo criador, toca no combate da onda nórdica 15 enquanto cavaleiro ou dragão estiver vivo.
+- **Cartas**: exatamente 20 Futhark com figuras apenas das runas, sem ilustrações. No começo do Nórdico: 4 runas distintas aleatórias + 1 carta especial ligada ao personagem = 5 cartas totais (limite). O resto das ondas oferece apenas suprimentos.
+- **Especiais**: Kris Forma do Sapo, Xans Gaster Blaster, Loid Descarga de Granita, Kali Espelho Protetor, Eve Lorey Retorno ao Auge.
+- **Eve Q com carta**: por 6 s, +100% de dano e velocidade, dash recarrega 65% mais rápido. Depois da duração, os bônus somem.
+- **Cura**: inimigos comuns do Nórdico têm 14% de chance base de derrubar um pequeno coração; Fehu aumenta em 4 pontos percentuais. Japão continua com 5%.
+- **Otimização celular**: limites de efeitos e atualizações da interface mais espaçadas; não alteramos resolução/pixels das imagens nem a qualidade dos áudios. O ajuste dinâmico NÃO reduz mais a resolução do canvas com queda de FPS.
+
+## Instalação incremental em Codespaces (v4.4 já extraída)
+1. Suba `Yggdrasil_v45_Atualizacao_v44.zip` na raiz do repositório.
+2. Execute:
+
+```bash
+git pull --ff-only && unzip -o Yggdrasil_v45_Atualizacao_v44.zip -d . && bash aplicar_v45.sh && npm install && npm run test:server && npm run test:nordic && npm run test:campaign && npm run test:bosses && npm run test:music && npm run test:cards && npm run test:nameless && npm run test:sprites && npm run test:balance && npm run test:animations && npm run test:odin && npx wrangler deploy && git add -A public src tests package.json wrangler.jsonc README.md .gitignore && (git diff --cached --quiet || git commit -m "Yggdrasil v4.5 - Odin Futhark e Dragao") && git push
+```
+
+## Direitos de música
+O arquivo M4A foi fornecido pelo usuário e poderá conter direitos de terceiros. Para disponibilizar o site publicamente, confirme que existe autorização/licença para distribuir essa gravação.
+
+## Testes
+Testes locais incluem 20 runas, sorteios repetidos, 5 cartas (4 runas+1 especial), Eve Q temporário, Odin fase 2, dragão independente, combate e renderização animada. A publicação real e a jogabilidade visual no Android devem ser verificadas no site após deploy.
+
+---
+
 # YGGDRASIL v4.4 — Sprites e animações dos chefes funcionando
 
 Base v4.3 integral, com as cinco cartas japonesas e limites de atributos do Reino Nórdico mantidos.

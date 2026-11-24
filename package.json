@@ -1,6 +1,6 @@
 {
   "name": "yggdrasil-online-cloudflare",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,7 +16,8 @@
     "test:nameless": "node tests/nameless.test.mjs",
     "test:sprites": "node tests/nordic-sprites.test.mjs",
     "test:balance": "node tests/nordic-balance.test.mjs",
-    "test:animations": "node tests/real-boss-animation.test.mjs"
+    "test:animations": "node tests/real-boss-animation.test.mjs",
+    "test:odin": "node tests/odin-dragon.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.50.0"

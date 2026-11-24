@@ -17,7 +17,7 @@ run('for(let i=0;i<850;i++)update(.016)');
 assert.ok(run("enemies.find(e=>e.type==='nameless').specialIndex")>0,'No boss attack sequence');
 assert.ok(fs.statSync(new URL('../public/assets/nordic/nameless_knight.png',import.meta.url)).size>30000);
 assert.ok(fs.statSync(new URL('../public/assets/nordic/ancient_dragon.png',import.meta.url)).size>30000);
-assert.ok(fs.statSync(new URL('../public/assets/audio/nameless_ost.mp3',import.meta.url)).size>200000);
+assert.ok(fs.statSync(new URL('../public/assets/audio/nameless_wave15.m4a',import.meta.url)).size>200000);
 run("stage=15;activeCampaign='japan';spawnStage()");
 assert.ok(run("enemies.some(e=>e.type==='tsukuomi')"),'Japan Tsukuyomi removed');
 console.log('NORDIC WAVE 15: KNIGHT, DRAGON, SEALS, PHASE TRANSITION, JAPAN PRESERVED PASS');
