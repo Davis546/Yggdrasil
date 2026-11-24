@@ -12,6 +12,12 @@ const minimalFx=()=>renderMode==='desempenho'||(renderMode==='auto'&&autoFxTier>
 if(weakMobileHint){RENDER_SCALE=1.0;canvas.width=Math.round(W*RENDER_SCALE);canvas.height=Math.round(H*RENDER_SCALE);}
 const keys=new Set();
 let perfFrames=0,perfStart=0,netPingStart=0,netRtt=null,visibleFps=60,netJitter=0,lastStateArrival=0;
+let edgeRtt=null,edgeColo='',netRawRtt=null,netRttSamples=[],cloneAudioAt=-Infinity;
+const cloneKey=s=>`${s.ownerId||'solo'}:${s.kind||'loid'}:${s.angle||0}`;
+function acceptPing(value){if(!Number.isFinite(value)||value<0||value>30000)return;netRawRtt=value;netRttSamples.push(value);if(netRttSamples.length>5)netRttSamples.shift();netRtt=[...netRttSamples].sort((a,b)=>a-b)[Math.floor(netRttSamples.length/2)];}
+async function probeEdge(sock){if(typeof fetch!=='function')return;const start=performance.now();try{const r=await fetch('/net-edge',{cache:'no-store'});if(!r.ok)return;const v=await r.json();if(coop.socket!==sock)return;edgeRtt=Math.round(performance.now()-start);edgeColo=String(v.colo||'');}catch{}}
+function cloneWire(s){return {ownerId:s.ownerId,kind:s.kind,angle:s.angle,x:Math.round(s.x*10)/10,y:Math.round(s.y*10)/10,step:Math.round((s.step||0)*10)/10,face:s.face,time:Math.round(s.time*100)/100};}
+function mergeGuestClones(incoming){const old=new Map(shadowClones.map(s=>[cloneKey(s),s]));return incoming.map(n=>{const p=old.get(cloneKey(n));if(!p||Math.hypot(n.x-p.x,n.y-p.y)>100)return {...n,tx:n.x,ty:n.y};const x=p.x,y=p.y,step=p.step;return Object.assign(p,n,{x,y,step,tx:n.x,ty:n.y});});}
 const coop={lastMotion:0,motionSeq:0,lastMotionSeq:0,networkRx:0,lastMotionArrival:0,networkExpected:50,active:false,host:false,id:null,hostId:null,room:null,socket:null,members:[],allies:new Map(),actorId:null,executing:false,chosen:false,choices:new Set(),lastSnapshot:0,lastInput:0,lastStateStage:0,lastStatePhase:null,selectingUltimate:false,remoteStarted:false,frameAt:0,targetLocal:null,targetAllies:new Map(),lastStage:0,lastStateSeq:0,stateSeq:0,remoteEvents:0,lastCombatPacket:0,enemyTargets:new Map(), projectileTargets:new Map(),serverFeedback:null,hostAvatar:null,guestVisibleHp:null};
 Object.assign(coop,{token:null,epoch:1,reconnecting:false,reconnectUntil:0,retryTimer:null,heartbeat:null,lastPong:0,lastCheckpoint:0,lastUrgent:0,lastInputSignature:'',lastInputSent:0,checkpointDirty:false});
 function coopSend(data){
@@ -32,6 +38,7 @@ const SKILL_HEROES=new Set(['loid','kris','cross','eve','kali','mollitiam','more
 function syncSkillArt(type){if(!SKILL_HEROES.has(type)||lastSkillArt===type)return;lastSkillArt=type; /* Keep original ✦ ✧ ✺ buttons; ability art does not replace their symbols. */}
 
 HERO.loid.src='assets/heroes/loid_sheet.png';
+const LOID_SHADE=new Image();LOID_SHADE.src='assets/heroes/loid_shadow_sheet.png';
 HERO.kris.src='assets/heroes/kris_sheet.png';
 HERO.cross.src='assets/heroes/cross_sheet.png';
 HERO.eve.src='assets/heroes/eve_sheet.png?v=33';
@@ -421,7 +428,7 @@ function nearestLivingHero(e){
 }
 function slash(x,y,ang,r,color){slashes.push({x,y,ang,r,color,life:.15,max:.15});shake=Math.max(shake,1.5)}
 function ring(x,y,r,color){rings.push({x,y,r,life:.44,max:.44,color})}
-function hitEnemy(e,dmg,chargesSupreme=false,trueDamage=false){if(e.hp<=0)return;if(e.type==='nameless'&&(e.dragonIntro||0)>0)return;let isCrit=!trueDamage&&Math.random()<Math.min(.95,player.crit+(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?.27:0)),amount=dmg*newDamage(player)*(isCrit?(player.critMultiplier||1.7):1)*(isNordic()?(1+(player.jeraBonus||0)):1)*(isBossEnemy(e)?(player.bossAmp||1):1)*(player.evePrimeTime>0?2:1)*(player.type==='mollitiam'&&isBossEnemy(e)&&player.ultimateTime>0?2:1)*(player.type==='mollitiam'&&isBossEnemy(e)&&player.mollitiamHeartTime>0?1.5:1)*(player.curseTime>0&&!trueDamage?.62:1)*(player.dragonPact&&player.ultimateBuffTime>0?1.18:1)*(e.corruptTime>0&&!trueDamage?1.16:1)*(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?1.35:1);if(!trueDamage&&Math.random()<player.echo)amount*=1.6;if(isBossEnemy(e)&&!trueDamage)amount=Math.min(amount,e.maxHp*.04);if(!trueDamage&&e.type==='boss'&&e.mode==='guard'&&e.guardTime>0){amount*=.3;if(e.counterCd<=0&&dist(e,player)<62){e.counterCd=1.25;ring(e.x,e.y,60,'#ff5374');bossMessage='CONTRA-ATAQUE DO SHOGUN';bossMessageTimer=.8;hurtPlayer(e.rage?25:18,'boss');}}if(e.type==='nameless'&&(e.pactBroken||0)>0)amount*=1.2;if(e.type==='odin'&&e.odinShield>0)amount*=.70;if(player.teamAura&&coop.active&&[...coop.allies.values()].some(a=>a.hp>0&&Math.hypot(a.x-player.x,a.y-player.y)<130))amount*=1+player.teamAura;e.hp-=amount;e.hurt=.14;if(!trueDamage&&isNordic()&&e.hp>0){if(Math.random()<(player.fireChance||0)){e.burnTime=Math.max(e.burnTime||0,2);e.burnTick=.6;}if(Math.random()<(player.iceChance||0))e.slow=Math.max(e.slow||0,1.5);if(Math.random()<(player.stormChance||0))e.hp-=Math.min(12,e.maxHp*.005);}if(player.type==='cross'&&e.hp>0&&e.hp<=e.maxHp*.5&&!e.corruptTime){e.corruptTime=5.5;e.slow=Math.max(e.slow||0,1.2);textPop(e.x,e.y-28,'CORROMPIDO','#c89cff');ring(e.x,e.y,27,'#8344af');}YG_AUDIO.play(isBossEnemy(e)?'heavyHit':'hit',isCrit?1.2:.82);if(chargesSupreme&&player.ultimateTime<=0&&player.ultimateBuffTime<=0)player.ultimateCharge=Math.min(100,player.ultimateCharge+(['moretti','l0id'].includes(player.type)?(isBossEnemy(e)?1.8:1.1):player.type==='loid'?(isBossEnemy(e)?2.2:1.4):player.type==='eve'?(isBossEnemy(e)?4.5:3.0):player.type==='mollitiam'?(isBossEnemy(e)?5:3):(isBossEnemy(e)?12:9)));textPop(e.x,e.y-12,Math.round(amount)+(isCrit?'!':''),isCrit?'#ffd67b':'#f0ccdc',e.id);makeParticles(e.x,e.y,player.type==='loid'?'#ae7de3':player.type==='cross'?'#b167ef':'#709cff',4);if(e.hp<=0){if(e.type==='runeSeal'){const boss=enemies.find(n=>n.type==='nameless'&&n.hp>0);if(boss){boss.sealsBroken=(boss.sealsBroken||0)+1;if(boss.sealsBroken>=3){boss.pactBroken=5;boss.stunTime=5;boss.sealsBroken=0;bossMessage='PACTO QUEBRADO · DRAGÃO SILENCIADO!';bossMessageTimer=3;}}}YG_AUDIO.play(isBossEnemy(e)?'bossDefeat':'oniDeath',e.type==='boss'?1.2:.65);player.kills++;essence+=isBossEnemy(e)?150:10;makeParticles(e.x,e.y,isBossEnemy(e)?'#e4b7ff':'#b1519d',18,1.3);player.hp=Math.min(player.maxHp,player.hp+player.onKillHeal);if(!isBossEnemy(e)&&Math.random()<(isNordic()?Math.min(.22,.14+(player.heartBonus||0)):.05)&&healthDrops.length<35){healthDrops.push({x:e.x,y:e.y,amount:12,life:16,phase:Math.random()*6.28});}if(isBossEnemy(e)){if(e.type==='nameless'&&!player.dragonPact){player.dragonPact=true;bossMessage='CARTA LENDÁRIA · PACTO DO DRAGÃO';bossMessageTimer=4;}if(enemies.some(other=>other!==e&&other.hp>0&&isBossEnemy(other)))return;player.hp=player.maxHp;if(coop.active&&coop.host){const host=coop.hostAvatar||player;host.hp=host.maxHp;host.ghost=false;for(const ally of coop.allies.values()){ally.hp=ally.maxHp;ally.ghost=false;}}textPop(player.x,player.y-31,'VIDA RESTAURADA!','#b5ffad');hazards=[];eclipseTime=0;for(const add of enemies){if(add!==e&&!isBossEnemy(add))add.hp=0;}bossMessage=e.type==='ancestralDragon'?'PACTO DRACÔNICO ENCERRADO!':e.type==='odin'?'ODIN DERROTADO!':e.type==='nameless'?'CAVALEIRO INOMINÁVEL DERROTADO!':e.type==='frostjarl'?'JARL DO GELO DERROTADO!':e.type==='pecado'?'PECADO DERROTADO!':e.type==='tsukuomi'?'TSUKUOMI DERROTADA!':e.type==='reuni'?'REUNI DERROTADO!':'DAIMYŌ ONI DERROTADO!';bossMessageTimer=2.4;}}}
+function hitEnemy(e,dmg,chargesSupreme=false,trueDamage=false,cloneHit=false){if(e.hp<=0)return;if(e.type==='nameless'&&(e.dragonIntro||0)>0)return;let isCrit=!trueDamage&&Math.random()<Math.min(.95,player.crit+(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?.27:0)),amount=dmg*newDamage(player)*(isCrit?(player.critMultiplier||1.7):1)*(isNordic()?(1+(player.jeraBonus||0)):1)*(isBossEnemy(e)?(player.bossAmp||1):1)*(player.evePrimeTime>0?2:1)*(player.type==='mollitiam'&&isBossEnemy(e)&&player.ultimateTime>0?2:1)*(player.type==='mollitiam'&&isBossEnemy(e)&&player.mollitiamHeartTime>0?1.5:1)*(player.curseTime>0&&!trueDamage?.62:1)*(player.dragonPact&&player.ultimateBuffTime>0?1.18:1)*(e.corruptTime>0&&!trueDamage?1.16:1)*(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?1.35:1);if(!trueDamage&&Math.random()<player.echo)amount*=1.6;if(isBossEnemy(e)&&!trueDamage)amount=Math.min(amount,e.maxHp*.04);if(!trueDamage&&e.type==='boss'&&e.mode==='guard'&&e.guardTime>0){amount*=.3;if(e.counterCd<=0&&dist(e,player)<62){e.counterCd=1.25;ring(e.x,e.y,60,'#ff5374');bossMessage='CONTRA-ATAQUE DO SHOGUN';bossMessageTimer=.8;hurtPlayer(e.rage?25:18,'boss');}}if(e.type==='nameless'&&(e.pactBroken||0)>0)amount*=1.2;if(e.type==='odin'&&e.odinShield>0)amount*=.70;if(player.teamAura&&coop.active&&[...coop.allies.values()].some(a=>a.hp>0&&Math.hypot(a.x-player.x,a.y-player.y)<130))amount*=1+player.teamAura;e.hp-=amount;e.hurt=.14;if(!trueDamage&&isNordic()&&e.hp>0){if(Math.random()<(player.fireChance||0)){e.burnTime=Math.max(e.burnTime||0,2);e.burnTick=.6;}if(Math.random()<(player.iceChance||0))e.slow=Math.max(e.slow||0,1.5);if(Math.random()<(player.stormChance||0))e.hp-=Math.min(12,e.maxHp*.005);}if(player.type==='cross'&&e.hp>0&&e.hp<=e.maxHp*.5&&!e.corruptTime){e.corruptTime=5.5;e.slow=Math.max(e.slow||0,1.2);textPop(e.x,e.y-28,'CORROMPIDO','#c89cff');ring(e.x,e.y,27,'#8344af');}if(!cloneHit||(elapsed<cloneAudioAt||elapsed-cloneAudioAt>=.075)){YG_AUDIO.play(isBossEnemy(e)?'heavyHit':'hit',isCrit?1.2:.82);if(cloneHit)cloneAudioAt=elapsed;}if(chargesSupreme&&player.ultimateTime<=0&&player.ultimateBuffTime<=0)player.ultimateCharge=Math.min(100,player.ultimateCharge+(['moretti','l0id'].includes(player.type)?(isBossEnemy(e)?1.8:1.1):player.type==='loid'?(isBossEnemy(e)?2.2:1.4):player.type==='eve'?(isBossEnemy(e)?4.5:3.0):player.type==='mollitiam'?(isBossEnemy(e)?5:3):(isBossEnemy(e)?12:9)));textPop(e.x,e.y-12,Math.round(amount)+(isCrit?'!':''),isCrit?'#ffd67b':'#f0ccdc',e.id);makeParticles(e.x,e.y,player.type==='loid'?'#ae7de3':player.type==='cross'?'#b167ef':'#709cff',cloneHit&&lowFx()?1:4);if(e.hp<=0){if(e.type==='runeSeal'){const boss=enemies.find(n=>n.type==='nameless'&&n.hp>0);if(boss){boss.sealsBroken=(boss.sealsBroken||0)+1;if(boss.sealsBroken>=3){boss.pactBroken=5;boss.stunTime=5;boss.sealsBroken=0;bossMessage='PACTO QUEBRADO · DRAGÃO SILENCIADO!';bossMessageTimer=3;}}}YG_AUDIO.play(isBossEnemy(e)?'bossDefeat':'oniDeath',e.type==='boss'?1.2:.65);player.kills++;essence+=isBossEnemy(e)?150:10;makeParticles(e.x,e.y,isBossEnemy(e)?'#e4b7ff':'#b1519d',18,1.3);player.hp=Math.min(player.maxHp,player.hp+player.onKillHeal);if(!isBossEnemy(e)&&Math.random()<(isNordic()?Math.min(.22,.14+(player.heartBonus||0)):.05)&&healthDrops.length<35){healthDrops.push({x:e.x,y:e.y,amount:12,life:16,phase:Math.random()*6.28});}if(isBossEnemy(e)){if(e.type==='nameless'&&!player.dragonPact){player.dragonPact=true;bossMessage='CARTA LENDÁRIA · PACTO DO DRAGÃO';bossMessageTimer=4;}if(enemies.some(other=>other!==e&&other.hp>0&&isBossEnemy(other)))return;player.hp=player.maxHp;if(coop.active&&coop.host){const host=coop.hostAvatar||player;host.hp=host.maxHp;host.ghost=false;for(const ally of coop.allies.values()){ally.hp=ally.maxHp;ally.ghost=false;}}textPop(player.x,player.y-31,'VIDA RESTAURADA!','#b5ffad');hazards=[];eclipseTime=0;for(const add of enemies){if(add!==e&&!isBossEnemy(add))add.hp=0;}bossMessage=e.type==='ancestralDragon'?'PACTO DRACÔNICO ENCERRADO!':e.type==='odin'?'ODIN DERROTADO!':e.type==='nameless'?'CAVALEIRO INOMINÁVEL DERROTADO!':e.type==='frostjarl'?'JARL DO GELO DERROTADO!':e.type==='pecado'?'PECADO DERROTADO!':e.type==='tsukuomi'?'TSUKUOMI DERROTADA!':e.type==='reuni'?'REUNI DERROTADO!':'DAIMYŌ ONI DERROTADO!';bossMessageTimer=2.4;}}}
 
 // Card-exclusive, one-use frog form: the next attack performs a shadow-frog leap.
 function frogSmash(){
@@ -791,11 +798,12 @@ function secondaryUp(){if(coop.reconnecting)return;
  updateHud();
 }
 function updateClones(dt){
+ const liveById=new Map();for(const e of enemies)if(e.hp>0)liveById.set(e.id,e);
  for(let i=shadowClones.length-1;i>=0;i--){
    const s=shadowClones[i];const originalPlayer=player;const cloneOwner=coop.active&&coop.host&&s.ownerId!==coop.id?coop.allies.get(s.ownerId):null;if(cloneOwner)player=cloneOwner;s.time-=dt;
    if(s.time<=0){shadowClones.splice(i,1);player=originalPlayer;continue;}
    s.attackCd-=dt;s.step+=dt*10;
-   let closest=enemies.find(e=>e.id===s.targetId&&e.hp>0),near=closest?dist(s,closest):Infinity;s.retarget=(s.retarget||0)-dt;if(!closest||s.retarget<=0){s.retarget=.18+(i%5)*.025;closest=null;near=Infinity;for(const e of enemies){const d=(e.x-s.x)**2+(e.y-s.y)**2;if(e.hp>0&&d<near){near=d;closest=e;}}near=Math.sqrt(near);s.targetId=closest?.id;}
+   let closest=liveById.get(s.targetId);if(closest?.hp<=0)closest=null;let near=closest?dist(s,closest):Infinity;s.retarget=(s.retarget||0)-dt;if(!closest||s.retarget<=0){s.retarget=.18+(i%5)*.025;closest=null;near=Infinity;for(const e of enemies){const d=(e.x-s.x)**2+(e.y-s.y)**2;if(e.hp>0&&d<near){near=d;closest=e;}}near=Math.sqrt(near);s.targetId=closest?.id;}
    if(closest){
      const v=norm(closest.x-s.x,closest.y-s.y);
      if(near>22){const speed=s.kind==='l0id'?230:158;s.x+=v.x*speed*dt;s.y+=v.y*speed*dt;}
@@ -803,7 +811,7 @@ function updateClones(dt){
      if(near<36&&s.attackCd<=0){
        s.attackCd=(.72+Math.random()*.18)*(s.kind==='l0id'&&player.ultimateTime>0?.65:1);
        slash(s.x+v.x*12,s.y+v.y*12,Math.atan2(v.y,v.x),25,'#7c3aaa');
-       hitEnemy(closest,player.damage*(s.kind==='l0id'?.52:s.kind==='population'?.35:.52),s.kind!=='l0id');makeParticles(closest.x,closest.y,'#6a3a9d',3);
+       hitEnemy(closest,player.damage*(s.kind==='l0id'?.52:s.kind==='population'?.35:.52),s.kind!=='l0id',false,true);if(!lowFx())makeParticles(closest.x,closest.y,'#6a3a9d',3);
      }
    }else{
      const follow={x:player.x+Math.cos(s.angle+elapsed*.8)*38,y:player.y+Math.sin(s.angle+elapsed*.8)*32};
@@ -814,15 +822,12 @@ function updateClones(dt){
  }
 }
 function drawShadowClone(s){
- if(s.kind){ctx.save();ctx.globalAlpha=.67;heroSprite(s.x,s.y,s.kind==='l0id'?'l0idShadow':'moretti',s.face,s.step,false,.85,{type:s.kind,step:s.step,clone:true});ctx.restore();return;}const im=HERO.loid;if(!im.complete||!im.naturalWidth)return;
- const row={down:0,left:1,right:2,up:3}[s.face]??0,col=[1,0,1,2][Math.floor(s.step)%4];
- ctx.save();ctx.translate(Math.round(s.x),Math.round(s.y));
- ctx.globalAlpha=Math.min(.82,s.time*.45);
- ctx.shadowBlur=8;ctx.shadowColor='#6f32a7';
- ctx.filter='brightness(0.17) sepia(1) saturate(2) hue-rotate(218deg)';
- ctx.drawImage(im,col*112,row*112,112,112,-20,-34,40,40);
+ const modern=!!s.kind,im=modern?HERO[s.kind==='l0id'?'l0idShadow':'moretti']:LOID_SHADE;if(!im.complete||!im.naturalWidth)return;
+ const step=Math.floor(s.step||0),x=Math.round(s.x),y=Math.round(s.y);ctx.save();ctx.globalAlpha=Math.min(modern?.67:.82,Math.max(0,s.time)*.45);
+ if(modern){const size=(s.kind==='l0id'?82:62)*.85;const row=s.kind==='l0id'?2:1,col=step%4;ctx.translate(x,y);if(s.face==='left')ctx.scale(-1,1);ctx.imageSmoothingEnabled=false;ctx.drawImage(im,col*192,row*192,192,192,-size/2,-size+size/24,size,size);}
+ else{const row={down:0,left:1,right:2,up:3}[s.face]??0,col=[1,0,1,2][step%4];ctx.drawImage(im,col*112,row*112,112,112,x-20,y-34,40,40);}
  ctx.restore();
- ctx.save();ctx.strokeStyle='#7d50ad88';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(s.x,s.y-16,15+Math.sin(elapsed*5+s.angle)*2,0,TAU);ctx.stroke();ctx.restore();
+ if(!modern&&!lowFx()){ctx.save();ctx.strokeStyle='#7d50ad88';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y-16,15+Math.sin(elapsed*5+(s.angle||0))*2,0,TAU);ctx.stroke();ctx.restore();}
 }
 function drawDimensionalCharge(){
  if(!player||player.type!=='kris'||!player.secondaryCharging)return;
@@ -1949,7 +1954,7 @@ function frame(time){
   const fps=Math.round(perfFrames*1000/(time-perfStart));callbackFps=fps;
   const drawnFps=Math.round(drawnFrames*1000/(time-perfStart));visibleFps=drawnFps;
   if(renderMode==='auto'&&touchUI&&phase==='play'){
-   if(fps<43){slowSeconds++;fastSeconds=0;}else if(fps>56){fastSeconds++;slowSeconds=0;}else{slowSeconds=fastSeconds=0;}
+   if(fps<43){slowSeconds+=shadowClones.length>=8?2:1;fastSeconds=0;}else if(fps>56){fastSeconds++;slowSeconds=0;}else{slowSeconds=fastSeconds=0;}
    // Escalate GPU savings if the phone struggles; restore only after sustained stability.
    if(slowSeconds>=2){
     if(autoFxTier<2)autoFxTier++;
@@ -1961,7 +1966,7 @@ function frame(time){
   }
   const el=$('performanceMeter');if(el){const ms=netRtt===null?'CONECTANDO':Math.round(netRtt)+' ms';const loss=coop.active&&!coop.host&&time-(coop.lastMotionArrival||0)>1500?' · SINAL FRACO':'';
    const visual=renderMode==='auto'&&touchUI?(autoFxTier===2?' · AUTO DESEMP.':autoFxTier===1?' · AUTO LEVE':' · AUTO HD'):renderMode==='desempenho'?' · DESEMP.':'';
-   el.textContent='FPS '+drawnFps+' · REDE '+(!coop.active?'OFFLINE':ms+' · J '+Math.round(netJitter)+' ms · '+coop.networkRx+'/s'+loss)+visual;
+   el.textContent='FPS '+drawnFps+' · '+(!coop.active?'OFFLINE':'PING '+ms+' · EDGE '+(edgeRtt===null?'--':edgeRtt+'ms')+' · J '+Math.round(netJitter)+' · '+coop.networkRx+'/s'+loss)+visual;el.title='PING: mediana WebSocket até lobby. EDGE: HTTP até Worker '+edgeColo+'. J: variação das chegadas. Não é perda de pacotes.';
   }
   coop.networkRx=0;perfFrames=0;drawnFrames=0;perfStart=time;
  }
@@ -1978,7 +1983,7 @@ function frame(time){
   if(coop.active&&coop.host){
    const buffered=coop.socket?.bufferedAmount||0;
    if(time-coop.lastMotion>=(buffered>16000?100:50)){coop.lastMotion=time;coopSendMotion();}
-   const interval=buffered>16000?250:buffered>5000?170:120;
+   const interval=buffered>16000?250:buffered>5000||shadowClones.length>=12&&callbackFps<45?170:120;
    if(time-coop.lastSnapshot>=interval){coop.lastSnapshot=time;coopSendState();}
   }
  }
@@ -2018,9 +2023,11 @@ function predictGuest(dt,time){
  applyBoundaries(player,8);
  for(const [id,target] of coop.targetAllies){
   const a=coop.allies.get(id);if(!a)continue;
-  const e=Math.hypot(target.x-a.x,target.y-a.y);
-  const k=e>95?1:Math.min(1,dt*(e>25?18:13));
-  a.x+=(target.x-a.x)*k;a.y+=(target.y-a.y)*k;
+  const lead=target.at===undefined?0:clamp((time-target.at)/1000+Math.min(.06,(netRtt||0)/2000),0,.12);
+  const tx=target.x+clamp((target.vx||0)*lead,-18,18),ty=target.y+clamp((target.vy||0)*lead,-18,18);
+  const e=Math.hypot(tx-a.x,ty-a.y);
+  const k=e>95?1:1-Math.exp(-dt*(e>25?18:13));
+  a.x+=(tx-a.x)*k;a.y+=(ty-a.y)*k;applyBoundaries(a,8);
   if(target.face)a.face=target.face;
   if(target.step!==undefined)a.step=target.step;
  }
@@ -2056,6 +2063,7 @@ function coopGuestVisualUpdate(dt){
   e.step=(e.step||0)+dt*(e.speed||45)*.18;
  }
  for(const b of projectiles){b.x+=Number(b.vx||0)*dt;b.y+=Number(b.vy||0)*dt;}
+ for(const s of shadowClones){if(Number.isFinite(s.tx)){const k=1-Math.exp(-dt*16);s.x+=(s.tx-s.x)*k;s.y+=(s.ty-s.y)*k;}s.step=(s.step||0)+dt*10;s.time=Math.max(0,s.time-dt);}
  // Host alone decides damage, cooldowns and wave progression.
  updateHud();
 }
@@ -2201,12 +2209,12 @@ function coopLost(){
 function coopOpenSocket(initial){
  if(coop.socket){const old=coop.socket;coop.socket=null;try{old.close();}catch{}}
  coopStopTimers();let sock;try{sock=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');}catch{coopLost();return;}
- coop.socket=sock;coop.lastPong=Date.now();
- sock.onopen=()=>{if(coop.socket!==sock)return;coop.lastPong=Date.now();coopSend(initial);};
+ coop.socket=sock;coop.lastPong=Date.now();netRtt=null;netRttSamples=[];netRawRtt=null;edgeRtt=null;edgeColo='';
+ sock.onopen=()=>{if(coop.socket!==sock)return;coop.lastPong=Date.now();coop.lastEdgeProbe=Date.now();coopSend(initial);coopSend({t:'ping',ts:Date.now(),mono:performance.now()});probeEdge(sock);};
  sock.onmessage=e=>{if(coop.socket!==sock)return;let m;try{m=JSON.parse(e.data)}catch{return;}coopOnMessage(m);};
  sock.onerror=()=>{if(coop.socket===sock)coopNote('Conexão instável.');};
  sock.onclose=()=>{if(coop.socket!==sock)return;coop.socket=null;coopStopTimers();coopLost();};
- coop.heartbeat=setInterval(()=>{if(coop.socket!==sock)return;coopReconnectUI();if(coop.reconnecting&&Date.now()>=coop.reconnectUntil){coopRecoveryFailed('Reserva expirada.');return;}if(Date.now()-coop.lastPong>11000){coop.socket=null;try{sock.close();}catch{}coopStopTimers();coopLost();return;}if(sock.readyState===WebSocket.OPEN)coopSend({t:'ping',ts:Date.now()});},3000);
+ coop.heartbeat=setInterval(()=>{if(coop.socket!==sock)return;coopReconnectUI();if(coop.reconnecting&&Date.now()>=coop.reconnectUntil){coopRecoveryFailed('Reserva expirada.');return;}if(Date.now()-coop.lastPong>11000){coop.socket=null;try{sock.close();}catch{}coopStopTimers();coopLost();return;}if(sock.readyState===WebSocket.OPEN){coopSend({t:'ping',ts:Date.now(),mono:performance.now()});if(!edgeRtt||Date.now()-(coop.lastEdgeProbe||0)>15000){coop.lastEdgeProbe=Date.now();probeEdge(sock);}}},3000);
 }
 function coopConnect(action, code=''){
  if(location.protocol==='file:'){coopNote('Abra pelo link publicado para jogar online.');return;}
@@ -2255,7 +2263,7 @@ function coopRenderLobby(){
 }
 function coopOnMessage(m){
  switch(m.t){
- case 'pong':coop.lastPong=Date.now();netRtt=Math.max(0,Date.now()-Number(m.ts||Date.now()));return;
+ case 'pong':coop.lastPong=Date.now();acceptPing(Number.isFinite(m.mono)?performance.now()-m.mono:Date.now()-Number(m.ts||Date.now()));return;
  case 'welcome':
    coop.active=true;coop.id=m.id;coop.token=m.token||null;coopResetSeq(m.epoch);coop.room=m.code;coopRemember();coop.hostId=m.host;coop.host=m.host===m.id;coop.members=m.members;coopMode=m.boss||'japan';coopPassiveSelection=[];coop.allies.clear();coop.choices.clear();coop.chosen=false;coopRenderLobby();coopNote('Conectado! Escolha seu herói e compartilhe o código.');return;
  case 'resumed':coopResumeStart(m);return;
@@ -2351,7 +2359,7 @@ function coopRemotePress(id,action,value,aim,dx,dy){
  }
  // Immediately replicate actions, not 125ms later; this makes a remote strike,
  // dash and power visible to EVERY client, including their effects and enemy HP.
-  if(coop.active&&coop.host&&actionCanExecute){coopSendState(true);coopSendMotion();}
+  if(coop.active&&coop.host&&actionCanExecute&&action!=='attack'){coopSendState(true);coopSendMotion();}
  
 }
 function coopAdvance(dt){
@@ -2442,7 +2450,9 @@ function coopApplyMotion(m){
  }
  for(const [id,target] of Object.entries(m.actors)){
   if(id===coop.id||!Number.isFinite(target.x)||!Number.isFinite(target.y))continue;
-  coop.targetAllies.set(id,target);
+  const prev=coop.targetAllies.get(id),gap=prev?.at!==undefined?(now-prev.at)/1000:0;
+  const valid=gap>=.025&&gap<.35&&Math.hypot(target.x-prev.x,target.y-prev.y)<80;
+  coop.targetAllies.set(id,{...target,at:now,vx:valid?clamp((target.x-prev.x)/gap,-260,260):0,vy:valid?clamp((target.y-prev.y)/gap,-260,260):0});
   const a=coop.allies.get(id);if(a){a.hp=target.hp;}
  }
 }
@@ -2477,7 +2487,7 @@ function coopSendState(force=false){
   projectiles:projectiles.slice(-160).map(slim),
   hazards:hazards.slice(-60),healthDrops:healthDrops,
   rings:rings.slice(-20),slashes:slashes.slice(-20),
-  shadowClones:shadowClones.slice(-64),realityFields,realityVictory,dashShadows:dashShadows.slice(-18),
+  shadowClones:shadowClones.slice(-64).map(cloneWire),realityFields,realityVictory,dashShadows:dashShadows.slice(-18),
   bonusBeam,xansBlasters:xansBlasters.slice(-4),timeFields:timeFields.slice(-3).map(t=>({...t})),mirrorIllusions:mirrorIllusions.slice(-6).map(v=>({x:v.x,y:v.y,life:v.life,ownerType:v.owner?.type||'kali'})),voidCollapse,evePortals:evePortals.slice(-5),waveIntro,eclipseTime,bossMessage,bossMessageTimer,elapsed,mandatory
  }};
  // A complete authoritative checkpoint is kept by the room server only, not broadcast to all guests.
@@ -2534,7 +2544,7 @@ function coopApplyState(s){
  for(const incoming of s.enemies||[]){if(!nextEnemyTargets.has(incoming.id))nextEnemyTargets.set(incoming.id,{x:incoming.x,y:incoming.y,vx:0,vy:0});}
  coop.enemyTargets=nextEnemyTargets;
  projectiles=s.projectiles||[];hazards=s.hazards||[];
- healthDrops=s.healthDrops||[];rings=s.rings||[];slashes=s.slashes||[];shadowClones=s.shadowClones||[];realityFields=s.realityFields||[];if(s.realityVictory)unlockL0id();dashShadows=s.dashShadows||[];
+ healthDrops=s.healthDrops||[];rings=s.rings||[];slashes=s.slashes||[];shadowClones=wasStage===s.stage?mergeGuestClones(s.shadowClones||[]):(s.shadowClones||[]);realityFields=s.realityFields||[];if(s.realityVictory)unlockL0id();dashShadows=s.dashShadows||[];
  bonusBeam=s.bonusBeam||null;xansBlasters=s.xansBlasters||[];timeFields=s.timeFields||[];mirrorIllusions=(s.mirrorIllusions||[]).map(v=>({...v,owner:{type:v.ownerType}}));voidCollapse=s.voidCollapse||0;if(Array.isArray(s.evePortals)&&s.evePortals.length){const old=evePortals.filter(x=>x.local);evePortals=[...old,...s.evePortals.map(p=>({...p}))].slice(-7);}waveIntro=s.waveIntro||0;eclipseTime=s.eclipseTime||0;
  if(Number.isFinite(s.elapsed))elapsed=s.elapsed;bossMessage=s.bossMessage||'';bossMessageTimer=s.bossMessageTimer||0;
  if(!coop.selectingUltimate){

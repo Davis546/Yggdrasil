@@ -70,3 +70,6 @@ Escala dinâmica de 1 a 5 jogadores. Consulte [README_v491.md](README_v491.md) p
 
 ## v4.9.2 — Network Overhaul
 Atualização cumulativa v4.9 → v4.9.2: escala cooperativa, reconexão e migração de anfitrião. Consulte [README_v492.md](README_v492.md) para implantação e limitações.
+
+## v4.9.3 — Performance Update
+Sombras pré-renderizadas, interpolação, diagnóstico de RTT e borda, preferência regional e redução de tráfego. Consulte [README_v493.md](README_v493.md).

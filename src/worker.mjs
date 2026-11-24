@@ -289,7 +289,7 @@ export class Lobby extends DurableObject {
     let m;
     try { m = JSON.parse(raw); } catch { return; }
     if (!m || typeof m !== 'object' || typeof m.t !== 'string') return;
-    if (m.t === 'ping') { this.safeSend(c,{t:'pong',ts:Number(m.ts)||Date.now()}); return; }
+    if (m.t === 'ping') { this.safeSend(c,{t:'pong',ts:Number(m.ts)||Date.now(),mono:Number.isFinite(m.mono)?m.mono:undefined}); return; }
 
     if(m.t==='resume'){this.resumeCoop(c,m);return;}
     if(raw.length>180000&&!(m.t==='state'&&c.room?.host===c&&c.room.kind!=='pvp'))return;
@@ -528,9 +528,10 @@ export class Lobby extends DurableObject {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if(url.pathname==='/net-edge')return new Response(JSON.stringify({ok:true,colo:request.cf?.colo||'unknown'}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
     if (url.pathname === '/ws' || url.pathname === '/health') {
-      const id = env.LOBBY.idFromName('yggdrasil-global-lobby-v1');
-      const stub = env.LOBBY.get(id);
+      const id = env.LOBBY.idFromName('yggdrasil-sam-lobby-v493');
+      const stub = env.LOBBY.get(id,{locationHint:'sam'});
       return stub.fetch(request);
     }
     return env.ASSETS.fetch(request);
