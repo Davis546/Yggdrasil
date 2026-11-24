@@ -1,3 +1,17 @@
+# YGGDRASIL v4.3 — Cartas japonesas e animação do Cavaleiro
+
+- **Reino Nórdico:** 5 cartas japonesas comuns/raras, sorteadas sem repetição para cada herói no solo e no online; cartas nórdicas não são sorteadas nesta campanha. O Japão mantém o baralho e a progressão originais.
+- **Limite permanente de 5 cartas:** a cada onda nórdica o jogador escolhe 1 de 3 **suprimentos temporários** (cura/esquiva/recarga), que não acrescentam cartas. A recompensa de derrotar o Cavaleiro continua habilitando seu poder especial sem ocupar uma sexta vaga.
+- **Teto nórdico de atributos:** vida 145% da base (por exemplo, Loid até 159 HP); dano 130%; velocidade 120%; frequência de ataque limitada a 85% da recarga base; defesa 25%; crítico 32%; também há limites para habilidades e outros bônus. Esses limites não se aplicam à campanha japonesa.
+- **Boss 15 nórdico:** quadros de golpe, investida, invocação e habilidades do dragão agora seguem o tempo real de cada movimento. O `game.js` e os sprites recebem parâmetro de cache `v=43` em ambas as páginas para evitar reutilizar JavaScript antigo. O cavaleiro mantém tamanho normal e o dragão tamanho grande. Nenhuma arte/áudio foi reduzido ou recomprimido.
+- **Testes:** `npm run test:balance && npm run test:cards && npm run test:sprites && npm run test:nameless` além dos testes anteriores. Os testes locais não substituem a conferência visual no celular após o deploy.
+
+## Instalação: sobre a v4.2 já extraída no Codespaces
+
+Extraia o ZIP compacto da v4.3 na raiz do projeto, execute `npm install`, testes, `npx wrangler deploy`, e envie o commit. O ZIP compacto **não** contém o jogo completo; todos os demais arquivos devem permanecer da v4.2.
+
+---
+
 # Yggdrasil v4.2 — Sprites animados do Cavaleiro e Dragão
 
 Base: v4.1 completa (cartas da v4.0, Japão e Reino Nórdico, coop, X1 e músicas mantidos). A jornada nórdica inicia com **5 cartas aleatórias únicas por jogador**, em vez de 20.
