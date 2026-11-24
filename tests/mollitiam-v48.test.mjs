@@ -21,7 +21,7 @@ for(const h of [html,alt]){
  assert.match(h,/id="chooseMollitiam"/);
  assert.match(h,/data-coop-hero="mollitiam"/);
  assert.match(h,/mollitiam_portrait\.png/);
- assert.match(h,/game\.js\?v=480/);
+ assert.match(h,/game\.js\?v=49/);
 }
 assert.match(worker,/HEROES\s*=\s*new Set\(\[.*'mollitiam'/);
 assert.match(worker,/MAX_COOP_PLAYERS = 5/);
@@ -32,7 +32,7 @@ assert.match(game,/player\.skillCd=player\.skillDelay;player\.mollitiamPose=\.82
 assert.match(game,/player\.secondaryCd=player\.secondaryDelay;player\.mollitiamPose=\.86/);
 assert.match(game,/player\.ultimateTime=8;player\.mollitiamPose=1\.0/);
 assert.match(game,/player\.type==='mollitiam'&&isBossEnemy\(e\)&&player\.ultimateTime>0\?2:1/);
-assert.match(game,/const heal=Math\.round\(ally\.maxHp\*\(player\.mollitiamHeartTime>0\?\.35:\.25\)\)/);
+assert.match(game,/const healRate=\(player\.mollitiamHeartTime>0\?\.35:\.25\)\*\(isNordic\(\)\?1:\.5\)/);
 assert.match(game,/player\.cardPower==='mollitiamHeart'\?'CORAÇÃO F'/);
 assert.match(duel,/name:'MOLLITIAM'/);
 assert.match(read('public/duel.html'),/data-hero="mollitiam"/);

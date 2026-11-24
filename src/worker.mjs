@@ -3,7 +3,7 @@ import { createDuel } from './duel-engine.mjs';
 // Host-authoritative: the host simulates combat; this Durable Object relays inputs/states.
 import { DurableObject } from 'cloudflare:workers';
 
-const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali', 'mollitiam']);
+const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali', 'mollitiam', 'moretti', 'l0id']);
 const MAX_COOP_PLAYERS = 5; // five players per room; six selectable heroes
 const BOSSES = new Set(['japan', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'odin', 'nameless', 'pecadoNordic']);
 const NORSE_BOSSES=new Set(['nordic','frostjarl','odin','nameless','pecadoNordic']);
@@ -266,7 +266,7 @@ export class Lobby extends DurableObject {
     if (c.room?.kind === 'pvp') {
       const r=c.room;
       if(m.t === 'pvpChoose'&&!r.started&&c.role==='fighter'){
-        if(!HEROES.has(m.hero))return;
+        if(!HEROES.has(m.hero)||['moretti','l0id'].includes(m.hero))return;
         if([...r.members].some(p=>p!==c&&p.role==='fighter'&&p.hero===m.hero)){
           this.safeSend(c,{t:'error',message:'Esse personagem já foi escolhido.'});return;
         }

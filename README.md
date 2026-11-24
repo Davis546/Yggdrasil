@@ -1,3 +1,14 @@
+# Yggdrasil v4.9
+
+Veja [README_v49.md](README_v49.md) para as novidades, instalação e limites de testes.
+
+## Patch v4.8.1 — Mollitiam Japão
+
+- Apenas no Japão: E cura 12,5% (ou 17,5% com carta F) em vez de 25% (35% com F).
+- Apenas no Japão: invulnerabilidade após sofrer dano cai de 0,76 s para 0,18 s.
+- Reino Nórdico e outros heróis permanecem inalterados.
+- Versão dos scripts atualizada para evitar cache.
+
 # Yggdrasil v4.8 — Mollitiam e Desafio Pecador Nórdico
 
 **Atualização incremental sobre a versão v4.7 completa já instalada.** Todos os assets, músicas, cartas, reinos e bosses da v4.7 permanecem inalterados, exceto pelos ajustes de dificuldade listados abaixo. Este ZIP sozinho não substitui a instalação base.
