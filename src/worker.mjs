@@ -4,6 +4,8 @@ import { createDuel } from './duel-engine.mjs';
 import { DurableObject } from 'cloudflare:workers';
 
 const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali', 'mollitiam', 'moretti', 'l0id']);
+const RESUME_MS = 120000;
+const makeResumeToken=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('');
 const MAX_COOP_PLAYERS = 5; // five players per room; six selectable heroes
 const BOSSES = new Set(['japan', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'odin', 'nameless', 'pecadoNordic']);
 const NORSE_BOSSES=new Set(['nordic','frostjarl','odin','nameless','pecadoNordic']);
@@ -27,13 +29,14 @@ export class Lobby extends DurableObject {
     this.players = new Map();
     this.nextId = 1;
     this.duelTicker = null;
+    this.coopTicker = null;
 
     // Rebuild in-memory lobby from WebSocket attachments after DO hibernation.
     for (const socket of ctx.getWebSockets()) {
       const a = socket.deserializeAttachment() || {};
       const id = typeof a.id === 'string' ? a.id : String(this.nextId++);
       this.nextId = Math.max(this.nextId, (Number(id) || 0) + 1);
-      const c = { id, socket, hero: a.hero || null, room: null, role:a.role||'fighter', offer:a.offer||[], picks:a.picks||[], passives:a.passives||[] };
+      const c = { id, socket, hero: a.hero || null, room: null, role:a.role||'fighter', offer:a.offer||[], picks:a.picks||[], passives:a.passives||[], token:a.token||null };
       this.players.set(id, c);
     }
     for (const c of this.players.values()) {
@@ -41,7 +44,7 @@ export class Lobby extends DurableObject {
       if (!a.code) continue;
       let room = this.rooms.get(a.code);
       if (!room) {
-        room = { code: a.code, members: new Set(), host: null, started: false, kind:a.kind||'coop', selectedBoss:a.boss||'japan', lastSnapshot:null, finished:false };
+        room = { code: a.code, members: new Set(), host: null, started: !!a.started, kind:a.kind||'coop', selectedBoss:a.boss||'japan', lastSnapshot:null, finished:false };
         this.rooms.set(a.code, room);
       }
       room.members.add(c);
@@ -49,7 +52,8 @@ export class Lobby extends DurableObject {
       if (a.isHost) room.host = c;
     }
     for (const [code, room] of this.rooms) {
-      if (!room.host) {
+      if(room.kind!=='pvp'){room.reserved=new Map();room.epoch=1;room.checkpoint=null;room.startInfo=null;}
+      if (!room.host || (room.kind!=='pvp'&&room.started)) {
         for (const c of room.members) this.safeSend(c, { t: 'closed', message: 'Anfitrião desconectado.' });
         for (const c of room.members) { c.room = null; this.persist(c); }
         this.rooms.delete(code);
@@ -58,24 +62,26 @@ export class Lobby extends DurableObject {
   }
 
   persist(c) {
+    if(!c.socket)return;
     c.socket.serializeAttachment({
+      token:c.token||null,
       id: c.id,
       code: c.room?.code || null,
       hero: c.hero || null,
       isHost: !!c.room && c.room.host === c,
       started: !!c.room?.started,
-      kind:c.room?.kind||'coop', role:c.role||'fighter', offer:c.offer||[], picks:c.picks||[],passives:c.passives||[]
+      boss:c.room?.selectedBoss||'japan',kind:c.room?.kind||'coop', role:c.role||'fighter', offer:c.offer||[], picks:c.picks||[],passives:c.passives||[]
     });
   }
 
-  safeSend(c, value) {
+  safeSend(c, value, encoded=null) {
     if (!c) return;
     try {
       // A slow guest must not accumulate an ever-growing queue of obsolete frames.
       // Critical events (cards, lobby, start, attack controls) are never dropped.
       if ((value.t === 'motion' || value.t === 'state' || value.t === 'pvpSnapshot' || value.t === 'pvpMotion') &&
           typeof c.socket.bufferedAmount === 'number' && c.socket.bufferedAmount > 131072) return;
-      c.socket.send(JSON.stringify(value));
+      c.socket.send(encoded??JSON.stringify(value));
     } catch { /* disconnected */ }
   }
 
@@ -100,7 +106,8 @@ export class Lobby extends DurableObject {
 
   joinRoom(c, room) {
     if(room.kind === 'pvp') { this.safeSend(c,{t:'error',message:'Use o modo X1 para acessar essa sala.'}); return; }
-    if (room.members.size >= MAX_COOP_PLAYERS) {
+    if(room.members.size||room.reserved?.size)this.sweepCoop(room);
+    if (room.members.size+(room.reserved?.size||0) >= MAX_COOP_PLAYERS) {
       this.safeSend(c, { t: 'error', message: 'Sala cheia (máximo 5 jogadores).' });
       return;
     }
@@ -111,36 +118,72 @@ export class Lobby extends DurableObject {
     if (c.room) this.leaveRoom(c);
     room.members.add(c);
     c.room = room;
-    c.hero = null;c.passives=[];
+    c.hero = null;c.passives=[];c.token=makeResumeToken();
     this.persist(c);
-    this.safeSend(c, { t: 'welcome', id: c.id, code: room.code, host: room.host.id, members: this.members(room) });
+    this.safeSend(c, { t: 'welcome', id: c.id, code: room.code, host: room.host.id, members: this.members(room), token:c.token, epoch:room.epoch||1 });
     this.notify(room);
   }
 
-  leaveRoom(c) {
-    const room = c.room;
-    if (!room) return;
-    c.room = null;
-    c.hero = null;c.passives=[];
-    room.members.delete(c);
-    this.persist(c);
-    if (room.kind === 'pvp') { this.pvpLeave(c,room); return; }
-    if (room.host === c) {
-      for (const member of room.members) {
-        member.room = null;
-        member.hero = null;
-        this.persist(member);
-        this.safeSend(member, { t: 'closed', message: 'O anfitrião saiu da sala.' });
-      }
-      this.rooms.delete(room.code);
-      return;
-    }
-    if (room.members.size === 0) {
-      this.rooms.delete(room.code);
-      return;
-    }
+  // Connected members and reserved slots are deliberately separate. The active
+  // roster controls next-wave difficulty; reserved actors do not hold rewards open.
+  ensureCoopTicker(){
+    if(this.coopTicker)return;
+    this.coopTicker=setInterval(()=>{
+      for(const room of this.rooms.values())if(room.kind!=='pvp')this.sweepCoop(room);
+      if(![...this.rooms.values()].some(r=>r.kind!=='pvp'&&(r.started||r.reserved?.size))){clearInterval(this.coopTicker);this.coopTicker=null;}
+    },2000);this.coopTicker?.unref?.();
+  }
+  sweepCoop(room,now=Date.now()){
+    if(!room.reserved)return;
+    for(const [id,slot] of room.reserved)if(slot.until<=now)room.reserved.delete(id);
+    if(!room.members.size&&!room.reserved.size)this.rooms.delete(room.code);
+  }
+  promoteCoop(room){
+    const next=[...room.members][0];
+    if(!next){room.host=null;return;}
+    if(room.started&&!room.checkpoint){room.started=false;room.startInfo=null;for(const p of room.members)this.safeSend(p,{t:'lobbyReset'});}
+    room.host=next;room.epoch=(room.epoch||1)+1;
+    for(const p of room.members)this.persist(p);
+    const base={t:'hostChanged',host:next.id,epoch:room.epoch,members:this.members(room),started:room.started};
+    for(const p of room.members)this.safeSend(p,p===next?{...base,checkpoint:room.checkpoint}:base);
     this.notify(room);
-    this.safeSend(room.host, { t: 'left', id: c.id });
+  }
+  leaveRoom(c, reserve=false) {
+    const room=c.room;if(!room)return;
+    if(room.kind==='pvp'){
+      c.room=null;c.hero=null;c.passives=[];room.members.delete(c);this.persist(c);this.pvpLeave(c,room);return;
+    }
+    room.reserved??=new Map();
+    if(reserve&&c.token){
+      room.reserved.set(c.id,{id:c.id,token:c.token,hero:c.hero,passives:c.passives||[],until:Date.now()+RESUME_MS,
+        actor:room.checkpoint?.actors?.[c.id]||null,chosenStage:room.checkpoint?.choices?.includes(c.id)?room.checkpoint.stage:null});
+      this.ensureCoopTicker();
+    }
+    room.members.delete(c);c.room=null;c.hero=null;c.passives=[];this.persist(c);
+    if(room.host===c){room.host=null;this.promoteCoop(room);}
+    if(room.host){this.notify(room);this.safeSend(room.host,{t:'left',id:c.id,reserved:reserve});}
+    this.sweepCoop(room);
+  }
+  resumeCoop(c,m){
+    const room=this.rooms.get(String(m.code||'').toUpperCase());
+    if(!room||room.kind==='pvp'||typeof m.token!=='string'||m.token.length!==48){this.safeSend(c,{t:'resumeDenied'});return;}
+    this.sweepCoop(room);
+    const entry=[...(room.reserved||new Map()).values()].find(p=>p.token===m.token);
+    const live=[...room.members].find(p=>p.token===m.token);
+    if(!entry&&!live){this.safeSend(c,{t:'resumeDenied'});return;}
+    if(room.started&&!room.checkpoint){if(!room.host){room.started=false;room.startInfo=null;}else{this.safeSend(c,{t:'resumeWait'});return;}}
+    if(c.room){this.safeSend(c,{t:'resumeDenied'});return;}
+    const old=entry||live,oldId=old.id;const wasHost=room.host===live&&!!live;
+    if(live){room.members.delete(live);this.players.delete(live.id);live.room=null;try{live.socket.close(4001,'Sessão substituída');}catch{}}
+    room.reserved?.delete(oldId);this.players.delete(c.id);c.id=oldId;c.token=old.token;c.hero=old.hero;c.passives=old.passives||[];c.room=room;this.players.set(c.id,c);room.members.add(c);
+    const takeover=wasHost||!room.host;
+    if(takeover){room.host=c;room.epoch=(room.epoch||1)+1;}
+    this.persist(c);
+    const actor=entry?.actor||room.checkpoint?.actors?.[c.id]||null;
+    this.safeSend(c,{t:'resumed',id:c.id,token:c.token,code:room.code,host:room.host.id,epoch:room.epoch||1,members:this.members(room),started:room.started,startInfo:room.startInfo,checkpoint:room.checkpoint,boss:room.selectedBoss,actor,returning:!!entry,chosenStage:entry?.chosenStage??null});
+    if(takeover){for(const p of room.members)if(p!==c){this.persist(p);this.safeSend(p,{t:'hostChanged',host:c.id,epoch:room.epoch,members:this.members(room),started:room.started});}}
+    else if(entry&&room.started)this.safeSend(room.host,{t:'rejoined',id:c.id,actor,chosenStage:entry.chosenStage});
+    this.notify(room);
   }
 
   // Cloudflare Durable Object is the only authority for the duel. Neither browser runs combat.
@@ -242,12 +285,14 @@ export class Lobby extends DurableObject {
   webSocketMessage(ws, raw) {
     const a = ws.deserializeAttachment() || {};
     const c = this.players.get(a.id);
-    if (!c || typeof raw !== 'string' || raw.length > 180000) return;
+    if (!c || c.socket!==ws || typeof raw !== 'string' || raw.length > 750000) return;
     let m;
     try { m = JSON.parse(raw); } catch { return; }
     if (!m || typeof m !== 'object' || typeof m.t !== 'string') return;
     if (m.t === 'ping') { this.safeSend(c,{t:'pong',ts:Number(m.ts)||Date.now()}); return; }
 
+    if(m.t==='resume'){this.resumeCoop(c,m);return;}
+    if(raw.length>180000&&!(m.t==='state'&&c.room?.host===c&&c.room.kind!=='pvp'))return;
     // PvP is isolated from the original cooperative protocol.
     if (m.t === 'pvpCreate') {
       if(c.room)this.leaveRoom(c);
@@ -358,7 +403,7 @@ export class Lobby extends DurableObject {
       // New host room. If already in one, leave it before creating another.
       if (c.room) this.leaveRoom(c);
       const code = this.makeCode();
-      const room = { code, host: c, members: new Set(), started: false, selectedBoss:'japan' };
+      const room = { code, host: c, members: new Set(), reserved:new Map(), epoch:1, checkpoint:null, startInfo:null, started: false, selectedBoss:'japan' };
       this.rooms.set(code, room);
       this.joinRoom(c, room);
       return;
@@ -391,6 +436,8 @@ export class Lobby extends DurableObject {
       c.passives=picked.slice();this.persist(c);this.notify(r);return;
     }
     if (m.t === 'begin' && r.host === c && !r.started) {
+      this.sweepCoop(r);
+      if(r.reserved?.size){this.safeSend(c,{t:'error',message:'Aguarde os aliados reconectarem ou a reserva expirar.'});return;}
       if (r.members.size < 2 || [...r.members].some(p => !p.hero) || new Set([...r.members].map(p=>p.hero)).size !== r.members.size) {
         this.safeSend(c, { t: 'error', message: 'São necessários de 2 a 5 jogadores com personagens diferentes selecionados.' });
         return;
@@ -402,19 +449,21 @@ export class Lobby extends DurableObject {
       r.started = true;
       const difficulty = m.difficulty === 'pecador' ? 'pecador' : 'normal';
       const members = this.members(r);
+      r.startInfo={boss,difficulty};r.checkpoint=null;this.ensureCoopTicker();
       for (const p of r.members) {
         this.persist(p);
-        this.safeSend(p, { t: 'begun', id: p.id, host: c.id, members, boss, difficulty });
+        this.safeSend(p, { t: 'begun', id: p.id, host: c.id, members, boss, difficulty, playerCount: members.length, epoch:r.epoch||1 });
       }
       return;
     }
     if (m.t === 'rematchRequest' && r.started && r.host !== c) { this.safeSend(r.host,{t:'rematchRequest',id:c.id});return; }
     if (m.t === 'rematch' && r.started && r.host === c) {
-      r.started=false;r.selectedBoss='japan';
+      r.started=false;r.selectedBoss='japan';r.checkpoint=null;r.startInfo=null;r.reserved?.clear();
       for (const p of r.members) {p.passives=[];p.hero=null;this.persist(p);this.safeSend(p,{t:'lobbyReset'});}
       this.notify(r);return;
     }
     if (!r.started) return;
+    if(m.t==='detached'&&r.host===c){const slot=r.reserved?.get(String(m.id));if(slot&&m.actor&&typeof m.actor==='object'&&JSON.stringify(m.actor).length<30000){slot.actor=m.actor;slot.chosenStage=Number.isInteger(m.chosenStage)?m.chosenStage:null;}return;}
     if (m.t === 'input' && r.host !== c) {
       const x = Number(m.x) || 0, y = Number(m.y) || 0, aim = Number(m.aim) || 0;
       this.safeSend(r.host, {
@@ -435,22 +484,25 @@ export class Lobby extends DurableObject {
       return;
     }
     if (m.t === 'motion' && r.host === c) {
+      if(m.epoch!==undefined&&m.epoch!==(r.epoch||1))return;
       // Verify compact movement-only packets; do not let large payloads congest the room.
       if (!m.actors || typeof m.actors !== 'object' || Object.keys(m.actors).length > MAX_COOP_PLAYERS || JSON.stringify(m).length > 2400) return;
       const positions = {};
       for (const p of r.members) {
         const a = m.actors[p.id];
-        if (!a || !Number.isFinite(a.x) || !Number.isFinite(a.y)) return;
+        if(!a)continue;if(!Number.isFinite(a.x)||!Number.isFinite(a.y))return;
         positions[p.id] = { x:a.x, y:a.y, face:String(a.face||'down').slice(0,5), step:Number(a.step)||0, hp:Number(a.hp)||0 };
       }
-      for (const p of r.members) if (p !== c) this.safeSend(p,{t:'motion',seq:Number(m.seq)||0,actors:positions});
+      const packet={t:'motion',epoch:r.epoch||1,seq:Number(m.seq)||0,actors:positions};const encoded=JSON.stringify(packet);for (const p of r.members) if (p !== c) this.safeSend(p,packet,encoded);
       return;
     }
     if (m.t === 'state' && r.host === c) {
       if (!m.data || typeof m.data !== 'object') return;
+      if(m.epoch!==undefined&&m.epoch!==(r.epoch||1))return;
+      if(m.checkpoint&&typeof m.checkpoint==='object'&&m.checkpoint.actors?.[c.id]&&JSON.stringify(m.checkpoint).length<560000){r.checkpoint=m.checkpoint;}
       const payload = JSON.stringify(m.data);
       if (payload.length > 180000) return;
-      for (const p of r.members) if (p !== c) this.safeSend(p, { t: 'state', data: m.data });
+      const packet={t:'state',epoch:r.epoch||1,data:m.data};const encoded=JSON.stringify(packet);for (const p of r.members) if(p!==c)this.safeSend(p,packet,encoded);
       return;
     }
     if (m.t === 'signal' && r.host === c) {
@@ -463,8 +515,8 @@ export class Lobby extends DurableObject {
   webSocketClose(ws) {
     const a = ws.deserializeAttachment() || {};
     const c = this.players.get(a.id);
-    if (!c) return;
-    this.leaveRoom(c);
+    if (!c||c.socket!==ws) return;
+    this.leaveRoom(c,true);
     this.players.delete(c.id);
   }
 

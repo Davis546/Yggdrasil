@@ -63,3 +63,10 @@ git push
 ```
 
 **Limitação da validação:** testes automatizados de integridade, regras e servidor passaram. A publicação no Cloudflare e o teste visual no Android/celular ainda precisam ser confirmados após o deploy.
+
+## v4.9.1 — Ascensão Cooperativa
+
+Escala dinâmica de 1 a 5 jogadores. Consulte [README_v491.md](README_v491.md) para multiplicadores, testes e publicação.
+
+## v4.9.2 — Network Overhaul
+Atualização cumulativa v4.9 → v4.9.2: escala cooperativa, reconexão e migração de anfitrião. Consulte [README_v492.md](README_v492.md) para implantação e limitações.

@@ -1,6 +1,6 @@
 {
   "name": "yggdrasil-online-cloudflare",
-  "version": "4.9.0",
+  "version": "4.9.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -24,7 +24,9 @@
     "test:mollitiam": "node tests/mollitiam-v48.test.mjs",
     "test:pecador48": "node tests/nordic-pecador-v48.test.mjs",
     "test:mollitiam-jp": "node tests/mollitiam-japan-v481.test.mjs",
-    "test:v49": "node tests/v49.test.mjs"
+    "test:v49": "node tests/v49.test.mjs",
+    "test:coop491": "node tests/coop-v491.test.mjs",
+    "test:network492": "node tests/network-v492.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.50.0"
