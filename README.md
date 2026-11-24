@@ -1,3 +1,20 @@
+# YGGDRASIL v4.4 — Sprites e animações dos chefes funcionando
+
+Base v4.3 integral, com as cinco cartas japonesas e limites de atributos do Reino Nórdico mantidos.
+
+- Cavaleiro e dragão: 16 quadros **reais** cada, derivados diretamente das imagens fornecidas pelo criador, em células 320x320, sem ampliar/reduzir os pixels originais; jogo usa os estados de caminhada, ataque, magia e invocação.
+- As quatro lutas japonesas (Daimyō Oni, Reuni, Tsukuyomi e Pecado) ganharam estados visuais de preparo, investida e golpe no **spritesheet que já existia**. As folhas japonesas só têm 3 poses por direção, portanto estas animações combinam suas poses originais com movimento e efeitos; não são artes de ataque totalmente novas.
+- Jarl do Gelo alterna entre poses de machado (quadros 8–11) e magias (12–15).
+- No online, o host envia também `walking` e `attackPose`, evitando chefes estáticos nos convidados.
+- Fallback para arte estática do Cavaleiro/Dragão quando a animação não carrega; nenhum chefe fica com hitbox invisível se uma imagem falhar.
+- `index.html` e `game.html` agora usam `game.js?v=44` para eliminar código antigo de cache.
+- Testes adicionais: `npm run test:animations`, `npm run test:sprites`, `npm run test:bosses`.
+- Arquivos visuais e trilhas anteriores preservados integralmente; apenas os atlas do Cavaleiro e do Dragão foram reconstruídos com pixels originais sem interpolação.
+
+Para publicar via Cloudflare Workers: descompactar a atualização sobre a v4.3, rodar testes, executar `npx wrangler deploy` e dar commit em `public`, `src`, `tests`, `package.json` e `README.md`.
+
+---
+
 # YGGDRASIL v4.3 — Cartas japonesas e animação do Cavaleiro
 
 - **Reino Nórdico:** 5 cartas japonesas comuns/raras, sorteadas sem repetição para cada herói no solo e no online; cartas nórdicas não são sorteadas nesta campanha. O Japão mantém o baralho e a progressão originais.

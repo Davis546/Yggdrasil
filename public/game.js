@@ -34,14 +34,14 @@ HERO.kris.src='assets/heroes/kris_sheet.png';
 HERO.cross.src='assets/heroes/cross_sheet.png';
 HERO.eve.src='assets/heroes/eve_sheet.png?v=33';
 HERO.kali.src='assets/heroes/kali_sheet.png?v=33';
-const ENEMY_URLS={walker:'assets/enemies/oni_walker.png',runner:'assets/enemies/oni_runner.png',caster:'assets/enemies/oni_caster.png',boss:'assets/enemies/samurai_sheet.png',reuni:'assets/enemies/reuni_sheet.png',tsukuomi:'assets/enemies/tsukuomi_sheet.png',ghost:'assets/enemies/ghost_sheet.png',yokai:'assets/enemies/yokai_sheet.png',beast:'assets/enemies/beast_sheet.png',pecado:'assets/enemies/pecado_sheet.png',draugr:'assets/enemies/nordic_draugr_sheet.png',frostwolf:'assets/enemies/nordic_frostwolf_sheet.png',berserker:'assets/enemies/nordic_berserker_sheet.png',runewitch:'assets/enemies/nordic_runewitch_sheet.png',frostjarl:'assets/enemies/jarl_v39_atlas.png?v=39',nameless:'assets/nordic/nameless_knight_sheet.png?v=43',runeSeal:'assets/nordic/nameless_knight.png?v=41'};
+const ENEMY_URLS={walker:'assets/enemies/oni_walker.png',runner:'assets/enemies/oni_runner.png',caster:'assets/enemies/oni_caster.png',boss:'assets/enemies/samurai_sheet.png',reuni:'assets/enemies/reuni_sheet.png',tsukuomi:'assets/enemies/tsukuomi_sheet.png',ghost:'assets/enemies/ghost_sheet.png',yokai:'assets/enemies/yokai_sheet.png',beast:'assets/enemies/beast_sheet.png',pecado:'assets/enemies/pecado_sheet.png',draugr:'assets/enemies/nordic_draugr_sheet.png',frostwolf:'assets/enemies/nordic_frostwolf_sheet.png',berserker:'assets/enemies/nordic_berserker_sheet.png',runewitch:'assets/enemies/nordic_runewitch_sheet.png',frostjarl:'assets/enemies/jarl_v39_atlas.png?v=44',nameless:'assets/nordic/nameless_knight_sheet.png?v=44',runeSeal:'assets/nordic/nameless_knight.png?v=41'};
 const FROG=new Image();FROG.src='assets/heroes/kris_frog_sheet.png';
 const ARENA=new Image(); ARENA.src='assets/japanese_arena.webp';
 const NORDIC_ARENA=new Image();NORDIC_ARENA.src='assets/nordic/frozen_arena.webp?v=37';
 const isNordic=()=>stage>=21;const localNordicWave=()=>Math.max(1,stage-20);
 let selectedCampaign='japan',activeCampaign='japan';
 const isCampaignFinalWave=()=>activeCampaign==='nordic'?stage===35:stage===20;
-const DRAGON_ART=new Image();DRAGON_ART.src='assets/nordic/ancient_dragon_sheet.png?v=43';
+const DRAGON_ART=new Image();DRAGON_ART.src='assets/nordic/ancient_dragon_sheet.png?v=44';
 const JARL_BOSS_ART=new Image();JARL_BOSS_ART.src='assets/nordic/jarl_boss_v38.webp?v=38';
 const SAMURAI_BOSS_ART=new Image();SAMURAI_BOSS_ART.src='assets/ui/samurai_boss_v38.webp?v=38';
 const NORDIC_VFX={};for(const n of ['ice','rune','rage']){NORDIC_VFX[n]=new Image();NORDIC_VFX[n].src='assets/nordic/vfx_'+n+'.png';}
@@ -52,6 +52,20 @@ const isBossEnemy=e=>['boss','reuni','tsukuomi','pecado','frostjarl','nameless']
 const CARD_IMAGES={heart:'assets/cards/heart.png',blade:'assets/cards/blade.png',fast:'assets/cards/fast.png',speed:'assets/cards/speed.png',armor:'assets/cards/armor.png',reach:'assets/cards/reach.png',dodge:'assets/cards/dodge.png',heal:'assets/cards/heal.png',critical:'assets/cards/critical.png',arc:'assets/cards/arc.png',vigor:'assets/cards/vigor.png',echo:'assets/cards/echo.png',shadowblade:'assets/cards/shadowblade.png',shadowdash:'assets/cards/shadowdash.png',darkburst:'assets/cards/darkburst.png',living:'assets/cards/living.png',black:'assets/cards/black.png',form:'assets/cards/form.png',awakening:'assets/cards/awakening.png',bloodmoon:'assets/cards/bloodmoon.png',ancient:'assets/cards/ancient.png',dragonPact:'assets/nordic/nameless_knight.png?v=41',frog:'assets/cards/frog.png',gaster:'assets/cards/gaster.png',granita:'assets/cards/granita.png',mirror:'assets/cards/arc.png',mirrorguard:'assets/cards/armor.png',voidblade:'assets/cards/blade.png',timeward:'assets/cards/fast.png'};
 const ENEMY_ART={};
 for(const name of Object.keys(ENEMY_URLS)) {ENEMY_ART[name]=new Image();ENEMY_ART[name].src=ENEMY_URLS[name];}
+// Missing sheets must never make bosses vanish. Keep a compatible still-art
+// fallback while reporting the missing texture in the console for debugging.
+const BOSS_FALLBACKS={
+  nameless:'assets/nordic/nameless_knight.png?v=44',
+  frostjarl:'assets/enemies/nordic_frostjarl_sheet.png?v=44'
+};
+for(const [kind,fallback] of Object.entries(BOSS_FALLBACKS)){
+  const main=ENEMY_ART[kind];main.onerror=()=>{
+    if(main.src.includes(fallback))return;
+    console.warn('[Yggdrasil] Sprite animado não carregou:',kind,main.src);
+    main.src=fallback;main.datasetFallback=true;
+  };
+}
+const DRAGON_FALLBACK=new Image();DRAGON_FALLBACK.src='assets/nordic/ancient_dragon.png?v=44';
 let movingNow=false;
 
 const THEMES=[{name:'RAIZ DA MEMÓRIA',floor:'#252337',wall:'#171729',accent:'#9383dc',danger:'#8b70bb'},{name:'RAIZ DA MORTE',floor:'#2b2430',wall:'#1a151f',accent:'#b064a8',danger:'#be668b'},{name:'RAIZ DO TEMPO',floor:'#222e38',wall:'#101f2b',accent:'#6bc3d1',danger:'#66b2e4'},{name:'RAIZ DA VIDA',floor:'#273229',wall:'#18261a',accent:'#8bc078',danger:'#89bf65'},{name:'RAIZ DA VONTADE',floor:'#382924',wall:'#291a17',accent:'#e4a36d',danger:'#d78a72'},{name:'RAIZ DA ESPERANÇA',floor:'#34313a',wall:'#201d2c',accent:'#e5be89',danger:'#f0c994'},{name:'RAIZ DA ALMA',floor:'#282e41',wall:'#161d2d',accent:'#89a7f8',danger:'#a18fed'}];
@@ -902,6 +916,7 @@ function updateSamurai(e,dt,d,dir,spd){
  if(e.mode==='windup'){
   e.windup-=dt;
   if(e.windup<=0){
+   e.attackPose=.78;
    if(e.move==='eclipse'){YG_AUDIO.play('bossEclipse',1.22);
     const dx=player.x-e.x,dy=player.y-e.y,distp=Math.hypot(dx,dy),ang=Math.atan2(dy,dx),diff=Math.atan2(Math.sin(ang-e.angle),Math.cos(ang-e.angle));
     slash(e.x+Math.cos(e.angle)*21,e.y+Math.sin(e.angle)*21,e.angle,e.rage?84:71,'#ff3d67');ring(e.x,e.y,23,'#cf3d64');
@@ -975,6 +990,7 @@ function updateReuni(e,dt,d,dir,spd){
   e.windup-=dt;
   // The marked attack does not hurt the player before the visible warning finishes.
   if(e.windup<=0){
+   e.attackPose=.78;
    if(e.move==='claws'){
     YG_AUDIO.play('bossEclipse',1.15);
     let ang=e.angle,r=e.rage?71:59;
@@ -1052,6 +1068,7 @@ function updateTsukuomi(e,dt,d,dir,spd){
  if(e.mode==='windup'){
   e.windup-=dt;
   if(e.windup<=0){
+   e.attackPose=.78;
    if(e.move==='gaze'){
     const spread=e.rage?7:5;
     for(let i=0;i<spread;i++){
@@ -1118,6 +1135,7 @@ function updatePecado(e,dt,d,dir,spd){
  if(e.mode==='windup'){
   e.windup-=dt;
   if(e.windup<=0){
+   e.attackPose=.78;
    if(e.move==='curse'){
     let diff=Math.atan2(Math.sin(Math.atan2(player.y-e.y,player.x-e.x)-e.angle),Math.cos(Math.atan2(player.y-e.y,player.x-e.x)-e.angle));
     if(d<210&&Math.abs(diff)<.58){applyCurse(6.8);hurtPlayer(e.corruptionPhase===2?29:18);}
@@ -1330,13 +1348,36 @@ function safeWalkFrame(e,cols=3,mult=1){
  const raw=Math.floor(step*mult+phase);
  return ((raw%count)+count)%count;
 }
+// Each boss has a separate visible attack pose. The Japan sheets contain
+// three drawn frames per direction (not dedicated attack sheets), so we pair
+// the existing poses with a physical lunge and weapon FX. The knight, Jarl,
+// and dragon use their original dedicated attack frames instead.
+function bossAttackActive(e){return e.mode==='windup'||e.mode==='charge'||e.mode==='guard'||(e.attackPose||0)>0;}
+function japaneseBossFrame(e){
+ if(e.mode==='windup')return [1,2,0,2][Math.floor(elapsed*9)%4];
+ if(e.mode==='charge')return [2,1,0][Math.floor(elapsed*15)%3];
+ if((e.attackPose||0)>0)return [2,0,1][Math.floor(elapsed*11)%3];
+ if(e.walking)return [0,1,2,1][safeWalkFrame(e,4,1.35)];
+ return 1;
+}
+function bossVisualLunge(e){
+ if(e.mode==='charge')return 5;
+ if(e.mode==='windup')return -3;
+ if((e.attackPose||0)>0)return Math.sin(elapsed*23)*3.8;
+ return 0;
+}
 // Both sprites use 4×4 atlases with independently bounded 320×320 cells.
 // This routine never samples outside a frame, even on an incomplete network snapshot.
 function drawNordicAtlasFrame(img,frame,x,y,w,h=w){
  if(!img||!img.complete||!img.naturalWidth||!img.naturalHeight)return false;
+ // Only the real atlas is divided into 16 pieces. If its optional fallback
+ // is in use, paint the whole image rather than cropping a nonexistent grid.
+ if(img.naturalWidth!==1280||img.naturalHeight!==1280){
+   ctx.drawImage(img,0,0,img.naturalWidth,img.naturalHeight,x,y,w,h);
+   return true;
+ }
  const index=((Math.floor(Number.isFinite(frame)?frame:0)%16)+16)%16;
- const fw=img.naturalWidth/4,fh=img.naturalHeight/4;
- if(fw<=0||fh<=0)return false;
+ const fw=320,fh=320;
  ctx.drawImage(img,(index%4)*fw,Math.floor(index/4)*fh,fw,fh,x,y,w,h);
  return true;
 }
@@ -1365,18 +1406,27 @@ function namelessDragonFrame(e){
 }
 function drawNamelessDragon(){
  const boss=enemies.find(e=>e.type==='nameless'&&e.hp>0&&e.rage);
- if(!boss||!DRAGON_ART.complete||!DRAGON_ART.naturalWidth)return;
+ if(!boss)return;
+ const dragonImage=DRAGON_ART.complete&&DRAGON_ART.naturalWidth?DRAGON_ART:DRAGON_FALLBACK;
+ if(!dragonImage.complete||!dragonImage.naturalWidth)return;
  // The dragon is a huge animated arena entity, not a small projectile:
  // anchor it in the camera view so mobile players can see it completely.
  const size=clamp(Math.min(W*.62,H*.82),155,320);
  const dx=camera.x+W-size-8,dy=camera.y+8;
  ctx.save();ctx.globalAlpha=(boss.pactBroken>0?.65:1)*(boss.dragonIntro>0?clamp((4.5-boss.dragonIntro)/1.15,.05,1):1);
  ctx.shadowColor='#84bfff';ctx.shadowBlur=lowFx()?0:13;
- drawNordicAtlasFrame(DRAGON_ART,namelessDragonFrame(boss),dx,dy,size,size);
+ drawNordicAtlasFrame(dragonImage,namelessDragonFrame(boss),dx,dy,size,size);
  ctx.restore();
 }
 function enemySprite(e){
  const img=ENEMY_ART[e.type];
+ if(isBossEnemy(e)&&(!img||!img.complete||!img.naturalWidth)){
+  // A missing upload should never turn an enemy into an invisible hitbox.
+  ctx.save();ctx.translate(e.x,e.y);ctx.fillStyle='#361e4f';ctx.strokeStyle='#e5a8ff';
+  ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(0,-32,25,37,0,0,TAU);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#ffffff';ctx.font='bold 9px system-ui';ctx.textAlign='center';
+  ctx.fillText('BOSS',0,-31);ctx.restore();return;
+ }
  if(img&&img.complete&&img.naturalWidth){
   ctx.save();ctx.translate(Math.round(e.x),Math.round(e.y));
   if(e.type==='nameless'){
@@ -1393,9 +1443,10 @@ function enemySprite(e){
    // 4×4 atlas: frames 0–7 idle/walk, 8–11 axe swings, 12–15 ice magic.
    // Never use e.phase directly; some network snapshots omit it.
    const attack=e.mode==='windup'||(e.attackPose||0)>0;
-   const frame=e.mode==='windup'?(8+(Math.floor(elapsed*5)%4)):
-     (e.attackPose||0)>0?(12+(Math.floor(elapsed*9)%4)):
-     e.walking?safeWalkFrame(e,8,.85):0;
+   const magic=['shards','blizzard','crush','summon'].includes(e.move);
+   const frame=e.mode==='windup'?(magic?12:8)+(Math.floor(elapsed*8)%4):
+     (e.attackPose||0)>0?(magic?12:8)+(Math.floor(elapsed*12)%4):
+     e.walking?safeWalkFrame(e,8,.85):Math.floor(elapsed*2)%4;
    const sz=136;
    ctx.fillStyle='#0c1426a0';ctx.beginPath();ctx.ellipse(0,-2,49,13,0,0,TAU);ctx.fill();
    if(e.rage||attack){ctx.shadowColor='#73d9ff';ctx.shadowBlur=lowFx()?0:(e.rage?21:11);}
@@ -1414,7 +1465,17 @@ function enemySprite(e){
    if(e.hurt>0){ctx.globalAlpha=Math.min(.27,e.hurt*2);ctx.fillStyle='#fff';ctx.fillRect(-sz/2,-sz+9,sz,sz);}
   }else if(isBossEnemy(e)){
    const row={down:0,left:1,right:2,up:3}[e.face||'down']??0;
-   const col=e.walking?safeWalkFrame(e,3,1.15):0;
+   const col=japaneseBossFrame(e);
+   const attacking=bossAttackActive(e);
+   if(attacking){
+     const angle=e.face==='left'?Math.PI:e.face==='up'?-Math.PI/2:e.face==='down'?Math.PI/2:0;
+     const lunge=bossVisualLunge(e);
+     ctx.translate(Math.cos(angle)*lunge,Math.sin(angle)*lunge);
+     // Attack pulse remains visible even for sprites without special frames.
+     ctx.strokeStyle=e.type==='tsukuomi'?'#b99cff':e.type==='pecado'?'#ff365a':e.type==='reuni'?'#ff7992':'#eeb3a7';
+     ctx.lineWidth=1.8;ctx.globalAlpha=.9;
+     ctx.beginPath();ctx.arc(0,-25,30+Math.sin(elapsed*16)*3,elapsed*5,elapsed*5+1.0);ctx.stroke();ctx.globalAlpha=1;
+   }
    if(e.rage){ctx.shadowColor=e.type==='pecado'?'#f10d2c':e.type==='tsukuomi'?'#9f59ea':e.type==='reuni'?'#fa1e3e':'#f7367c';ctx.shadowBlur=lowFx()?0:10;ctx.fillStyle='#9e1d5166';ctx.beginPath();ctx.ellipse(0,-10,23,25,0,0,TAU);ctx.fill();ctx.shadowBlur=0;}
    if(e.mode==='guard'&&e.type==='boss'){ctx.strokeStyle='#fa607f';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,-12,32,0,TAU);ctx.stroke();}
    if(e.mode==='windup'){ctx.shadowColor=e.type==='tsukuomi'?'#ae78ff':'#f46c92';ctx.shadowBlur=lowFx()?0:10;}
@@ -2075,7 +2136,7 @@ function coopSendState(force=false){
  // No random per-client enemy selection or culled mobs; boss HP and hit registration
  // are calculated only here, on the host.
  const slim=(e)=>{const o={};for(const k of [
-  'id','type','x','y','hp','maxHp','radius','face','step','mode','move',
+  'id','type','x','y','hp','maxHp','radius','face','step','walking','mode','move',
   'phase','rage','hurt','attack','attackPose','attackTime','atkTime','windup','charge','chargeTime',
   'chargeDir','guardTime','guardCd','corruptTime','corrupted','slow','speed',
   'counterCd','summonTimer','bossPhase','specialIndex','corruptionPhase','isElite',
