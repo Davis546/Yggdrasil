@@ -4,7 +4,7 @@ const touchUI=window.matchMedia('(pointer:coarse)').matches || (navigator.maxTou
 const $=id=>document.getElementById(id),rand=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y), norm=(x,y)=>{let l=Math.hypot(x,y)||1;return {x:x/l,y:y/l}}, TAU=Math.PI*2;
 let phase='title',player=null,enemies=[],projectiles=[],particles=[],slashes=[],rings=[],dashShadows=[],stage=1,essence=0,last=0,elapsed=0,shake=0,flash=0,mouseAim=null,pointerDown=false,attackMobile=false,mobileMove={x:0,y:0},opts=[],nextEnemyId=1,camera={x:0,y:0},shadowClones=[],waveIntro=0,domainFade=0,waveClearTimer=-1,dashGhostTimer=0,footstepClock=0,eclipseTime=0,healthDrops=[],damageFloats=[],xansBlasters=[],timeFields=[],mirrorIllusions=[],voidCollapse=0,evePortals=[];
 // v2.4: dynamic *visual* budget. All damage, collisions, dash timing and network ticks
-// remain unchanged even when the canvas renders fewer/cheaper frames.
+// remain unchanged when the canvas renders cheaper effects.
 const weakMobileHint=touchUI&&((Number(navigator.deviceMemory)||8)<=4||(Number(navigator.hardwareConcurrency)||8)<=4);
 let autoFxTier=weakMobileHint?1:0,drawnFrames=0,callbackFps=60;let lastHudStamp=0;
 const lowFx=()=>renderMode==='desempenho'||renderMode==='leve'||(renderMode==='auto'&&autoFxTier>=1);
@@ -111,7 +111,7 @@ const cards=[
 {id:'frog',name:'Forma do Sapo',desc:'F EXCLUSIVO (1x): ativa o salto do sapo. Q mantém a transformação normal e R mantém o supremo. Elimina inimigos comuns atingidos e tira 25% de chefes.',icon:'♠',rarity:'legendary',hero:'kris',effect:p=>{p.frogSkill=true;p.frogUsed=false;p.frogTime=0;p.cardPower='frog';p.cardPowerUsed=false}},
 {id:'gaster',name:'Gaster Blaster',desc:'XANS · Carta exclusiva: invoque uma caveira colossal que dispara um feixe devastador. F = uso único por partida.',icon:'☠',rarity:'legendary',hero:'cross',effect:p=>{p.cardPower='gaster';p.cardPowerUsed=false;}},
 {id:'mirror',name:'Reflexo Duplo',desc:'Kali: estilhaços causam +15% de dano.',icon:'◇',rarity:'rare',hero:'kali',effect:p=>p.mirrorAmp=(p.mirrorAmp||1)*1.15},
-{id:'mirrorguard',name:'Espelho Protetor',desc:'Kali: Q dura 1 segundo a mais.',icon:'✧',rarity:'rare',hero:'kali',effect:p=>p.mirrorDuration=(p.mirrorDuration||4)+1},
+{id:'mirrorguard',name:'Espelho Protetor',desc:'Kali: Q dura 1 segundo a mais.',icon:'✧',rarity:'rare',hero:'kali',effect:p=>p.mirrorDuration=(p.mirrorDuration||5)+1},
 {id:'voidblade',name:'Espada Voraz',desc:'Eve: +12% de dano da espada do Vazio.',icon:'✦',rarity:'rare',hero:'eve',effect:p=>p.damage=Math.min(p.baseDamage*1.65,p.damage*1.12)},
 {id:'timeward',name:'Tempo Dilatado',desc:'Eve: Campo Temporal dura mais 1 segundo.',icon:'◷',rarity:'rare',hero:'eve',effect:p=>p.timeDuration=(p.timeDuration||5)+1},
 {id:'granita',name:'Descarga de Granita',desc:'LOID · Carta exclusiva: raio branco-negro ampliado, mais dano contra chefes. Consome 50% do Supremo. F = uso único.',icon:'ϟ',rarity:'legendary',hero:'loid',effect:p=>{p.cardPower='granita';p.cardPowerUsed=false;}},
@@ -283,7 +283,7 @@ function grantNordicStarter(p,directBoss=false){
 }
 
 function createPlayer(type){if(type==='mollitiam')return {type,x:WORLD_W/2,y:WORLD_H/2+120,face:'down',aim:-Math.PI/2,hp:320,maxHp:320,damage:130,attackDelay:1.36,atkTime:0,speed:57,reach:67,arc:2.08,armor:.16,crit:.10,critMultiplier:200/130,echo:0,onKillHeal:0,betweenHeal:14,dashDelay:4,dashCd:0,dashTime:0,dashV:{x:0,y:0},invuln:0,skillDelay:11.5,skillCd:0,skillAmp:1,darkAuraTime:0,darkAuraTick:0,secondaryCd:0,secondaryDelay:30,secondaryCharging:false,secondaryCharge:0,transformDuration:8,transformAmp:0,transformTime:0,shadowDash:false,orbiters:0,orbitTimer:0,waveAttack:false,cardPower:'',cardPowerUsed:false,frogSkill:false,frogUsed:false,frogTime:0,ghost:false,dodgeChance:0,mirrorGuard:0,mirrorAmp:1,mirrorDuration:4,timeDuration:5,voidField:0,voidTick:0,voidUltimate:0,voidUltTick:0,crossChain:null,curseTime:0,frostTime:0,attackCount:0,ultimateCharge:0,ultimateTime:0,ultimateTick:0,ultimateBuff:'',ultimateBuffTime:0,step:0,cards:[],kills:0,mollitiamHeartTime:0};const loid=type==='loid',cross=type==='cross',eve=type==='eve',kali=type==='kali';return {type,x:WORLD_W/2,y:WORLD_H/2+120,face:'down',aim:-Math.PI/2,hp:loid?110:cross?118:eve?115:kali?120:135,maxHp:loid?110:cross?118:eve?115:kali?120:135,damage:loid?26:cross?29:eve?42:kali?23:46,attackDelay:loid?.24:cross?.34:eve?.31:kali?.40:.43,atkTime:0,speed:loid?105:cross?106:eve?125:kali?96:91,reach:loid?33:cross?38:eve?53:kali?85:43,arc:loid?1.85:cross?1.95:2.15,armor:0,crit:cross?.26:eve?.13:.07,echo:0,onKillHeal:0,betweenHeal:11,dashDelay:loid?2.4:cross?2.55:eve?2.2:2.8,dashCd:0,dashTime:0,dashV:{x:0,y:0},invuln:0,skillDelay:loid?9:cross?6.5:eve?17.5:kali?20:14,skillCd:0,skillAmp:1,darkAuraTime:0,darkAuraTick:0,secondaryCd:0,secondaryDelay:loid?20:cross?9:eve?15:kali?18:8.5,secondaryCharging:false,secondaryCharge:0,transformDuration:6,transformAmp:.55,transformTime:0,shadowDash:false,orbiters:0,orbitTimer:0,waveAttack:false,cardPower:'',cardPowerUsed:false,frogSkill:false,frogUsed:false,frogTime:0,ghost:false,dodgeChance:(cross?.12:eve?.15:0),mirrorGuard:0,mirrorAmp:1,mirrorDuration:4,timeDuration:5,voidField:0,voidTick:0,voidUltimate:0,voidUltTick:0,crossChain:null,curseTime:0,frostTime:0,attackCount:0,ultimateCharge:0,ultimateTime:0,ultimateTick:0,ultimateBuff:'',ultimateBuffTime:0,step:0,cards:[],kills:0};}
-const originalCreatePlayer=createPlayer;createPlayer=function(type){const p=originalCreatePlayer(type);if(type==='moretti')Object.assign(p,{hp:100,maxHp:100,damage:18,critMultiplier:30/18,attackDelay:.65,dashDelay:1.2,speed:155,reach:40,skillDelay:14,secondaryDelay:18});if(type==='l0id')Object.assign(p,{hp:180,maxHp:180,damage:85,critMultiplier:2,attackDelay:.22,dashDelay:.8,speed:190,reach:48,skillDelay:10,secondaryDelay:20});p.baseMaxHp=p.maxHp;p.baseSkillDelay=p.skillDelay;p.baseSecondaryDelay=p.secondaryDelay;p.baseDamage=p.damage;p.baseAttackDelay=p.attackDelay;p.baseSpeed=p.speed;p.baseReach=p.reach;p.baseDashDelay=p.dashDelay;return p;};
+const originalCreatePlayer=createPlayer;createPlayer=function(type){const p=originalCreatePlayer(type);if(type==='kali')Object.assign(p,{skillDelay:18,mirrorDuration:5});if(type==='moretti')Object.assign(p,{hp:100,maxHp:100,damage:18,critMultiplier:30/18,attackDelay:.65,dashDelay:1.2,speed:155,reach:40,skillDelay:14,secondaryDelay:18});if(type==='l0id')Object.assign(p,{hp:180,maxHp:180,damage:85,critMultiplier:2,attackDelay:.22,dashDelay:.8,speed:190,reach:48,skillDelay:10,secondaryDelay:20});p.baseMaxHp=p.maxHp;p.baseSkillDelay=p.skillDelay;p.baseSecondaryDelay=p.secondaryDelay;p.baseDamage=p.damage;p.baseAttackDelay=p.attackDelay;p.baseSpeed=p.speed;p.baseReach=p.reach;p.baseDashDelay=p.dashDelay;return p;};
 // v4.9: all new ability outcomes are computed by the co-op host, not by guests.
 let realityFields=[],realityVictory=false;
 let l0idUnlocked=false;try{l0idUnlocked=localStorage.getItem('yggdrasil.l0id')==='1';}catch{}
@@ -291,23 +291,34 @@ function unlockL0id(){l0idUnlocked=true;try{localStorage.setItem('yggdrasil.l0id
 function refreshL0id(){document.querySelectorAll('[data-secret-l0id]').forEach(b=>{b.classList.toggle('secret-locked',!l0idUnlocked);b.setAttribute('aria-disabled',String(!l0idUnlocked));});}
 function secretCode(code){if(code!=='L0ID')return false;unlockL0id();return true;}
 let realityEnemyWeakness=0;function fieldWeakness(e){return Math.min(.65,realityFields.reduce((v,f)=>dist(e,f)<f.radius?Math.max(v,.18*f.power):v,0));}
-function newTeam(){return coop.active&&coop.host?[coop.hostAvatar||player,...coop.allies.values()]:[player];}
+// All support effects are applied to the authoritative living roster, once per actor.
+function newTeam(){return [...new Set(coop.active&&coop.host?[coop.hostAvatar||player,...coop.allies.values()]:[player])].filter(a=>a&&a.hp>0);}
+function supportHeal(a,rate,visual=true){if(!a||a.hp<=0)return 0;const gain=Math.max(0,Math.min(a.maxHp-a.hp,a.maxHp*rate));a.hp+=gain;if(gain>0&&visual){textPop(a.x,a.y-29,'+'+Math.round(gain),'#a5fac0');ring(a.x,a.y,24,'#98e8b9');}return gain;}
+function supportChanged(){if(coop.active&&coop.host){coop.checkpointDirty=true;if(!coop.executing)coopSendState(true);}if(!coop.executing)updateHud();}
+function actorKey(a){if(!coop.active)return 'solo';if(a===(coop.hostAvatar||player)&&!coop.actorId)return coop.id;if(a===coop.hostAvatar)return coop.id;for(const [id,hero] of coop.allies)if(hero===a)return id;return coop.id;}
+function kaliReflections(caster,team,seconds){const casterId=actorKey(caster);for(const [i,a] of team.entries()){const ownerId=actorKey(a);const old=mirrorIllusions.find(v=>v.casterId===casterId&&v.ownerId===ownerId);if(old){old.life=Math.max(old.life,seconds);old.owner=a;continue;}mirrorIllusions.push({casterId,ownerId,owner:a,x:a.x+Math.cos(i*2.1)*28,y:a.y+Math.sin(i*2.1)*28,life:seconds,attackCd:.2+i*.12});}}
+function kaliSupport(key){const p=player,team=newTeam();if(key==='Q'){p.skillCd=p.skillDelay;for(const a of team){a.mirrorGuard=Math.max(a.mirrorGuard||0,p.mirrorDuration||5);supportHeal(a,.10);}ring(p.x,p.y,170,'#e0b8ff');}
+else if(key==='E'){p.secondaryCd=p.secondaryDelay;for(const a of team)applyRealityBuff(a,6,1,'mirrorRegen');kaliReflections(p,team,6);ring(p.x,p.y,110,'#d8b5ff');}
+else if(key==='R'){p.ultimateTime=10;p.invuln=Math.max(p.invuln,.6);for(const a of team){supportHeal(a,.20);applyRealityBuff(a,10,1,'mirrorSanctuary');}kaliReflections(p,team,10);ring(p.x,p.y,200,'#c8b1fb');}
+bossMessage='KALI · '+({Q:'REFLEXO PROTETOR',E:'ESPELHOS DA ALMA',R:'SANTUÁRIO DOS ESPELHOS'}[key]);bossMessageTimer=2;supportChanged();}
+function supportStatus(p){const out=[];for(const [k,label] of [['destiny','⚔ Destino'],['distortion','➤ Distorção'],['population','✦ População'],['author','🎲 Autor'],['mirrorRegen','♥ Espelhos'],['mirrorSanctuary','◇ Santuário']]){const n=(p[k+'Until']||0)-elapsed;if(n>0)out.push(label+' '+Math.ceil(n)+'s');}if(p.mirrorGuard>0)out.push('◇ Reflexo '+Math.ceil(p.mirrorGuard)+'s');return out.join(' · ');}
+
 function d20Power(n){return n<=5?.5:n<=10?1:n<=15?1.25:n<=19?1.75:2.5;}
 function rollReality(p,ability){const twice=ability==='F'||((ability==='Q'||ability==='E')&&p.realityAdvantage?.includes(ability));const rolls=Array.from({length:twice?2:1},()=>1+Math.floor(Math.random()*20));if(twice&&ability!=='F')p.realityAdvantage=p.realityAdvantage.filter(x=>x!==ability);const value=Math.max(...rolls);p.realityRoll={rolls,value,ability,at:elapsed};p.newPose={row:{Q:4,E:5,R:6,F:7}[ability],until:elapsed+1.1};ring(p.x,p.y,value===20?105:45,value===20?'#ffd57a':'#b76aff');bossMessage=`MORETTI · ${ability} · D20 ${rolls.join(' / ')}${value===20?' · 20 NATURAL!':''}`;bossMessageTimer=2.5;return d20Power(value);}
 function applyRealityBuff(p,seconds,power,kind){const old=realityPower(p,kind);p[kind+'Until']=Math.max(p[kind+'Until']||0,elapsed+seconds);p[kind+'Power']=Math.max(old,power);}
 function realityPower(p,kind){return (p[kind+'Until']||0)>elapsed?(p[kind+'Power']||0):0;}
-function newDamage(p){return (1+.20*realityPower(p,'destiny'))*(1+.18*realityPower(p,'population'))*(1+.25*realityPower(p,'author'))*(p.type==='l0id'?(p.ultimateTime>0?2:1)*(p.darkAuraTime>0?1.35:1):1);}
-function newAttackDelay(p){return 1/((1+.18*realityPower(p,'destiny'))*(1+.20*realityPower(p,'author'))*(p.type==='l0id'&&p.ultimateTime>0?1.65:1));}
+function newDamage(p){return (1+.20*realityPower(p,'destiny'))*(1+.25*realityPower(p,'population'))*(1+.15*realityPower(p,'mirrorSanctuary'))*(1+.25*realityPower(p,'author'))*(p.type==='l0id'?(p.ultimateTime>0?2:1)*(p.darkAuraTime>0?1.35:1):1);}
+function newAttackDelay(p){return 1/((1+.18*realityPower(p,'destiny'))*(1+.20*realityPower(p,'author'))*(1+.20*realityPower(p,'population'))*(p.type==='l0id'&&p.ultimateTime>0?1.65:1));}
 function newSpeed(p){return 1+.25*realityPower(p,'distortion')+.20*realityPower(p,'author');}
 function summonNewClones(p,count=10,kind='l0id'){const ownerId=coop.actorId||coop.id;shadowClones=shadowClones.filter(s=>!(s.ownerId===ownerId&&s.kind===kind));for(let i=0;i<count;i++){const angle=TAU*i/count;shadowClones.push({ownerId,kind,x:p.x+Math.cos(angle)*30,y:p.y+Math.sin(angle)*30,angle,step:0,face:'down',time:12,attackCd:.1+i*.07});}}
 function newAbility(key){const p=player;if(p.type==='moretti'){
- const power=rollReality(p,key);if((key==='Q'||key==='E')&&p.ultimateTime<=0)p.ultimateCharge=Math.min(100,p.ultimateCharge+8);if(key==='Q'){p.skillCd=p.skillDelay;for(const a of newTeam())if(a.hp>0)applyRealityBuff(a,8,power,'destiny');}
+ const power=rollReality(p,key);if((key==='Q'||key==='E')&&p.ultimateTime<=0)p.ultimateCharge=Math.min(100,p.ultimateCharge+8);if(key==='Q'){p.skillCd=p.skillDelay;for(const a of newTeam()){applyRealityBuff(a,8,power,'destiny');supportHeal(a,.08*power);}}
  if(key==='E'){p.secondaryCd=p.secondaryDelay;realityFields.push({x:p.x,y:p.y,radius:135,until:elapsed+8,power});for(const a of newTeam())if(a.hp>0)applyRealityBuff(a,8,power,'distortion');}
- if(key==='R'){p.ultimateTime=10;for(const a of newTeam())if(a.hp>0)applyRealityBuff(a,10,power,'population');summonNewClones(p,4,'population');if(p.realityRoll.value===20)p.rewriteUntil=elapsed+10;}
+ if(key==='R'){p.ultimateTime=10;for(const a of newTeam()){applyRealityBuff(a,10,power,'population');supportHeal(a,.15*power);}summonNewClones(p,4,'population');if(p.realityRoll.value===20)p.rewriteUntil=elapsed+10;}
  if(key==='F'){p.realityAdvantage=['Q','E'];applyRealityBuff(p,12,power,'author');}
  }else{p.newPose={row:{Q:4,E:5,R:6,F:7}[key],until:elapsed+1.1};if(key==='Q'){p.skillCd=p.skillDelay;p.darkAuraTime=6;p.darkAuraTick=0;}if(key==='E'){p.secondaryCd=p.secondaryDelay;summonNewClones(p);}if(key==='R'){p.ultimateTime=10;}if(key==='F'){p.godShadowUntil=elapsed+10;p.invuln=Math.max(p.invuln,3);summonNewClones(p);}ring(p.x,p.y,key==='R'?180:85,'#9b77d7');bossMessage='L0ID · '+({Q:'DOMÍNIO DAS SOMBRAS',E:'LEGIÃO DO ABISMO',R:'ECLIPSE ABSOLUTO',F:'A SOMBRA QUE DEVOROU DEUS'}[key]);bossMessageTimer=2;}
- updateHud();}
-function tickNewHero(p,dt){if(p.hp<=0)return;const b=realityPower(p,'destiny');if(b){for(const k of ['skillCd','secondaryCd','dashCd'])p[k]=Math.max(0,p[k]-dt*.22*b);}const pop=realityPower(p,'population');if(pop)p.hp=Math.min(p.maxHp,p.hp+p.maxHp*.012*pop*dt);if(p.type==='l0id'&&p.darkAuraTime>0){p.darkAuraTick=(p.darkAuraTick||0)-dt;if(p.darkAuraTick<=0){p.darkAuraTick=.5;const before=player;player=p;try{for(const e of enemies)if(e.hp>0&&dist(e,p)<92+e.radius)hitEnemy(e,p.damage*.55,false);}finally{player=before;}}}}
+ if(p.type==='moretti')supportChanged();else updateHud();}
+function tickNewHero(p,dt){if(p.hp<=0)return;const b=realityPower(p,'destiny');if(b){for(const k of ['skillCd','secondaryCd','dashCd'])p[k]=Math.max(0,p[k]-dt*.22*b);}const pop=realityPower(p,'population');const regen=.02*(pop+realityPower(p,'mirrorRegen'));if(regen)supportHeal(p,regen*dt,false);if(p.type==='l0id'&&p.darkAuraTime>0){p.darkAuraTick=(p.darkAuraTick||0)-dt;if(p.darkAuraTick<=0){p.darkAuraTick=.5;const before=player;player=p;try{for(const e of enemies)if(e.hp>0&&dist(e,p)<92+e.radius)hitEnemy(e,p.damage*.55,false);}finally{player=before;}}}}
 function newTeleport(p,v){p.dashCd=p.dashDelay*(p.ultimateTime>0?.5:1);p.dashTime=0;p.invuln=Math.max(p.invuln,.36);p.newPose={row:8,until:elapsed+.32};ring(p.x,p.y,24,'#51436d');p.x+=v.x*(p.ultimateTime>0?185:125);p.y+=v.y*(p.ultimateTime>0?185:125);applyBoundaries(p,8);ring(p.x,p.y,32,'#b49be2');}
 function theme(){if(stage===40)return {name:'NÓRDICO · TRONO FINAL DO PECADO',floor:'#240d24',wall:'#140a1d',accent:'#fc6280',danger:'#ff476c'};if(isNordic())return {name:'REINO NÓRDICO · INVERNO ETERNO',floor:'#142934',wall:'#102032',accent:'#b5f0fc',danger:'#9fc4ff'};return stage===20?{name:'TRONO DO PECADO',floor:'#3a0810',wall:'#160408',accent:'#ff253f',danger:'#de1228'}:stage===15?{name:'DOMÍNIO DA LUA',floor:'#1b1730',wall:'#0c0920',accent:'#b98dff',danger:'#995ac8'}:THEMES[Math.min(THEMES.length-1,Math.floor((stage-1)/4))]}
 const MOB_STATS={walker:{hp:44,speed:47,radius:10},runner:{hp:31,speed:69,radius:10},caster:{hp:54,speed:32,radius:11},ghost:{hp:42,speed:66,radius:10},yokai:{hp:62,speed:46,radius:11},beast:{hp:88,speed:83,radius:13},draugr:{hp:125,speed:49,radius:12},frostwolf:{hp:78,speed:92,radius:12},berserker:{hp:180,speed:72,radius:14},runewitch:{hp:107,speed:44,radius:12}};
@@ -455,7 +466,7 @@ function attack(){if(coop.reconnecting)return;if(coop.active&&!coop.host&&!coop.
   coopAction('attack');YG_AUDIO.play('hit',.55);return;
  }if(!player||player.hp<=0||phase!=='play'||player.atkTime>0)return;if(player.type==='kris'&&player.frogTime>0){frogSmash();return;}player.atkTime=player.attackDelay*newAttackDelay(player)*(player.type==='mollitiam'?(player.ultimateTime>0?.65:1)*(player.mollitiamHeartTime>0?1/1.30:1):1);player.attackCount++;let amp=(player.transformTime>0?1+player.transformAmp:1)*(player.ultimateBuffTime>0&&player.ultimateBuff==='fight'?2:1);let a=player.aim,range=player.reach*(player.transformTime>0?1.18:1),cx=player.x+Math.cos(a)*range*.55,cy=player.y+Math.sin(a)*range*.55;
 if(['moretti','l0id'].includes(player.type))player.newPose={row:3,until:elapsed+Math.min(.35,player.atkTime)};if(player.type!=='kali')slash(cx,cy,a,range,player.type==='loid'?'#d9a4ff':player.type==='cross'?'#b97aff':player.transformTime>0?'#ff73ec':'#7592ff');YG_AUDIO.play(player.type==='loid'?'loidSlash':'krisSlash',.95);let struck=0;for(const e of enemies){if(e.hp<=0)continue;let dx=e.x-player.x,dy=e.y-player.y,ed=Math.hypot(dx,dy),angle=Math.atan2(dy,dx),diff=Math.atan2(Math.sin(angle-a),Math.cos(angle-a));if(player.type!=='kali'&&ed<range+e.radius&&Math.abs(diff)<player.arc/2+e.radius/Math.max(20,ed)){hitEnemy(e,player.damage*amp,true);if(player.type==='l0id'&&player.godShadowUntil>elapsed){slash(cx,cy,a+.2,range*1.2,'#aa8bd0');hitEnemy(e,player.damage*.65,false);}struck++;}}
-if(player.type==='kali'){const vec={x:Math.cos(a),y:Math.sin(a)};projectiles.push({x:player.x+vec.x*15,y:player.y+vec.y*15-9,vx:vec.x*300,vy:vec.y*300,damage:player.damage*(player.mirrorAmp||1),from:'player',r:9,life:.86,color:'#e7c4ff',mirror:true,ownerId:coop.active?coop.id:null});YG_AUDIO.play('mirrorCast',.76);makeParticles(player.x+vec.x*20,player.y+vec.y*20-9,'#efc4ff',6,.55);}if(player.type==='kris'&&player.transformTime>0&&player.waveAttack){let vec={x:Math.cos(a),y:Math.sin(a)};projectiles.push({x:player.x+vec.x*15,y:player.y+vec.y*15,vx:vec.x*170,vy:vec.y*170,damage:player.damage*.65,from:'player',r:5,life:1.1,color:'#b572ff'})}
+if(player.type==='kali'){const vec={x:Math.cos(a),y:Math.sin(a)};projectiles.push({x:player.x+vec.x*15,y:player.y+vec.y*15-9,vx:vec.x*300,vy:vec.y*300,damage:player.damage*(player.mirrorAmp||1),from:'player',r:9,life:.86,color:'#e7c4ff',mirror:true,ownerId:coop.active?(coop.actorId||coop.id):null});YG_AUDIO.play('mirrorCast',.76);makeParticles(player.x+vec.x*20,player.y+vec.y*20-9,'#efc4ff',6,.55);}if(player.type==='kris'&&player.transformTime>0&&player.waveAttack){let vec={x:Math.cos(a),y:Math.sin(a)};projectiles.push({x:player.x+vec.x*15,y:player.y+vec.y*15,vx:vec.x*170,vy:vec.y*170,damage:player.damage*.65,from:'player',r:5,life:1.1,color:'#b572ff'})}
 if(player.ultimateBuffTime>0&&player.ultimateBuff==='itens'&&player.type==='kris'){
  // A second synchronized black sword: actual hit registration and an additional visual slash.
  slash(cx+Math.cos(a+1.3)*9,cy+Math.sin(a+1.3)*9,a+.16,range*.95,'#b76fff');
@@ -673,10 +684,13 @@ function applyTimeFields(dt){
  for(const e of enemies)if(e.timeSlow!==undefined){e.timeSlow=Math.max(0,e.timeSlow-dt*0.8);}
  for(const p of projectiles)if(p.timeSlow!==undefined){p.timeSlow=Math.min(1,(p.timeSlow||0)+dt*0.8);}
 }
-function updateMirrorIllusions(dt){for(let i=mirrorIllusions.length-1;i>=0;i--){let v=mirrorIllusions[i];v.life-=dt;v.attackCd-=dt;
- if(v.life<=0){mirrorIllusions.splice(i,1);continue;}
- const target=enemies.filter(e=>e.hp>0).sort((a,b)=>Math.hypot(a.x-v.x,a.y-v.y)-Math.hypot(b.x-v.x,b.y-v.y))[0];
- if(target&&v.attackCd<=0&&Math.hypot(target.x-v.x,target.y-v.y)<205){v.attackCd=.8;const prev=player;player=v.owner||player;hitEnemy(target,player.damage*.35,true);player=prev;ring(target.x,target.y,14,'#f8a6f5');}
+function updateMirrorIllusions(dt){for(let i=mirrorIllusions.length-1;i>=0;i--){const v=mirrorIllusions[i];v.life-=dt;v.attackCd-=dt;
+ if(coop.active&&coop.host&&v.ownerId)v.owner=v.ownerId===coop.id?(coop.hostAvatar||player):coop.allies.get(v.ownerId);
+ if(v.life<=0||!v.owner||v.owner.hp<=0){mirrorIllusions.splice(i,1);continue;}
+ // No sorting or target scanning every frame; at most one bounded scan per strike.
+ if(v.attackCd>0)continue;v.attackCd=.8;let target=null,best=205**2;
+ for(const e of enemies){if(e.hp<=0)continue;const d=(e.x-v.x)**2+(e.y-v.y)**2;if(d<best){target=e;best=d;}}
+ if(target){const prev=player;player=v.owner;try{hitEnemy(target,player.damage*.35,true);}finally{player=prev;}ring(target.x,target.y,14,'#f8a6f5');}
  }}
 function kaliMirrorAttack(){const visible=enemies.filter(e=>e.hp>0&&dist(e,player)<210).sort((a,b)=>dist(a,player)-dist(b,player));
  const e=visible[0];if(e){hitEnemy(e,player.damage*(player.mirrorAmp||1),true);slash(e.x,e.y,Math.atan2(e.y-player.y,e.x-player.x),36,'#dfbaff');}
@@ -725,7 +739,7 @@ function skill(){if(coop.reconnecting)return;
   shake=Math.max(shake,5);bossMessage='MOLLITIAM · PISÃO DE GUERRA';bossMessageTimer=1.4;updateHud();return;
  }
  if(player.type==='cross'){if(player.crossChain&&player.crossChain.time>0){crossMultiStrike();updateHud();return;}if(crossTeleport()){player.skillCd=player.skillDelay;player.crossChain={x:player.x,y:player.y,remaining:5,used:player.crossTp?[player.crossTp.targetId]:[],time:1.2};updateHud();}return;}
- if(player.type==='kali'){player.skillCd=player.skillDelay;const actors=coop.active&&coop.host?[player,...coop.allies.values()]:[player];for(const p of actors){if(dist(p,player)<180)p.mirrorGuard=player.mirrorDuration||4;}ring(player.x,player.y,170,'#e0b8ff');return;}
+ if(player.type==='kali'){kaliSupport('Q');return;}
  if(player.type==='eve'){player.skillCd=player.skillDelay;eveVoidCast();return;}
  player.skillCd=player.skillDelay;YG_AUDIO.play(player.type==='loid'?'loidAura':'krisForm',1.13);
  if(player.type==='loid'){
@@ -751,7 +765,7 @@ function secondaryDown(){if(coop.reconnecting)return;
  }
  else if(player.type==='cross'){player.secondaryCd=player.secondaryDelay;crossBone();}
  else if(player.type==='eve'){player.secondaryCd=player.secondaryDelay;timeFields.push({x:player.x+Math.cos(player.aim)*85,y:player.y+Math.sin(player.aim)*85,radius:105,life:player.timeDuration||5,tick:.65,ownerId:coop.actorId||coop.id});ring(player.x,player.y,120,'#65baff');}
- else if(player.type==='kali'){player.secondaryCd=player.secondaryDelay;const actors=coop.active&&coop.host?[player,...coop.allies.values()]:[player];for(let i=0;i<3;i++){const own=actors[i%actors.length];mirrorIllusions.push({owner:own,x:own.x+Math.cos(i*2.1)*28,y:own.y+Math.sin(i*2.1)*28,life:6,attackCd:.2+i*.12});}ring(player.x,player.y,110,'#d8b5ff');}
+ else if(player.type==='kali'){kaliSupport('E');}
  else if(player.type==='loid'){
    player.secondaryCd=player.secondaryDelay;shadowClones=shadowClones.filter(s=>s.ownerId!==(coop.actorId||coop.id)||s.kind);
    for(let i=0;i<4;i++){
@@ -921,7 +935,7 @@ function ultimate(){if(coop.reconnecting)return;
  player.ultimateCharge=0;YG_AUDIO.play('ultimate',1.24);if(['moretti','l0id'].includes(player.type)){newAbility('R');return;}
  if(player.type==='mollitiam'){player.ultimateTime=8;player.mollitiamPose=1.0;player.invuln=.7;ring(player.x,player.y,120,'#ffcc76');makeParticles(player.x,player.y,'#f6c25b',lowFx()?16:42,1.3);bossMessage='MOLLITIAM · TITÃ RÚNICO · 8s';bossMessageTimer=2.2;}
  else if(player.type==='eve'){castEveUltimate();}
- else if(player.type==='kali'){player.ultimateTime=6;player.invuln=.6;player.mirrorGuard=6;const actors=coop.active&&coop.host?[player,...coop.allies.values()]:[player];for(let i=0;i<Math.min(5,actors.length*2);i++){const own=actors[i%actors.length];mirrorIllusions.push({owner:own,x:own.x+Math.cos(i*1.3)*44,y:own.y+Math.sin(i*1.3)*44,life:6,attackCd:.25});}ring(player.x,player.y,200,'#c8b1fb');}
+ else if(player.type==='kali'){kaliSupport('R');}
  else if(player.type==='cross'){player.ultimateBuff='cross';player.ultimateBuffTime=8;player.invuln=.4;makeParticles(player.x,player.y,'#bb79fa',20,1.5);summonXansSkulls();bossMessage='SUPREMO · RUPTURA CORRUPTA · 5 CAVEIRAS';bossMessageTimer=2.2;}
  else if(player.type==='loid'){
   player.ultimateTime=5;player.ultimateTick=0;player.invuln=.65;domainFade=1;
@@ -954,9 +968,7 @@ function hurtPlayer(d,coopSource=currentCoopEnemy){
    (player.type==='loid'&&player.dashTime>0)||
    (player.ultimateBuff==='defesa'&&player.ultimateBuffTime>0))return;
  d=Math.max(1,d*coopDamageFactor(coopSource)*(currentNordicBossStrike?nordicBossDamageMultiplier():1)*(isPecador()?1.38:1)*(player.type==='mollitiam'&&player.mollitiamHeartTime>0?.60:1)*(1-player.armor)*(player.lastStand&&player.hp/player.maxHp<.4?1-player.lastStand:1));if(player.shield>0){const absorbed=Math.min(player.shield,d);player.shield-=absorbed;d-=absorbed;if(d<=0){textPop(player.x,player.y-20,'ESCUDO','#9ddfff');return;}}
- const team=coop.active&&coop.host?[coop.hostAvatar||player,...coop.allies.values()]:[player];
- if(team.some(a=>a&&a.type==='kali'&&a.ultimateTime>0&&Math.hypot(a.x-player.x,a.y-player.y)<250))d*=.70;
- d*=(1-realityEnemyWeakness)*(1-Math.min(.65,.18*realityPower(player,'population')));player.hp=Math.max(0,player.hp-d);
+ d*=(1-.35*realityPower(player,'mirrorSanctuary'))*(1-realityEnemyWeakness)*(1-Math.min(.65,.20*realityPower(player,'population')));player.hp=Math.max(0,player.hp-d);
  YG_AUDIO.play('hurt');player.invuln=player.type==='mollitiam'&&!isNordic()?.18:.76;
  // Never flash the host's camera for an attack on a distant guest.
  if(!coop.active||!coop.host||player===(coop.hostAvatar||player)){shake=4;flash=.12;}
@@ -1827,7 +1839,7 @@ function drawDashShadows(){
   ctx.beginPath();ctx.arc(ghost.x,ghost.y-13,9+(1-a)*13,0,TAU);ctx.stroke();ctx.restore();
  }
 }
-function drawNewFields(){ctx.save();for(const t of timeFields){ctx.globalAlpha=.22;ctx.fillStyle='#3f61ac';ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,TAU);ctx.fill();ctx.globalAlpha=.7;ctx.strokeStyle='#9ccaff';ctx.lineWidth=2;ctx.stroke();}for(const v of mirrorIllusions){ctx.globalAlpha=Math.min(.5,v.life/6*.5);heroSprite(v.x,v.y,v.owner?.type||'kali','down',elapsed*12,false,.85,v.owner);}ctx.restore();}
+function drawNewFields(){ctx.save();for(const t of timeFields){ctx.globalAlpha=.22;ctx.fillStyle='#3f61ac';ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,TAU);ctx.fill();ctx.globalAlpha=.7;ctx.strokeStyle='#9ccaff';ctx.lineWidth=2;ctx.stroke();}for(const v of mirrorIllusions){if(v.x<camera.x-80||v.x>camera.x+W+80||v.y<camera.y-80||v.y>camera.y+H+80)continue;ctx.globalAlpha=Math.min(.5,v.life*.5);heroSprite(v.x,v.y,v.owner?.type||'kali','down',elapsed*12,false,.85,v.owner);}ctx.restore();}
 function drawReality(){ctx.save();const team=[player,...coop.allies.values()].filter(Boolean);if(team.some(p=>p.type==='l0id'&&p.ultimateTime>0||p.rewriteUntil>elapsed)){ctx.fillStyle=team.some(p=>p.rewriteUntil>elapsed)?'#52248655':'#07040d99';ctx.fillRect(camera.x,camera.y,W,H);}for(const f of realityFields){if(f.x+f.radius<camera.x||f.x-f.radius>camera.x+W||f.y+f.radius<camera.y||f.y-f.radius>camera.y+H)continue;ctx.fillStyle='#a84dce33';ctx.strokeStyle='#b980ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,f.radius,0,TAU);ctx.fill();ctx.stroke();for(let i=0;i<8;i++){const t=i*TAU/8+elapsed*.2;ctx.beginPath();ctx.moveTo(f.x+Math.cos(t)*f.radius*.7,f.y+Math.sin(t)*f.radius*.7);ctx.quadraticCurveTo(f.x+Math.cos(t+.3)*f.radius,f.y+Math.sin(t+.3)*f.radius,f.x+Math.cos(t)*f.radius*1.1,f.y+Math.sin(t)*f.radius*1.1);ctx.stroke();}}for(const p of team){if(p.type==='l0id'&&p.darkAuraTime>0){ctx.fillStyle='#1a102d88';ctx.strokeStyle='#a48bdc';ctx.beginPath();ctx.arc(p.x,p.y,92+Math.sin(elapsed*5)*3,0,TAU);ctx.fill();ctx.stroke();}const r=p.realityRoll;if(r&&elapsed-r.at<2.5){const age=elapsed-r.at;const value=age<.65?1+Math.floor(age*83)%20:r.value;ctx.save();ctx.translate(p.x,p.y-64);ctx.fillStyle='#241135';ctx.strokeStyle=r.value===20&&age>=.65?'#ffd477':'#c392ff';ctx.lineWidth=2;ctx.beginPath();for(let i=0;i<6;i++){const a=TAU*i/6-Math.PI/2;ctx.lineTo(Math.cos(a)*16,Math.sin(a)*16);}ctx.closePath();ctx.fill();ctx.stroke();ctx.font='bold 14px system-ui';ctx.fillStyle=r.value===20&&age>=.65?'#ffd477':'#fff';ctx.textAlign='center';ctx.fillText(String(value),0,5);if(age>=.65&&r.rolls.length===2){ctx.font='8px system-ui';ctx.fillText(r.rolls.join(' / '),0,24);}ctx.restore();}}ctx.restore();}
 function drawEffects(){drawNewFields();for(const b of projectiles){if(b.mirror){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(elapsed*10);ctx.shadowColor='#d6a7ff';ctx.shadowBlur=lowFx()?0:7;if(MIRROR_SPRITE.complete&&MIRROR_SPRITE.naturalWidth){ctx.imageSmoothingEnabled=false;ctx.drawImage(MIRROR_SPRITE,-15,-15,30,30);ctx.imageSmoothingEnabled=true;}else{ctx.fillStyle='#ae70d8';ctx.fillRect(-8,-8,16,16);}ctx.restore();continue;}if(isNordic()&&b.from==='enemy'&&(b.color==='#a5e7ff'||b.color==='#98eaff')){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx)+Math.PI/2);ctx.fillStyle='#e6fcff';ctx.strokeStyle='#77cfff';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(5,2);ctx.lineTo(0,9);ctx.lineTo(-5,2);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}else{ctx.fillStyle=b.color;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,TAU);ctx.fill();}if(b.bone){ctx.strokeStyle='#fff9f4';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle=b.color;ctx.fillRect(b.x-7,b.y-2,14,4);}drawR(b.x-1,b.y-1,2,2,'#f4d8ff')}
 for(const s of slashes){ctx.save();ctx.globalAlpha=s.life/s.max;ctx.strokeStyle=s.color;ctx.lineWidth=6;ctx.beginPath();ctx.arc(s.x,s.y,s.r*.62,s.ang-1.25,s.ang+1.25);ctx.stroke();ctx.strokeStyle='#faf2fe';ctx.lineWidth=1;ctx.stroke();ctx.restore()}
@@ -1905,6 +1917,7 @@ function updateHud(){
  syncSkillArt(player.type);$('secondaryName').textContent=player.type==='loid'?'SOMBRAS':player.type==='cross'?'OSSOS':player.type==='eve'?'TEMPO':player.type==='kali'?'ILUSÕES':player.type==='mollitiam'?'RAÍZES':player.type==='moretti'?'DISTORÇÃO':player.type==='l0id'?'LEGIÃO':'CORTE';
  $('btnSecondary').querySelector('b').textContent=player.type==='loid'?'SOMBRAS E':player.type==='cross'?'OSSOS E':player.type==='eve'?'TEMPO E':player.type==='kali'?'ESPELHOS E':player.type==='mollitiam'?'CURA E':player.type==='moretti'?'REALIDADE E':player.type==='l0id'?'LEGIÃO E':'CORTE E';
  $('playerName').textContent=(player.type==='loid'?'LOID · ESCURIDÃO':player.type==='cross'?'XANS · CORRUPÇÃO':player.type==='eve'?'EVE LOREY · VAZIO':player.type==='kali'?'KALI · ESPELHOS':player.type==='mollitiam'?'MOLLITIAM · TITÃ DA RAIZ':player.type==='moretti'?'MORETTI · REALIDADE':player.type==='l0id'?'L0ID · SOMBRAMANTE':player.frogSkill?'KRIS · FORMA DO SAPO':'KRIS · ESPADA NEGRA')+(player.curseTime>0?' · ⚠ FRAQUEZA '+Math.ceil(player.curseTime)+'s':'');
+ const supportHud=$('supportBuffHUD');if(supportHud){const status=supportStatus(player);if(supportHud.textContent!==status)supportHud.textContent=status;supportHud.style.display=status?'block':'none';}
  $('hpFill').style.width=Math.max(0,player.hp/player.maxHp*100)+'%';
  $('hpText').textContent=`${Math.ceil(player.hp)} / ${player.maxHp}`;
  const skillPct=Math.max(0,100*(1-player.skillCd/player.skillDelay));
@@ -1987,11 +2000,9 @@ function frame(time){
    if(time-coop.lastSnapshot>=interval){coop.lastSnapshot=time;coopSendState();}
   }
  }
- // The graphics stay unchanged in normal mode. Performance mode saves GPU/CPU time.
- // Adaptive 30-FPS presentation on very weak devices. Physics, input sampling and
- // multiplayer packets continue on each animation tick, not on the render cadence.
- const maxDrawGap=minimalFx()?32:renderMode==='leve'?22:0;
- if(!maxDrawGap||time-(coop.lastDrawTime||0)>=maxDrawGap){draw();drawnFrames++;coop.lastDrawTime=time;}
+ // No artificial FPS cap: draw on every browser animation callback in all modes.
+ // Adaptive effects and network pacing remain independent of rendering.
+ draw();drawnFrames++;
  requestAnimationFrame(frame);
 }
 // Guest prediction stays local: never pull a moving player back toward a stale snapshot.
@@ -2040,8 +2051,8 @@ function coopGuestVisualUpdate(dt){
  if(!player)return;
  player.atkTime=Math.max(0,(player.atkTime||0)-dt);
  player.dashCd=Math.max(0,(player.dashCd||0)-dt);
- player.skillCd=Math.max(0,(player.skillCd||0)-dt);
- player.secondaryCd=Math.max(0,(player.secondaryCd||0)-dt);
+ const recovery=1+.22*realityPower(player,'destiny');player.skillCd=Math.max(0,(player.skillCd||0)-dt*recovery);
+ player.secondaryCd=Math.max(0,(player.secondaryCd||0)-dt*recovery);player.dashCd=Math.max(0,player.dashCd-dt*(recovery-1));player.mirrorGuard=Math.max(0,(player.mirrorGuard||0)-dt);
  if(player.dashTime>0){
   player.dashTime=Math.max(0,player.dashTime-dt);
   player.x+=player.dashV.x*(player.type==='eve'?590:340)*dt;player.y+=player.dashV.y*(player.type==='eve'?590:340)*dt;
@@ -2280,7 +2291,7 @@ function coopOnMessage(m){
  case 'rematchRequest':if(coop.host)coopNote('Um aliado pediu revanche. Clique em Reiniciar para voltar à mesma sala.');return;
  case 'lobbyReset':{coopPassiveSelection=[];coopMode='japan';coop.active=true;coop.remoteStarted=false;coop.chosen=false;coop.choices.clear();coop.selectingUltimate=false;coop.allies.clear();coop.targetAllies.clear();coop.targetLocal=null;coop.guestVisibleHp=null;coop.hostAvatar=null;phase='coop';player=null;enemies=[];projectiles=[];healthDrops=[];shadowClones=[];waveClearTimer=-1;keys.clear();pointerDown=false;attackMobile=false;document.body.classList.remove('is-playing');$('hud').style.display='none';$('mobileControls').style.display='none';for(const id of ['gameOverScreen','rewardScreen','waitingCards','fallenScreen','supremeScreen','titleScreen'])$(id).classList.add('hidden');$('coopScreen').classList.remove('hidden');$('coopConnect').hidden=true;$('coopLobby').hidden=false;$('retry').textContent='TENTAR NOVAMENTE / MESMA SALA';coopRenderLobby();coopNote('Mesma sala! Escolham o personagem e iniciem novamente.');return;}
  case 'closed':coopRecoveryFailed(m.message||'Sala fechada.');return;
- case 'left':{coop.members=coop.members.filter(p=>p.id!==m.id);const actor=coop.allies.get(m.id);if(actor&&m.reserved)coopSend({t:'detached',id:m.id,actor,chosenStage:phase==='reward'&&coop.choices.has(m.id)?stage:null});coop.allies.delete(m.id);coop.choices.delete(m.id);shadowClones=shadowClones.filter(v=>v.ownerId!==m.id);mirrorIllusions=mirrorIllusions.filter(v=>v.owner!==actor);if(coop.host){coop.checkpointDirty=true;coopTryWave();coopSendState(true);}return;}
+ case 'left':{coop.members=coop.members.filter(p=>p.id!==m.id);const actor=coop.allies.get(m.id);if(actor&&m.reserved)coopSend({t:'detached',id:m.id,actor,chosenStage:phase==='reward'&&coop.choices.has(m.id)?stage:null});coop.allies.delete(m.id);coop.choices.delete(m.id);shadowClones=shadowClones.filter(v=>v.ownerId!==m.id);mirrorIllusions=mirrorIllusions.filter(v=>v.owner!==actor&&v.ownerId!==m.id&&v.casterId!==m.id);if(coop.host){coop.checkpointDirty=true;coopTryWave();coopSendState(true);}return;}
  case 'begun':{
    coop.active=true;coopResetSeq(m.epoch);coop.hostId=m.host;coop.host=m.host===coop.id;coop.members=m.members;waveBalance=coopBalance(m.playerCount||m.members.length);
    coop.lastStateSeq=0;coop.stateSeq=0;coop.lastMotionSeq=0;coop.motionSeq=0;coop.guestVisibleHp=null;
@@ -2359,7 +2370,7 @@ function coopRemotePress(id,action,value,aim,dx,dy){
  }
  // Immediately replicate actions, not 125ms later; this makes a remote strike,
  // dash and power visible to EVERY client, including their effects and enemy HP.
-  if(coop.active&&coop.host&&actionCanExecute&&action!=='attack'){coopSendState(true);coopSendMotion();}
+  if(coop.active&&coop.host&&actionCanExecute&&action!=='attack'){updateHud();coopSendState(true);coopSendMotion();}
  
 }
 function coopAdvance(dt){
@@ -2434,7 +2445,7 @@ function coopGuestHealthChange(nextHp){
   textPop(player.x,player.y-28,'-'+Math.ceil(prev-nextHp),'#ff728c','hero:'+coop.id);
   flash=Math.max(flash,.10);shake=Math.max(shake,1.2);
   YG_AUDIO.play('hurt',.55);
- }
+ }else if(prev!==null&&nextHp>prev+.7&&phase==='play'){textPop(player.x,player.y-28,'+'+Math.round(nextHp-prev),'#a5fac0','hero:'+coop.id);}
  coop.guestVisibleHp=nextHp;
 }
 function coopApplyMotion(m){
@@ -2488,11 +2499,11 @@ function coopSendState(force=false){
   hazards:hazards.slice(-60),healthDrops:healthDrops,
   rings:rings.slice(-20),slashes:slashes.slice(-20),
   shadowClones:shadowClones.slice(-64).map(cloneWire),realityFields,realityVictory,dashShadows:dashShadows.slice(-18),
-  bonusBeam,xansBlasters:xansBlasters.slice(-4),timeFields:timeFields.slice(-3).map(t=>({...t})),mirrorIllusions:mirrorIllusions.slice(-6).map(v=>({x:v.x,y:v.y,life:v.life,ownerType:v.owner?.type||'kali'})),voidCollapse,evePortals:evePortals.slice(-5),waveIntro,eclipseTime,bossMessage,bossMessageTimer,elapsed,mandatory
+  bonusBeam,xansBlasters:xansBlasters.slice(-4),timeFields:timeFields.slice(-3).map(t=>({...t})),mirrorIllusions:mirrorIllusions.slice(-25).map(v=>({x:v.x,y:v.y,life:v.life,ownerType:v.owner?.type||'kali'})),voidCollapse,evePortals:evePortals.slice(-5),waveIntro,eclipseTime,bossMessage,bossMessageTimer,elapsed,mandatory
  }};
  // A complete authoritative checkpoint is kept by the room server only, not broadcast to all guests.
  const checkpointDue=mandatory||coop.checkpointDirty||now-coop.lastCheckpoint>=650;
- if(checkpointDue){const ownerId=v=>Object.entries(actors).find(([,a])=>a===v.owner)?.[0];packet.checkpoint={...packet.data,actors:sendActors,activeCampaign,testBossMode,selectedBoss,nextEnemyId,waveClearTimer,choices:[...coop.choices],enemies,projectiles,hazards,frostBursts,shadowClones,mirrorIllusions:mirrorIllusions.map(v=>({x:v.x,y:v.y,life:v.life,attackCd:v.attackCd,ownerId:ownerId(v)})),evePortals:evePortals.filter(p=>!p.local)};}
+ if(checkpointDue){const ownerId=v=>Object.entries(actors).find(([,a])=>a===v.owner)?.[0];packet.checkpoint={...packet.data,actors:sendActors,activeCampaign,testBossMode,selectedBoss,nextEnemyId,waveClearTimer,choices:[...coop.choices],enemies,projectiles,hazards,frostBursts,shadowClones,mirrorIllusions:mirrorIllusions.map(v=>({x:v.x,y:v.y,life:v.life,attackCd:v.attackCd,ownerId:v.ownerId||ownerId(v),casterId:v.casterId})),evePortals:evePortals.filter(p=>!p.local)};}
  if(coopSend(packet)){coop.lastStateStage=stage;coop.lastStatePhase=phase;coop.lastSnapshot=now;if(checkpointDue){coop.lastCheckpoint=now;coop.checkpointDirty=false;}}
 }
 function coopApplyState(s){

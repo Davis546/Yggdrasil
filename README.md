@@ -1,3 +1,7 @@
+# v4.9.5 — FPS livre
+
+Veja [README_v495.md](README_v495.md).
+
 # Yggdrasil v4.9
 
 Veja [README_v49.md](README_v49.md) para as novidades, instalação e limites de testes.
@@ -73,3 +77,6 @@ Atualização cumulativa v4.9 → v4.9.2: escala cooperativa, reconexão e migra
 
 ## v4.9.3 — Performance Update
 Sombras pré-renderizadas, interpolação, diagnóstico de RTT e borda, preferência regional e redução de tráfego. Consulte [README_v493.md](README_v493.md).
+
+## v4.9.4 — Ascensão dos Suportes
+Kali e Moretti receberam cura e buffs coletivos calculados pelo anfitrião, incluindo convidados. HUD de efeitos ativos, reflexos otimizados e autoria de projéteis corrigida. Veja [README_v494.md](README_v494.md). Teste: `npm run test:support494`.

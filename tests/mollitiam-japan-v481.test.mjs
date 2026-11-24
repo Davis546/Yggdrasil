@@ -18,5 +18,6 @@ const invCalc=new Function('player','isNordic',`return ${inv};`);
 assert.equal(invCalc({type:'mollitiam'},()=>false),.18);
 assert.equal(invCalc({type:'mollitiam'},()=>true),.76);
 assert.equal(invCalc({type:'kris'},()=>false),.76);
-for(const h of [html,alt])assert.match(h,/game\.js\?v=493/);
+const version=JSON.parse(readFileSync(new URL('package.json',root),'utf8')).version.replaceAll('.','');
+for(const h of [html,alt])assert.ok(h.includes('game.js?v='+version),'current cache version');
 console.log('OK Mollitiam JP: E cura metade; .18s invulnerabilidade; Nórdico preservado; demais heróis preservados');
