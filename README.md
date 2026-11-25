@@ -98,3 +98,7 @@ Menu inicial, recuperação de zoom e diálogos automáticos. Consulte [README_v
 ## v5.0 — Seleção dos Heróis
 
 Duas cartas animadas por página com setas e arraste, incluindo as mudanças v4.9.9. Consulte README_v50.md.
+
+## V5.1 — Exploração do Japão
+
+Veja [README_v51.md](README_v51.md) para controles, mapas, instalação e limitações da prévia.

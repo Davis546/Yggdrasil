@@ -21,7 +21,7 @@ for(const h of [html,alt]){
  assert.match(h,/id="chooseMollitiam"/);
  assert.match(h,/data-coop-hero="mollitiam"/);
  assert.match(h,/mollitiam_portrait\.png/);
- assert.match(h,/game\.js\?v=(?:49\d*|500)/);
+ assert.match(h,/game\.js\?v=(?:49\d*|500|510)/);
 }
 assert.match(worker,/HEROES\s*=\s*new Set\(\[.*'mollitiam'/);
 assert.match(worker,/MAX_COOP_PLAYERS = 5/);
