@@ -11,6 +11,17 @@ const lowFx=()=>renderMode==='desempenho'||renderMode==='leve'||(renderMode==='a
 const minimalFx=()=>renderMode==='desempenho'||(renderMode==='auto'&&autoFxTier>=2);
 if(weakMobileHint){RENDER_SCALE=1.0;canvas.width=Math.round(W*RENDER_SCALE);canvas.height=Math.round(H*RENDER_SCALE);}
 const keys=new Set();
+// v4.9.9: local screen recovery, never pause the shared simulation.
+let screenAdjusting=false,screenTaps=[],screenResetTimer=null;
+const screenViewportBase='width=device-width,initial-scale=1,viewport-fit=cover';
+function setViewportZoom(allow){$('gameViewport')?.setAttribute('content',screenViewportBase+(allow?'':',minimum-scale=1,maximum-scale=1,user-scalable=no'));document.documentElement.classList.toggle('screen-adjusting',allow);}
+function resetScreenScale(){if(!screenAdjusting)return;clearTimeout(screenResetTimer);ctrlSettings.scale=1;$('sizeControl').value='100';applyControlSettings();setViewportZoom(false);adaptViewport(true);screenAdjustLayout();screenResetTimer=setTimeout(()=>{if(!screenAdjusting)return;setViewportZoom(true);screenAdjustLayout();},300);}
+
+function registerScreenTap(now){screenTaps=screenTaps.filter(t=>now-t<=2500);if(screenTaps.length&&now-screenTaps.at(-1)>550)screenTaps=[];screenTaps.push(now);if(screenTaps.length<7)return false;screenTaps=[];return true;}
+function screenAdjustLayout(){const v=window.visualViewport,el=$('screenAdjust');if(!el||!screenAdjusting)return;el.style.left=(v?.offsetLeft||0)+'px';el.style.top=(v?.offsetTop||0)+'px';el.style.width=(v?.width||window.innerWidth)+'px';el.style.height=(v?.height||window.innerHeight)+'px';const status=$('screenAdjustScale');if(status)status.textContent='Zoom do navegador: '+Math.round((v?.scale||1)*100)+'%';}
+function clearScreenInput(){keys.clear();pointerDown=false;attackMobile=false;mobileMove={x:0,y:0};mouseAim=null;attackManualAim=false;joyPid=null;attackPointer=null;secPid=null;waiting.joy={x:0,y:0};waiting.pid=null;if(player)player.secondaryCharging=false;for(const id of ['knob','waitingKnob']){const n=$(id);if(n){n.style.left='50%';n.style.top='50%';}}}
+function setScreenAdjust(open){screenAdjusting=!!open;screenTaps=[];clearTimeout(screenResetTimer);setViewportZoom(open);clearScreenInput();$('screenAdjust').hidden=!open;document.body.classList.toggle('screen-adjusting',open);if(open){waitingDialogClose();$('screenAdjustHint').textContent=coop.active&&coop.remoteStarted?'A partida online continua. Seu personagem permanece vulnerável.':'Ajuste a tela com dois dedos. O combate individual fica pausado.';if(coop.active&&!coop.host&&coop.remoteStarted&&player)coopSend({t:'input',x:0,y:0,aim:player.aim||0,attack:false});screenAdjustLayout();}else{adaptViewport(true);}}
+
 let perfFrames=0,perfStart=0,netPingStart=0,netRtt=null,visibleFps=60,netJitter=0,lastStateArrival=0;
 let edgeRtt=null,edgeColo='',netRawRtt=null,netRttSamples=[],cloneAudioAt=-Infinity;
 const cloneKey=s=>`${s.ownerId||'solo'}:${s.kind||'loid'}:${s.angle||0}`;
@@ -475,7 +486,7 @@ function frogSmash(){
  updateHud();
 }
 
-function attack(){if(coop.reconnecting)return;if(coop.active&&!coop.host&&!coop.executing){
+function attack(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;if(coop.active&&!coop.host&&!coop.executing){
   if(!player||player.hp<=0||phase!=='play'||player.atkTime>0)return;
   // Local prediction draws ONLY the swing: damage, buffs, charges and kills stay on host.
   player.atkTime=player.attackDelay;
@@ -490,7 +501,7 @@ if(player.ultimateBuffTime>0&&player.ultimateBuff==='itens'&&player.type==='kris
  for(const e of enemies){if(e.hp<=0)continue;let dx=e.x-player.x,dy=e.y-player.y,ed=Math.hypot(dx,dy),diff=Math.atan2(Math.sin(Math.atan2(dy,dx)-a),Math.cos(Math.atan2(dy,dx)-a));if(ed<range+e.radius&&Math.abs(diff)<player.arc/2+e.radius/Math.max(20,ed))hitEnemy(e,player.damage*amp*.75,true);}
  }
  if(player.type==='loid'&&struck)makeParticles(cx,cy,'#924ac8',3);if(player.type==='mollitiam'){player.mollitiamPose=.34;ring(cx,cy,player.mollitiamHeartTime>0?39:25,player.mollitiamHeartTime>0?'#f9c65b':'#c8bbae');if(player.mollitiamHeartTime>0){for(const e of enemies){if(e.hp>0&&!isBossEnemy(e)&&Math.hypot(e.x-cx,e.y-cy)<43+e.radius)hitEnemy(e,player.damage*.20);}}}}
-function dash(){if(coop.reconnecting)return;if(coop.active&&!coop.host&&!coop.executing){
+function dash(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;if(coop.active&&!coop.host&&!coop.executing){
    if(!player||player.hp<=0||phase!=='play'||player.dashCd>0)return;
    const mv=getMove(),a=Math.hypot(mv.x,mv.y)>.1?Math.atan2(mv.y,mv.x):player.aim;
    if(player.type==='l0id'){newTeleport(player,{x:Math.cos(a),y:Math.sin(a)});coopAction('dash');return;}player.dashV={x:Math.cos(a),y:Math.sin(a)};player.dashTime=.22;
@@ -593,7 +604,7 @@ function updateCrossBones(p,dt,ownerId=coop.id){
  }
  if(v.left<=0)p.boneVolley=null;
 }
-function cardPower(){if(coop.reconnecting)return;
+function cardPower(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;
  if(coop.active&&!coop.host&&!coop.executing){coopAction('f');return;}
  if(!player||player.hp<=0||phase!=='play'||!player.cardPower||player.cardPowerUsed)return;
  if(player.cardPower==='granita'&&player.ultimateCharge<50){bossMessage='GRANITA · PRECISA DE 50% DE ENERGIA';bossMessageTimer=1.5;return;}
@@ -744,7 +755,7 @@ function crossMultiStrike(){const c=player.crossChain;if(!c||c.remaining<=0)retu
  player.x=c.x;player.y=c.y;c.remaining--;c.time=.65;if(!c.remaining)player.crossChain=null;
  return true;
 }
-function skill(){if(coop.reconnecting)return;
+function skill(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;
  if(coop.active&&!coop.host&&!coop.executing){coopAction('q');return;}if(!player||player.hp<=0||phase!=='play'||(player.skillCd>0&&!(player.type==='cross'&&player.crossChain&&player.crossChain.time>0)))return;
  if(['moretti','l0id'].includes(player.type)){newAbility('Q');return;}
  if(player.type==='mollitiam'){
@@ -771,7 +782,7 @@ function skill(){if(coop.reconnecting)return;
 }
 
 // E — Loid summons exactly four hostile dark duplicates. Kris holds E to charge a long-range dimensional slash.
-function secondaryDown(){if(coop.reconnecting)return;
+function secondaryDown(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;
  if(coop.active&&!coop.host&&!coop.executing){coopAction('eDown');return;}if(!player||player.hp<=0||phase!=='play'||player.secondaryCd>0)return;
  if(['moretti','l0id'].includes(player.type)){newAbility('E');return;}
  if(player.type==='mollitiam'){
@@ -798,7 +809,7 @@ function secondaryDown(){if(coop.reconnecting)return;
  }
  updateHud();
 }
-function secondaryUp(){if(coop.reconnecting)return;
+function secondaryUp(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;
  if(coop.active&&!coop.host&&!coop.executing){coopAction('eUp');return;}if(!player||player.type!=='kris'||!player.secondaryCharging)return;
  const fraction=clamp(player.secondaryCharge/1.6,0,1);
  player.secondaryCharging=false;player.secondaryCharge=0;
@@ -947,7 +958,7 @@ function drawXansSkulls(){
   ctx.restore();
  }
 }
-function ultimate(){if(coop.reconnecting)return;
+function ultimate(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;
  if(coop.active&&!coop.host&&!coop.executing){coopAction('ultimate');return;}if(!player||player.hp<=0||phase!=='play'||player.ultimateCharge<100)return;
  player.ultimateCharge=0;YG_AUDIO.play('ultimate',1.24);if(['moretti','l0id'].includes(player.type)){newAbility('R');return;}
  if(player.type==='mollitiam'){player.ultimateTime=8;player.mollitiamPose=1.0;player.invuln=.7;ring(player.x,player.y,120,'#ffcc76');makeParticles(player.x,player.y,'#f6c25b',lowFx()?16:42,1.3);bossMessage='MOLLITIAM · TITÃ RÚNICO · 8s';bossMessageTimer=2.2;}
@@ -964,7 +975,7 @@ function ultimate(){if(coop.reconnecting)return;
  }
  updateHud();
 }
-function chooseUltimate(kind){if(coop.reconnecting)return;
+function chooseUltimate(kind){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;
  if(coop.active&&!coop.host&&!coop.executing){coopAction('ultimateChoice',kind);coop.selectingUltimate=false;$('supremeScreen').classList.add('hidden');phase='play';return;}if(!player||player.type!=='kris'||phase!=='ultimate')return;
  const effects={fight:9,defesa:3,itens:11,piedade:9};
  if(!(kind in effects))return;
@@ -1569,7 +1580,7 @@ function spritePixel(x,y,a,b=1,c=1){if(typeof a==='string')drawR(x,y,b,c,a);else
 function heroSprite(x,y,type,face='down',step=0,transform=false,scale=1,actor=null){
  const shown=actor||player;
  const frogActive=type==='kris'&&shown&&shown.frogTime>0;const im=frogActive?FROG:HERO[type];if(!im||!im.complete||!im.naturalWidth)return;
- if(type==='moretti'||type==='l0id'||type==='l0idShadow'){const a=shown||{},pose=a.newPose;const moving=a===player?movingNow:a.clone||a._renderStep!==a.step;a._renderStep=a.step;const row=pose&&pose.until>elapsed?pose.row:moving?(a.dashTime>0||type.startsWith('l0id')?2:1):0;const col=Math.floor((pose&&pose.until>elapsed?elapsed*12:moving?step:elapsed*3)%4);ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(face==='left'?-scale:scale,scale);ctx.imageSmoothingEnabled=false;const size=type==='moretti'?62:82;ctx.drawImage(im,col*192,row*192,192,192,-size/2,-size+size/24,size,size);ctx.restore();return;}
+ if(type==='moretti'||type==='l0id'||type==='l0idShadow'){const a=shown||{},pose=a.newPose;const moving=typeof a.moving==='boolean'&&phase==='coop'?a.moving:a===player?movingNow:a.clone||a._renderStep!==a.step;a._renderStep=a.step;const row=pose&&pose.until>elapsed?pose.row:moving?(a.dashTime>0||type.startsWith('l0id')?2:1):0;const col=Math.floor((pose&&pose.until>elapsed?elapsed*12:moving?step:elapsed*3)%4);ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(face==='left'?-scale:scale,scale);ctx.imageSmoothingEnabled=false;const size=type==='moretti'?62:82;ctx.drawImage(im,col*192,row*192,192,192,-size/2,-size+size/24,size,size);ctx.restore();return;}
  if(type==='mollitiam'){
   const shownActor=shown||{};const row=shownActor.mollitiamPose>0?(shownActor.ultimateTime>0||shownActor.mollitiamHeartTime>0?3:2):shownActor.ultimateTime>0||shownActor.mollitiamHeartTime>0?3:movingNow?1:0;
   const col=shownActor.mollitiamPose>0?Math.min(3,Math.floor((1-shownActor.mollitiamPose)*7)%4):movingNow?Math.floor(step*.7)%4:Math.floor(elapsed*2.2)%4;
@@ -1933,7 +1944,7 @@ function updateHud(){
  const runeHud=$('nordicCardHUD');if(runeHud){const ids=isNordic()?(player.cards||[]):[];const runes=isNordic()?(player.runes||[]):[];const key=ids.join('|')+'~'+runes.join('|');runeHud.style.display=isNordic()?'flex':'none';if(key!==runeHud.dataset.key){runeHud.dataset.key=key;runeHud.innerHTML='<small>JAPÃO · 5</small>'+ids.map(id=>'<img loading="lazy" src="'+(CARD_IMAGES[id]||CARD_IMAGES.heart)+'" title="'+id+'" alt="'+id+'">').join('')+'<small>FUTHARK · '+runes.length+'/'+NORDIC_RUNE_CAP+'</small>'+runes.map(id=>'<img loading="lazy" src="'+(CARD_IMAGES[id]||CARD_IMAGES.heart)+'" title="'+id.slice(2)+'" alt="'+id+'">').join('');}}
  syncSkillArt(player.type);$('secondaryName').textContent=player.type==='loid'?'SOMBRAS':player.type==='cross'?'OSSOS':player.type==='eve'?'TEMPO':player.type==='kali'?'ILUSÕES':player.type==='mollitiam'?'RAÍZES':player.type==='moretti'?'DISTORÇÃO':player.type==='l0id'?'LEGIÃO':'CORTE';
  $('btnSecondary').querySelector('b').textContent=player.type==='loid'?'SOMBRAS E':player.type==='cross'?'OSSOS E':player.type==='eve'?'TEMPO E':player.type==='kali'?'ESPELHOS E':player.type==='mollitiam'?'CURA E':player.type==='moretti'?'REALIDADE E':player.type==='l0id'?'LEGIÃO E':'CORTE E';
- $('playerName').textContent=(player.type==='loid'?'LOID · ESCURIDÃO':player.type==='cross'?'XANS · CORRUPÇÃO':player.type==='eve'?'EVE LOREY · VAZIO':player.type==='kali'?'KALI · ESPELHOS':player.type==='mollitiam'?'MOLLITIAM · TITÃ DA RAIZ':player.type==='moretti'?'MORETTI · REALIDADE':player.type==='l0id'?'L0ID · SOMBRAMANTE':player.frogSkill?'KRIS · FORMA DO SAPO':'KRIS · ESPADA NEGRA')+(player.curseTime>0?' · ⚠ FRAQUEZA '+Math.ceil(player.curseTime)+'s':'');
+ $('playerName').textContent=(player.type==='loid'?'LOID · ESCURIDÃO':player.type==='cross'?'XANS · CORRUPÇÃO':player.type==='eve'?'EVE LOREY · VAZIO':player.type==='kali'?'KALI · ESPELHOS':player.type==='mollitiam'?'MOLLITIAM · TITÃ DA RAIZ':player.type==='moretti'?'MORETTI · REALIDADE':player.type==='l0id'?'L0ID · SOMBRAMANTE':player.frogSkill?'KRIS · FORMA DO SAPO':'KRIS · SANTA TRINDADE')+(player.curseTime>0?' · ⚠ FRAQUEZA '+Math.ceil(player.curseTime)+'s':'');
  const supportHud=$('supportBuffHUD');if(supportHud){const status=supportStatus(player);if(supportHud.textContent!==status)supportHud.textContent=status;supportHud.style.display=status?'block':'none';}
  $('hpFill').style.width=Math.max(0,player.hp/player.maxHp*100)+'%';
  $('hpText').textContent=`${Math.ceil(player.hp)} / ${player.maxHp}`;
@@ -1976,7 +1987,7 @@ function pickCards(){if(isNordic()){
  }const pool=cards;let valid=pool.filter(c=>(!c.hero||c.hero===player.type)&&!(c.id==='gaster'&&player.cardPower)&&!(c.id==='granita'&&player.cardPower)&&!(c.id==='eveprime'&&player.cardPower)&&!(['mollitiamHeart','authorReality','godShadow'].includes(c.id)&&player.cardPower)&&!(c.id==='frog'&&(player.frogSkill||player.frogUsed))&&!(player.frogSkill&&['black','form','awakening','bloodmoon'].includes(c.id))),selected=[];while(selected.length<3&&valid.length){let index=Math.floor(Math.random()*valid.length),c=valid.splice(index,1)[0],weight=c.rarity==='legendary'?.11:c.rarity==='rare'?.45:1;if(Math.random()<weight||valid.length<3-selected.length)selected.push(c)}if(!isNordic()&&player.type==='kris'&&!player.frogSkill&&stage===8&&!selected.some(c=>c.id==='frog')){selected[1]=cards.find(c=>c.id==='frog');}if(!isNordic()&&player.type==='cross'&&!player.cardPower&&stage===8&&!selected.some(c=>c.id==='gaster'))selected[1]=cards.find(c=>c.id==='gaster');if(!isNordic()&&player.type==='mollitiam'&&!player.cardPower&&stage===10&&!selected.some(c=>c.id==='mollitiamHeart'))selected[1]=cards.find(c=>c.id==='mollitiamHeart');if(!isNordic()&&player.type==='loid'&&!player.cardPower&&stage===11&&!selected.some(c=>c.id==='granita'))selected[1]=cards.find(c=>c.id==='granita');if(!player.cardPower&&stage===8&&['moretti','l0id'].includes(player.type)){const c=cards.find(c=>c.hero===player.type&&['authorReality','godShadow'].includes(c.id));if(!selected.includes(c))selected[1]=c;}return selected.slice(0,3)}
 const rarLabel={common:'COMUM',rare:'RARA',legendary:'LENDÁRIA'};
 function showRewards(){if(coop.active)coop.chosen=false;YG_AUDIO.play('waveClear',1.17);opts=pickCards();let gg=$('rewardGrid');gg.innerHTML='';for(let i=0;i<opts.length;i++){const c=opts[i],b=document.createElement('button');b.className='upgrade '+c.rarity+(isNordic()?' nordic-card':'');b.innerHTML=`<span class="num">0${i+1}</span><div class="iconbox"><img class="card-art" alt="" src="${CARD_IMAGES[c.id]}"></div><strong>${c.name}</strong><span class="rar">◆ ${rarLabel[c.rarity]}</span><div class="desc">${c.desc}</div>`;b.onclick=()=>chooseCard(i);gg.appendChild(b)}$('rewardSubtitle').textContent=(isNordic()?'❄ NÓRDICO · ONDA '+String(localNordicWave()).padStart(2,'0')+' · '+'ESCOLHA UMA RUNA FUTHARK'+' ❄':'◆ ONDA '+String(stage).padStart(2,'0')+' VENCIDA ◆');$('rewardScreen').classList.remove('hidden');updateHud()}
-function chooseCard(i){if(coop.reconnecting)return;if(phase!=='reward'||!opts[i])return;let c=opts[i];YG_AUDIO.play('card',1.15);if(coop.active){if(coop.chosen)return;coop.chosen=true;$('rewardScreen').classList.add('hidden');if(coop.host){if(!awardCard(player,c)){coop.chosen=false;showRewards();return;}coop.choices.add(coop.id);showWaitingCards();coopTryWave();coop.checkpointDirty=true;coopSendState(true);}else {showWaitingCards();coopAction('card',c.id);}return;}if(!awardCard(player,c))return;makeParticles(player.x,player.y,'#dfb9ff',25);testBossMode=false;stage++;spawnStage();}
+function chooseCard(i){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;if(phase!=='reward'||!opts[i])return;let c=opts[i];YG_AUDIO.play('card',1.15);if(coop.active){if(coop.chosen)return;coop.chosen=true;$('rewardScreen').classList.add('hidden');if(coop.host){if(!awardCard(player,c)){coop.chosen=false;showRewards();return;}coop.choices.add(coop.id);showWaitingCards();coopTryWave();coop.checkpointDirty=true;coopSendState(true);}else {showWaitingCards();coopAction('card',c.id);}return;}if(!awardCard(player,c))return;makeParticles(player.x,player.y,'#dfb9ff',25);testBossMode=false;stage++;spawnStage();}
 function restart(){if(coop.active){if(coop.host){coopSend({t:'rematch'});coopNote('Voltando à mesma sala...');}else{coopSend({t:'rematchRequest'});coopNote('Solicitação de revanche enviada ao anfitrião.');$('retry').textContent='AGUARDANDO ANFITRIÃO...';}return;}YG_AUDIO.play('menu',.75);phase='title';testBossMode=false;waveClearTimer=-1;dashShadows=[];shadowClones=[];hazards=[];frostBursts=[];bossMessageTimer=0;player=null;keys.clear();mouseAim=null;pointerDown=false;attackMobile=false;mobileMove={x:0,y:0};enemies=[];particles=[];slashes=[];$('titleScreen').classList.remove('hidden');$('selectScreen').classList.add('hidden');$('worldScreen').classList.add('hidden');$('supremeScreen').classList.add('hidden');$('rewardScreen').classList.add('hidden');$('waitingCards').classList.add('hidden');$('gameOverScreen').classList.add('hidden');$('coopScreen').classList.add('hidden');$('hud').style.display='none';$('mobileControls').style.display='none';document.body.classList.remove('is-playing');adaptViewport()}
 function frame(time){
  if(coop.active&&player){const death=$('fallenScreen');if(death)death.classList.toggle('hidden',!(phase==='play'&&player.hp<=0));}
@@ -2004,6 +2015,7 @@ function frame(time){
  if(coop.active&&!coop.heartbeat&&coop.socket?.readyState===WebSocket.OPEN&&time-netPingStart>3500){netPingStart=time;coopSend({t:'ping',ts:Date.now()});}
  if(!last)last=time;const dt=Math.min((time-last)/1000,.032);last=time;
  if(waitingVisible()){if(!coop.reconnecting)waitingFrame(dt,time);drawnFrames++;requestAnimationFrame(frame);return;}
+ if(screenAdjusting&&!coop.active){if(player)draw();requestAnimationFrame(frame);return;}
  if(coop.reconnecting){if(player)draw();requestAnimationFrame(frame);return;}
  if(coop.active&&!coop.host){
   if(touchUI&&attackMobile&&!attackManualAim)mobileAutoAim(false);
@@ -2136,12 +2148,13 @@ function mobilePreparePowerAim(){
 }
 // Input: full keyboard, mouse aim, and touch virtual controls.
 window.addEventListener('keydown',e=>{
+ if(screenAdjusting){if(e.key==='Escape')setScreenAdjust(false);return;}
  if(coop.reconnecting)return;
  const key=e.key.toLowerCase(); if(!['INPUT','SELECT','TEXTAREA','BUTTON'].includes(e.target?.tagName)&&[' ','arrowup','arrowdown','arrowleft','arrowright'].includes(key))e.preventDefault();
  if(phase==='ultimate'){if(['1','2','3','4'].includes(key))chooseUltimate(['fight','defesa','itens','piedade'][Number(key)-1]);return;}
  if(phase==='reward'){if(['1','2','3'].includes(key))chooseCard(Number(key)-1);return;}
  if(phase==='title'){if(key==='enter')openSelection();return;}
- if(phase==='coop'&&waitingVisible()&&!['INPUT','SELECT','TEXTAREA'].includes(e.target?.tagName)){if(key==='e'&&!e.repeat){waitingTalk(!!waiting.dialog);return;}if(key==='escape'){waitingDialogClose();waitingMenuClose();return;}if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key))keys.add(key);return;}
+ if(phase==='coop'&&waitingVisible()&&!['INPUT','SELECT','TEXTAREA'].includes(e.target?.tagName)){if(key==='e'&&!e.repeat){waitingTalk();return;}if(key==='escape'){waitingDialogClose();waitingMenuClose();return;}if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key))keys.add(key);return;}
  if(phase!=='play')return;
  keys.add(key);
  if(key===' ')dash();if(key==='q')skill();if(key==='e'&&!e.repeat)secondaryDown();if(key==='r')ultimate();if(key==='f')cardPower();if(key==='j')attack();
@@ -2196,7 +2209,7 @@ function openSelection(bossId=null){
  $('titleScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('selectScreen').classList.remove('hidden');
  $('selectionTitle').textContent=bossId?'ESCOLHA QUEM ENFRENTA O CHEFE':'ESCOLHA SEU HERÓI';
  const names={nordic:'REINO NÓRDICO · 1ª ONDA',frostjarl:'JARL DO GELO · ONDA 25',nameless:'CAVALEIRO INOMINÁVEL · ONDA 35 (NÓRDICA 15)',pecadoNordic:'PECADO · ONDA 40 (NÓRDICA 20)',odin:'ODIN · ONDA 30 (NÓRDICA 10)',samurai:'DAIMYŌ ONI · ONDA 5',reuni:'REUNI · ONDA 10',tsukuomi:'TSUKUOMI · ONDA 15',pecado:'PECADO · ONDA 20'};
- $('selectionIntro').textContent=bossId?'TESTE IMEDIATO: '+names[bossId]+' — escolha um dos cinco protagonistas.':(selectedCampaign==='nordic'?'REINO NÓRDICO · 20 ondas independentes. Escolha seu herói.':'JAPÃO · 20 ondas independentes. Escolha seu herói.');
+ $('selectionIntro').textContent=bossId?'TESTE IMEDIATO: '+names[bossId]+' — escolha um dos oito protagonistas.':(selectedCampaign==='nordic'?'REINO NÓRDICO · 20 ondas independentes. Escolha seu herói.':'JAPÃO · 20 ondas independentes. Escolha seu herói.');
  $('selectionBack').textContent=bossId?'← VOLTAR AOS CHEFES':'← ESCOLHER OUTRO REINO';
 }
 function openBossList(){YG_AUDIO.play('menu');phase='bosslist';$('titleScreen').classList.add('hidden');$('selectScreen').classList.add('hidden');$('bossScreen').classList.remove('hidden');}
@@ -2291,12 +2304,13 @@ const waitingJapanMap=new Image();waitingJapanMap.src='assets/lobby/japan.png?v=
 const waitingNpcArt={};for(const id of ['amaterasu','caine']){waitingNpcArt[id]=Array.from({length:id==='amaterasu'?4:1},(_,i)=>{const im=new Image();im.src='assets/lobby/'+(id==='caine'?'caine':id+i)+'.png?v=498';return im;});}
 const WAIT_DIALOGS={amaterasu:["Ah! Que alegria receber vocês! Sejam bem-vindos ao meu pequeno templo. Espero que estejam se sentindo em casa!","Estão esperando seus companheiros? Aproveitem para descansar. Até os guerreiros mais fortes precisam de um momento de paz.","O Caine parece assustador, não é? Mas ele é um amorzinho! Só não contem a ele que eu disse isso, hehe!","Loid carrega um enorme peso sobre seus ombros. Espero que, algum dia, ele encontre um motivo para sorrir de verdade.","Não importa o tamanho da escuridão que encontrarem. Uma pequena luz ainda é capaz de iluminar o caminho.","Voltaram para conversar comigo? Que fofos! Já estava começando a sentir saudades.","Vocês já comeram hoje? Não quero ninguém enfrentando criaturas terríveis de barriga vazia!","Prometam que vão cuidar uns dos outros, está bem? Que minha luz acompanhe cada um de vocês."],caine:["Alto! Identifiquem-se... Haha! Estou brincando. Se fossem inimigos, já teriam percebido.","Sua Majestade, o rei Loid, confia em mim. Espero que isso seja suficiente para vocês entenderem o quanto sou competente.","Mantenham a formação, protejam seus companheiros e tentem não morrer. Principalmente essa última parte.","Estamos esperando reforços? Ótimo. Finalmente uma desculpa para não trabalhar.","Boa sorte, recrutas. Voltem inteiros. Não estou com vontade de preencher relatórios."]};
 function waitingNearest(){if(isNordicEntry(coopMode))return null;const a=waiting.actors.get(coop.id);if(!a)return null;return WAIT_NPCS.map(n=>({n,d:Math.hypot(n.x-a.x,n.y-a.y)})).filter(v=>v.d<70).sort((a,b)=>a.d-b.d)[0]?.n||null;}
-function waitingDialogClose(){waiting.dialog=null;$('waitingDialog').hidden=true;}
-function waitingTalk(next=false){if(!waitingVisible())return;const n=next?waiting.dialog:waitingNearest();if(!n)return;const lines=WAIT_DIALOGS[n.id];let i=waiting.dialogIndex[n.id]||0;const line=n.id==='amaterasu'&&Math.random()<.05?'Posso contar um segredinho? Mesmo sendo a deusa do Sol, às vezes também tenho medo da escuridão.':lines[i%lines.length];waiting.dialogIndex[n.id]=i+1;waiting.dialog=n;waiting.joy={x:0,y:0};keys.clear();$('waitingNpcName').textContent=n.id==='caine'?'Caine · Capitão da Guarda Real':'Amaterasu · Deusa do Sol';$('waitingPortrait').src='assets/lobby/'+n.id+'_portrait.webp';$('waitingPortrait').alt=n.id;$('waitingNpcText').textContent=line;$('waitingDialog').hidden=false;}
+function waitingDialogClose(){if(waiting.dialog)waiting.dialogCooldown[waiting.dialog.id]=waiting.clock+.65;waiting.dialog=null;waiting.dialogUntil=0;$('waitingDialog').hidden=true;}
+function waitingDialogueDuration(line){return Math.max(3.5,Math.min(12,1.8+line.length/17));}
+function waitingTalk(next=false){if(!waitingVisible()||screenAdjusting||waiting.dialog||waiting.menu||next)return;const n=waitingNearest();if(!n||(waiting.dialogCooldown[n.id]||0)>waiting.clock)return;const lines=WAIT_DIALOGS[n.id];let i=waiting.dialogIndex[n.id]||0;const line=n.id==='amaterasu'&&Math.random()<.05?'Posso contar um segredinho? Mesmo sendo a deusa do Sol, às vezes também tenho medo da escuridão.':lines[i%lines.length];waiting.dialogIndex[n.id]=i+1;waiting.dialog=n;waiting.dialogUntil=waiting.clock+waitingDialogueDuration(line);waiting.joy={x:0,y:0};keys.clear();$('waitingNpcName').textContent=n.id==='caine'?'Caine · Capitão da Guarda Real':'Amaterasu · Deusa do Sol';$('waitingPortrait').src='assets/lobby/'+n.id+'_portrait.webp';$('waitingPortrait').alt=n.id;$('waitingNpcText').textContent=line;$('waitingDialog').hidden=false;}
 function waitingMenuClose(){waiting.menu=false;$('waitingOptions').classList.remove('is-open');}
-const waiting={menu:false,dialog:null,dialogIndex:{},realm:null,actors:new Map(),editing:false,clock:0,lastSend:0,lastSig:'',joy:{x:0,y:0},pid:null};
+const waiting={menu:false,dialog:null,dialogUntil:0,dialogCooldown:{},dialogIndex:{},realm:null,actors:new Map(),editing:false,clock:0,lastSend:0,lastSig:'',joy:{x:0,y:0},pid:null};
 function waitingVisible(){return coop.active&&!coop.remoteStarted&&phase==='coop'&&!$('waitingMap').hidden;}
-function waitingReset(){waitingDialogClose();waitingMenuClose();waiting.realm=null;document.body.classList.remove('waiting-full');waiting.actors.clear();waiting.editing=false;waiting.lastSend=0;waiting.lastSig='';waiting.joy={x:0,y:0};waiting.pid=null;keys.clear();$('waitingMap').hidden=true;}
+function waitingReset(){waitingDialogClose();waitingMenuClose();waiting.realm=null;waiting.dialogCooldown={};document.body.classList.remove('waiting-full');waiting.actors.clear();waiting.editing=false;waiting.lastSend=0;waiting.lastSig='';waiting.joy={x:0,y:0};waiting.pid=null;keys.clear();$('waitingMap').hidden=true;}
 function waitingRoster(positions={}){
  const realm=isNordicEntry(coopMode);if(waiting.realm!==realm){waiting.actors.clear();waiting.realm=realm;waitingDialogClose();}
  const ids=new Set(coop.members.filter(m=>m.hero).map(m=>m.id));
@@ -2317,15 +2331,15 @@ function waitingUI(){
  if(!show){keys.clear();waiting.joy={x:0,y:0};}
 }
 function waitingFrame(dt,time){
- waiting.clock+=dt;const a=waiting.actors.get(coop.id);if(!a)return;
+ waiting.clock+=dt;if(waiting.dialog&&waiting.clock>=waiting.dialogUntil)waitingDialogClose();const a=waiting.actors.get(coop.id);if(!a)return;
  let mx=waiting.joy.x+(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),my=waiting.joy.y+(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);
  const len=Math.hypot(mx,my);if(len>1){mx/=len;my/=len;}a.moving=len>.03;
- if(waiting.dialog||waiting.menu||!$('settingsScreen').classList.contains('hidden')&&$('settingsScreen').classList.contains('waiting-settings-active')){mx=0;my=0;a.moving=false;}
- if(a.moving){const speed=a.type==='mollitiam'?100:a.type==='l0id'?225:a.type==='moretti'?205:185;const nx=clamp(a.x+mx*speed*dt,360,1088),ny=clamp(a.y+my*speed*dt,365,760);if(isNordicEntry(coopMode)||waitingJapanWalk(nx,a.y))a.x=nx;if(isNordicEntry(coopMode)||waitingJapanWalk(a.x,ny))a.y=ny;a.face=Math.abs(mx)>Math.abs(my)?(mx<0?'left':'right'):(my<0?'up':'down');a.step+=dt*10;}
+ if(screenAdjusting||waiting.dialog||waiting.menu||!$('settingsScreen').classList.contains('hidden')&&$('settingsScreen').classList.contains('waiting-settings-active')){mx=0;my=0;a.moving=false;}
+ if(a.moving){const oldX=a.x,oldY=a.y;const speed=185;const nx=clamp(a.x+mx*speed*dt,360,1088),ny=clamp(a.y+my*speed*dt,365,760);if(isNordicEntry(coopMode)||waitingJapanWalk(nx,a.y))a.x=nx;if(isNordicEntry(coopMode)||waitingJapanWalk(a.x,ny))a.y=ny;a.face=Math.abs(mx)>Math.abs(my)?(mx<0?'left':'right'):(my<0?'up':'down');a.moving=Math.hypot(a.x-oldX,a.y-oldY)>.01;if(a.moving)a.step+=dt*10;}
  const sig=[Math.round(a.x),Math.round(a.y),a.face,a.moving].join(':');
  if(time-waiting.lastSend>=75&&(sig!==waiting.lastSig||time-waiting.lastSend>=1000)){if(coopSend({t:'waitingMove',x:Math.round(a.x),y:Math.round(a.y),face:a.face,moving:a.moving})){waiting.lastSend=time;waiting.lastSig=sig;}}
  for(const [id,b] of waiting.actors){if(id===coop.id)continue;const d=Math.hypot(b.tx-b.x,b.ty-b.y);const k=Math.min(1,dt*13);b.x+=(b.tx-b.x)*k;b.y+=(b.ty-b.y)*k;b.moving=d>1.5||(b.moving&&waiting.clock-(b.received||0)<.23);if(b.moving)b.step+=dt*10;}
- const nearest=waitingNearest();const interact=$('waitingInteract'),hideInteract=!nearest||!!waiting.dialog||waiting.menu;if(interact.hidden!==hideInteract)interact.hidden=hideInteract;if(nearest){const text='CONVERSAR · '+(nearest.id==='caine'?'CAINE':'AMATERASU');if(interact.textContent!==text)interact.textContent=text;}
+ const nearest=waitingNearest();const interact=$('waitingInteract'),hideInteract=!nearest||!!waiting.dialog||waiting.menu||screenAdjusting||(waiting.dialogCooldown[nearest?.id]||0)>waiting.clock;if(interact.hidden!==hideInteract)interact.hidden=hideInteract;if(nearest){const text='CONVERSAR · '+(nearest.id==='caine'?'CAINE':'AMATERASU');if(interact.textContent!==text)interact.textContent=text;}
  const surface=$('waitingCanvas'),c=surface.getContext('2d');if(!c)return;
  const rect=surface.getBoundingClientRect(),ratio=Math.max(.4,Math.min(4,(rect.width||960)/(rect.height||600)));const cw=ratio>=1?960:Math.round(600*ratio),ch=ratio>=1?Math.round(960/ratio):600;if(surface.width!==cw||surface.height!==ch){surface.width=cw;surface.height=ch;}
  const prior=ctx,wasMoving=movingNow,oldElapsed=elapsed;ctx=c;elapsed=waiting.clock;
@@ -2662,8 +2676,8 @@ $('waitingMenu').addEventListener('click',()=>{waitingDialogClose();$('waitingAu
 $('waitingOptionsClose').addEventListener('click',waitingMenuClose);
 $('waitingControls').addEventListener('click',()=>{waitingMenuClose();openControlSettings();$('settingsScreen').classList.add('waiting-settings-active');});
 $('waitingAudio').addEventListener('click',()=>{$('toggleAudio').click();$('waitingAudio').textContent=$('toggleAudio').textContent;});$('waitingVolume').addEventListener('input',e=>{YG_AUDIO.setVolume(e.target.value);});
-$('waitingInteract').addEventListener('click',()=>waitingTalk());$('waitingNext').addEventListener('click',()=>waitingTalk(true));$('waitingDialogClose').addEventListener('click',waitingDialogClose);
-$('waitingCanvas').addEventListener('pointerdown',()=>{if(waitingNearest()&&!waiting.menu&&!waiting.dialog)waitingTalk();});
+$('waitingInteract').addEventListener('click',()=>waitingTalk());$('waitingDialogClose').addEventListener('click',waitingDialogClose);
+// NPC interaction is explicit (button or E), never a random tap on the map.
 for(const b of document.querySelectorAll('[data-coop-hero]'))b.addEventListener('click',()=>{if(b.dataset.coopHero==='l0id'&&!l0idUnlocked)return;waiting.editing=false;waitingUI();coopSend({t:'choose',hero:b.dataset.coopHero});});
 const waitingStick=$('waitingStick'),waitingKnob=$('waitingKnob');
 function waitingTouch(e){const box=waitingStick.getBoundingClientRect(),r=box.width*.32;let x=e.clientX-box.left-box.width/2,y=e.clientY-box.top-box.height/2;const l=Math.hypot(x,y);if(l>r){x*=r/l;y*=r/l;}waiting.joy={x:x/r,y:y/r};waitingKnob.style.left=`calc(50% + ${x}px)`;waitingKnob.style.top=`calc(50% + ${y}px)`;}
@@ -2679,7 +2693,7 @@ $('coopBegin').addEventListener('click',()=>{if(isNordicEntry(coopMode)&&coop.me
 // Mobile UI preferences; only CSS sizes change, never the original artwork.
 const ctrlSettings={scale:1,attackStick:false,aimAssist:true};
 function applyControlSettings(){document.documentElement.style.setProperty('--control-zoom',ctrlSettings.scale);attackStick=ctrlSettings.attackStick;const t=$('attackModeLabel');if(t)t.textContent=attackStick?'JOYSTICK DE ATAQUE':'BOTÃO DE ATAQUE';const b=$('btnAttack');if(b)b.classList.toggle('aim-stick',attackStick);}
-function openControlSettings(){$('settingsScreen').classList.remove('hidden');$('sizeControl').value=String(Math.round(ctrlSettings.scale*100));$('stickControl').checked=ctrlSettings.attackStick;$('assistControl').checked=ctrlSettings.aimAssist;}
+function openControlSettings(){$('settingsAudio').textContent=$('toggleAudio').textContent;$('settingsVolume').value=$('audioVolume').value;$('settingsScreen').classList.remove('hidden');$('sizeControl').value=String(Math.round(ctrlSettings.scale*100));$('stickControl').checked=ctrlSettings.attackStick;$('assistControl').checked=ctrlSettings.aimAssist;}
 $('openSettings').addEventListener('click',openControlSettings);
 $('closeSettings').addEventListener('click',()=>{$('settingsScreen').classList.add('hidden');$('settingsScreen').classList.remove('waiting-settings-active');});
 $('sizeControl').addEventListener('input',e=>{ctrlSettings.scale=Number(e.target.value)/100;applyControlSettings();});
@@ -2701,3 +2715,16 @@ $('chooseMoretti').addEventListener('click',()=>launchHero('moretti'));$('choose
 
 $('networkRecoveryCancel')?.addEventListener('click',()=>coopRecoveryFailed('Reconexão cancelada.'));
 try{const saved=JSON.parse(sessionStorage.getItem('ygg.coop.resume')||'null');if(saved?.token&&saved?.code&&window.WebSocket&&location.protocol!=='file:'){coop.room=saved.code;coop.token=saved.token;coop.active=true;coop.reconnecting=true;coop.reconnectUntil=Date.now()+120000;coopReconnectUI();coopOpenSocket({t:'resume',code:coop.room,token:coop.token});}}catch{}
+
+// Seven rapid taps on the playfield/background; action buttons do not count.
+let screenTapStart=null;
+const screenTapExcluded=e=>e.target?.closest?.('button,a,input,select,textarea,#waitingStick,#joystick,.actions,#waitingDialog,#settingsScreen,#waitingOptions,#studioIntro,#networkRecovery');
+window.addEventListener('pointerdown',e=>{if(screenAdjusting||e.isPrimary===false||screenTapExcluded(e)){screenTapStart=null;return;}screenTapStart={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()};},true);
+window.addEventListener('pointercancel',()=>{screenTapStart=null;},true);
+window.addEventListener('pointerup',e=>{const a=screenTapStart;screenTapStart=null;const now=performance.now();if(screenAdjusting||!a||a.id!==e.pointerId||screenTapExcluded(e)||now-a.t>350||Math.hypot(e.clientX-a.x,e.clientY-a.y)>20)return;if(registerScreenTap(now))setScreenAdjust(true);},true);
+window.visualViewport?.addEventListener('resize',screenAdjustLayout);window.visualViewport?.addEventListener('scroll',screenAdjustLayout);
+$('screenAdjustReset').addEventListener('click',resetScreenScale);
+$('screenAdjustDone').addEventListener('click',()=>setScreenAdjust(false));$('titleAdjust').addEventListener('click',()=>setScreenAdjust(true));
+$('settingsAdjust').addEventListener('click',()=>{$('settingsScreen').classList.add('hidden');$('settingsScreen').classList.remove('waiting-settings-active');setScreenAdjust(true);});
+$('settingsAudio').addEventListener('click',()=>{$('toggleAudio').click();$('settingsAudio').textContent=$('toggleAudio').textContent;});
+$('settingsVolume').addEventListener('input',e=>{$('audioVolume').value=e.target.value;YG_AUDIO.setVolume(e.target.value);});$('settingsTest').addEventListener('click',()=>$('audioTest').click());

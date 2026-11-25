@@ -91,3 +91,10 @@ Lobby jogável e seguro para até cinco jogadores, com Templo do Japão e Midgar
 
 ## v4.9.8 — Vila Sakura
 Novo lobby de tela inteira, NPCs e colisões japonesas. Veja [README_v498.md](README_v498.md).
+
+## v4.9.9 — Tela Livre
+Menu inicial, recuperação de zoom e diálogos automáticos. Consulte [README_v499.md](README_v499.md).
+
+## v5.0 — Seleção dos Heróis
+
+Duas cartas animadas por página com setas e arraste, incluindo as mudanças v4.9.9. Consulte README_v50.md.

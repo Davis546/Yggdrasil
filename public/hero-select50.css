@@ -1,0 +1,30 @@
+/* two complete independently clickable animated cards; no cropping or stretching */
+.hs50.new-hero-selector,.hs50.duel-portrait-grid{display:grid!important;grid-template-columns: minmax(28px,40px) minmax(0,1fr) minmax(0,1fr) minmax(28px,40px)!important;grid-template-rows:auto auto;gap:clamp(4px,1.2vw,12px)!important;align-items:center;width:min(100%,890px)!important;max-width:none!important;margin:5px auto!important;touch-action:pan-y;user-select:none;}
+.hs50[hidden],.hs50 .hs50-card[hidden]{display:none!important}
+.hs50 .hs50-card{position:relative;display:flex!important;grid-row:1;flex-direction:column;align-items:center;justify-content:center;width:100%;min-width:0;padding:0!important;gap:0!important;border:1px solid transparent!important;background:#030207!important;box-shadow:none;border-radius:5px;overflow:hidden;transform:none!important;touch-action:pan-y;}
+.hs50 .hs50-card[hidden]{display:none!important}
+.hs50 .hs50-card:not([hidden]):nth-child(odd){grid-column:2}.hs50 .hs50-card:not([hidden]):nth-child(even){grid-column:3}
+.hs50 .hs50-card .hero-art-wrap{width:100%;height:auto!important;aspect-ratio: auto;flex:1 1 auto;border:0;border-radius:0;background:#030207;position:relative;}
+.hs50 .hs50-card img{display:block;width:100%!important;height:clamp(120px,46dvh,490px)!important;object-fit:contain!important;object-position:center!important;border-radius:0;pointer-events:none;image-rendering:auto;}
+.hs50 .hs50-card strong,.hs50 .hs50-card small{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+.hs50 .hs50-card:hover,.hs50 .hs50-card:focus-visible,.hs50 .hs50-card.selected,.hs50 .hs50-card.chosen{border-color:#c0a2ed!important;box-shadow:0 0 12px #a68ae577;outline-offset:-2px;}
+.hs50 .hs50-card:disabled{opacity:.45;filter:grayscale(.8);pointer-events:none;}
+.hs50 .secret-locked img{filter:brightness(.28) grayscale(.7)}.hs50 .secret-padlock{z-index:2;font-size:clamp(24px,6vw,55px)}
+.hs50-secret{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);white-space:nowrap;color:#e9d8ff;background:#15101be8;padding:2px 5px;font:700 10px system-ui;pointer-events:none;}
+.hs50-arrow{grid-row:1;display:grid;place-items:center;height:54px;width:100%;padding:0!important;background:#23182f!important;border:1px solid #8e72aa!important;color:#f2dcff;font:32px/1 Georgia!important;border-radius:6px;touch-action:manipulation;}
+.hs50-prev{grid-column:1}.hs50-next{grid-column:4}.hs50-arrow:disabled{opacity:.3;cursor:default;}
+.hs50-foot{grid-column:1/-1;grid-row:2;display:flex;justify-content:center;align-items:center;gap:8px;color:#cbb8de;font:11px system-ui;flex-wrap:wrap;}
+.hs50-dots{display:flex;gap:4px}.hs50-dot{padding:2px 4px!important;color:#78628d;background:transparent!important;border:0!important;font:13px system-ui!important;}.hs50-dot[aria-current=page]{color:#f2d6ff;}
+body:has(#selectScreen:not(.hidden)){overflow:hidden}body:has(#selectScreen:not(.hidden)) #selectScreen{position:fixed;inset:0;z-index:30;padding:8px;align-items:safe center;overflow:auto;background-color:#090611;}
+#selectScreen .overlay-card{width:min(100%,950px)!important;max-width:950px!important;margin:auto;}
+#selectScreen h2{font-size:clamp(17px,4dvh,32px)!important;margin:3px 0!important;}#selectScreen .eyebrow{font-size:9px}#selectScreen .intro{margin:3px auto!important;line-height:1.2}#selectScreen .panelnote{display:none}#selectScreen .selection-back{margin-top:4px!important;padding:4px 8px!important;}#selectScreen .mode-buttons{margin:3px auto!important;}#selectScreen .mode-buttons button{padding:4px 8px!important;font-size:10px!important;}
+#selectScreen .hs50 img{height:clamp(120px,calc(100dvh - 165px),570px)!important;}
+body:has(#coopLobby:not([hidden]) .hs50:not([hidden])):not(.waiting-full) #coopScreen:not(.hidden){position:fixed;inset:0;z-index:30;overflow:auto;align-items:safe center;padding:6px;}
+#coopLobby .hs50 img{height:clamp(130px,49dvh,440px)!important;}
+@media(orientation:portrait){#selectScreen .hs50 img{height:clamp(120px,55vw,450px)!important;}#coopLobby .hs50 img{height:clamp(120px,55vw,420px)!important;}}
+@media(max-height:430px) and (orientation:landscape){#selectScreen .eyebrow{display:none}#selectScreen .secret-code{margin:2px auto}#selectScreen .hs50 img{height:clamp(90px,calc(100dvh - 125px),310px)!important;}#selectScreen .hs50-foot{font-size:9px;line-height:1}#selectScreen .hs50-dot{font-size:10px!important;padding:1px 3px!important}#coopScreen .overlay-card>h2{font-size:16px!important}#coopScreen .overlay-card>.intro{display:none}#coopLobby .hs50 img{height:clamp(110px,55dvh,270px)!important;}}
+/* Keep both portraits close together instead of wasting wide empty columns. */
+#selectScreen .hs50{width:min(100%,calc(clamp(120px,100dvh - 165px,570px)*1.85 + 90px))!important;}
+#coopLobby .hs50{width:min(100%,calc(clamp(130px,49dvh,440px)*1.85 + 90px))!important;}
+@media(orientation:portrait){#selectScreen .hs50,#coopLobby .hs50{width:100%!important;}}
+@media(max-height:430px) and (orientation:landscape){#selectScreen .hs50{width:min(100%,calc(clamp(90px,100dvh - 125px,310px)*1.85 + 90px))!important;}}
