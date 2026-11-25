@@ -88,3 +88,6 @@ Kali e Moretti receberam cura e buffs coletivos calculados pelo anfitrião, incl
 ## V4.9.7 — Encontro dos Reinos
 
 Lobby jogável e seguro para até cinco jogadores, com Templo do Japão e Midgard. Consulte [README_v497.md](README_v497.md). Atualização cumulativa inclui V4.9.6.
+
+## v4.9.8 — Vila Sakura
+Novo lobby de tela inteira, NPCs e colisões japonesas. Veja [README_v498.md](README_v498.md).

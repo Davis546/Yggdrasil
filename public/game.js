@@ -178,11 +178,11 @@ function renderSoloPassives(){
 function renderCoopPassives(){
  const area=$('coopPassiveArea');if(!area)return;
  const nordic=isNordicEntry(coopMode);area.hidden=!nordic;
- if(!nordic)return;
+ if(!nordic){$('waitingMenu').textContent='⚙ CONFIGURAÇÕES';return;}
  renderPassiveChoices($('coopPassiveChoices'),coopPassiveSelection,id=>togglePassiveSelection(coopPassiveSelection,id,()=>{
    coopSend({t:'passives',passives:coopPassiveSelection});renderCoopPassives();
  }));
- $('coopPassiveCounter').textContent=coopPassiveSelection.length+' / 3 selecionadas';
+ $('coopPassiveCounter').textContent=coopPassiveSelection.length+' / 3 selecionadas';$('waitingMenu').textContent='⚙ CONFIG. · RUNAS '+coopPassiveSelection.length+'/3';
 }
 
 const NORDIC_CARD_CAP=5;
@@ -2141,7 +2141,7 @@ window.addEventListener('keydown',e=>{
  if(phase==='ultimate'){if(['1','2','3','4'].includes(key))chooseUltimate(['fight','defesa','itens','piedade'][Number(key)-1]);return;}
  if(phase==='reward'){if(['1','2','3'].includes(key))chooseCard(Number(key)-1);return;}
  if(phase==='title'){if(key==='enter')openSelection();return;}
- if(phase==='coop'&&waitingVisible()&&!['INPUT','SELECT','TEXTAREA','BUTTON'].includes(e.target?.tagName)){if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key))keys.add(key);return;}
+ if(phase==='coop'&&waitingVisible()&&!['INPUT','SELECT','TEXTAREA'].includes(e.target?.tagName)){if(key==='e'&&!e.repeat){waitingTalk(!!waiting.dialog);return;}if(key==='escape'){waitingDialogClose();waitingMenuClose();return;}if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key))keys.add(key);return;}
  if(phase!=='play')return;
  keys.add(key);
  if(key===' ')dash();if(key==='q')skill();if(key==='e'&&!e.repeat)secondaryDown();if(key==='r')ultimate();if(key==='f')cardPower();if(key==='j')attack();
@@ -2283,19 +2283,32 @@ function coopResumeStart(m){
  coopNote('Conexão recuperada.');
 }
 // Lobby uses separate visual actors: no combat state, cards, or cooldowns are carried into wave 1.
-const waiting={actors:new Map(),editing:false,clock:0,lastSend:0,lastSig:'',joy:{x:0,y:0},pid:null};
+const WAIT_JP_POLYS=[[[650,345],[1184,345],[1200,570],[1150,620],[1100,675],[925,675],[870,620],[780,620],[710,670],[650,595],[620,535],[620,460]],[[330,505],[650,490],[665,565],[330,575]],[[205,575],[335,505],[350,575],[265,680],[255,750],[295,825],[330,900],[302,946],[217,850],[185,735],[180,650]]];
+const WAIT_NPCS=[{id:'amaterasu',x:914,y:391},{id:'caine',x:1015,y:463}];
+function waitingJapanWalk(x,y){const px=(x-244)*1448/960,py=(y-180)*1086/600;return WAIT_JP_POLYS.some(poly=>{let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const [xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>py)!==(yj>py)&&px<(xj-xi)*(py-yi)/(yj-yi)+xi)inside=!inside;}return inside;})&&!WAIT_NPCS.some(n=>Math.hypot(x-n.x,y-n.y)<18);}
+function waitingSpawn(i,nordic){return {x:nordic?584+(i%5)*70:780+(i%5)*58,y:nordic?600:490,face:'down',moving:false};}
+const waitingJapanMap=new Image();waitingJapanMap.src='assets/lobby/japan.png?v=498';
+const waitingNpcArt={};for(const id of ['amaterasu','caine']){waitingNpcArt[id]=Array.from({length:id==='amaterasu'?4:1},(_,i)=>{const im=new Image();im.src='assets/lobby/'+(id==='caine'?'caine':id+i)+'.png?v=498';return im;});}
+const WAIT_DIALOGS={amaterasu:["Ah! Que alegria receber vocês! Sejam bem-vindos ao meu pequeno templo. Espero que estejam se sentindo em casa!","Estão esperando seus companheiros? Aproveitem para descansar. Até os guerreiros mais fortes precisam de um momento de paz.","O Caine parece assustador, não é? Mas ele é um amorzinho! Só não contem a ele que eu disse isso, hehe!","Loid carrega um enorme peso sobre seus ombros. Espero que, algum dia, ele encontre um motivo para sorrir de verdade.","Não importa o tamanho da escuridão que encontrarem. Uma pequena luz ainda é capaz de iluminar o caminho.","Voltaram para conversar comigo? Que fofos! Já estava começando a sentir saudades.","Vocês já comeram hoje? Não quero ninguém enfrentando criaturas terríveis de barriga vazia!","Prometam que vão cuidar uns dos outros, está bem? Que minha luz acompanhe cada um de vocês."],caine:["Alto! Identifiquem-se... Haha! Estou brincando. Se fossem inimigos, já teriam percebido.","Sua Majestade, o rei Loid, confia em mim. Espero que isso seja suficiente para vocês entenderem o quanto sou competente.","Mantenham a formação, protejam seus companheiros e tentem não morrer. Principalmente essa última parte.","Estamos esperando reforços? Ótimo. Finalmente uma desculpa para não trabalhar.","Boa sorte, recrutas. Voltem inteiros. Não estou com vontade de preencher relatórios."]};
+function waitingNearest(){if(isNordicEntry(coopMode))return null;const a=waiting.actors.get(coop.id);if(!a)return null;return WAIT_NPCS.map(n=>({n,d:Math.hypot(n.x-a.x,n.y-a.y)})).filter(v=>v.d<70).sort((a,b)=>a.d-b.d)[0]?.n||null;}
+function waitingDialogClose(){waiting.dialog=null;$('waitingDialog').hidden=true;}
+function waitingTalk(next=false){if(!waitingVisible())return;const n=next?waiting.dialog:waitingNearest();if(!n)return;const lines=WAIT_DIALOGS[n.id];let i=waiting.dialogIndex[n.id]||0;const line=n.id==='amaterasu'&&Math.random()<.05?'Posso contar um segredinho? Mesmo sendo a deusa do Sol, às vezes também tenho medo da escuridão.':lines[i%lines.length];waiting.dialogIndex[n.id]=i+1;waiting.dialog=n;waiting.joy={x:0,y:0};keys.clear();$('waitingNpcName').textContent=n.id==='caine'?'Caine · Capitão da Guarda Real':'Amaterasu · Deusa do Sol';$('waitingPortrait').src='assets/lobby/'+n.id+'_portrait.webp';$('waitingPortrait').alt=n.id;$('waitingNpcText').textContent=line;$('waitingDialog').hidden=false;}
+function waitingMenuClose(){waiting.menu=false;$('waitingOptions').classList.remove('is-open');}
+const waiting={menu:false,dialog:null,dialogIndex:{},realm:null,actors:new Map(),editing:false,clock:0,lastSend:0,lastSig:'',joy:{x:0,y:0},pid:null};
 function waitingVisible(){return coop.active&&!coop.remoteStarted&&phase==='coop'&&!$('waitingMap').hidden;}
-function waitingReset(){waiting.actors.clear();waiting.editing=false;waiting.lastSend=0;waiting.lastSig='';waiting.joy={x:0,y:0};waiting.pid=null;keys.clear();$('waitingMap').hidden=true;}
+function waitingReset(){waitingDialogClose();waitingMenuClose();waiting.realm=null;document.body.classList.remove('waiting-full');waiting.actors.clear();waiting.editing=false;waiting.lastSend=0;waiting.lastSig='';waiting.joy={x:0,y:0};waiting.pid=null;keys.clear();$('waitingMap').hidden=true;}
 function waitingRoster(positions={}){
+ const realm=isNordicEntry(coopMode);if(waiting.realm!==realm){waiting.actors.clear();waiting.realm=realm;waitingDialogClose();}
  const ids=new Set(coop.members.filter(m=>m.hero).map(m=>m.id));
  for(const id of waiting.actors.keys())if(!ids.has(id))waiting.actors.delete(id);
- let i=0;for(const m of coop.members){if(!m.hero)continue;const pos=positions?.[m.id]||{x:584+(i%5)*70,y:600,face:'down',moving:false};i++;
+ let i=0;for(const m of coop.members){if(!m.hero)continue;const pos=positions?.[m.id]||waitingSpawn(i,realm);i++;
   const old=waiting.actors.get(m.id);if(!old||old.type!==m.hero){waiting.actors.set(m.id,{type:m.hero,x:pos.x,y:pos.y,tx:pos.x,ty:pos.y,face:pos.face||'down',moving:false,step:0});}else if(m.id!==coop.id&&positions?.[m.id])waitingReceive({id:m.id,...pos});
  }
 }
 function waitingReceive(m){const a=waiting.actors.get(m.id);if(!a||m.id===coop.id||!Number.isFinite(m.x)||!Number.isFinite(m.y))return;a.tx=m.x;a.ty=m.y;a.face=m.face;a.moving=!!m.moving;a.received=waiting.clock;}
 function waitingUI(){
  const mine=coop.members.find(m=>m.id===coop.id);const show=!!mine?.hero&&!waiting.editing&&!coop.remoteStarted;
+ document.body.classList.toggle('waiting-full',show);if(!show){waitingDialogClose();waitingMenuClose();}
  const wasHidden=$('waitingMap').hidden;$('waitingMap').hidden=!show;$('waitingChooseLabel').hidden=show;if(show&&wasHidden&&!touchUI)$('waitingCanvas').focus({preventScroll:true});
  const grid=document.querySelector('#coopLobby .new-hero-selector');if(grid)grid.hidden=show;
  const secret=document.querySelector('#coopLobby .secret-code');if(secret)secret.hidden=show;
@@ -2307,17 +2320,21 @@ function waitingFrame(dt,time){
  waiting.clock+=dt;const a=waiting.actors.get(coop.id);if(!a)return;
  let mx=waiting.joy.x+(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),my=waiting.joy.y+(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);
  const len=Math.hypot(mx,my);if(len>1){mx/=len;my/=len;}a.moving=len>.03;
- if(a.moving){const speed=a.type==='mollitiam'?100:a.type==='l0id'?225:a.type==='moretti'?205:185;a.x=clamp(a.x+mx*speed*dt,360,1088);a.y=clamp(a.y+my*speed*dt,365,760);a.face=Math.abs(mx)>Math.abs(my)?(mx<0?'left':'right'):(my<0?'up':'down');a.step+=dt*10;}
+ if(waiting.dialog||waiting.menu||!$('settingsScreen').classList.contains('hidden')&&$('settingsScreen').classList.contains('waiting-settings-active')){mx=0;my=0;a.moving=false;}
+ if(a.moving){const speed=a.type==='mollitiam'?100:a.type==='l0id'?225:a.type==='moretti'?205:185;const nx=clamp(a.x+mx*speed*dt,360,1088),ny=clamp(a.y+my*speed*dt,365,760);if(isNordicEntry(coopMode)||waitingJapanWalk(nx,a.y))a.x=nx;if(isNordicEntry(coopMode)||waitingJapanWalk(a.x,ny))a.y=ny;a.face=Math.abs(mx)>Math.abs(my)?(mx<0?'left':'right'):(my<0?'up':'down');a.step+=dt*10;}
  const sig=[Math.round(a.x),Math.round(a.y),a.face,a.moving].join(':');
  if(time-waiting.lastSend>=75&&(sig!==waiting.lastSig||time-waiting.lastSend>=1000)){if(coopSend({t:'waitingMove',x:Math.round(a.x),y:Math.round(a.y),face:a.face,moving:a.moving})){waiting.lastSend=time;waiting.lastSig=sig;}}
  for(const [id,b] of waiting.actors){if(id===coop.id)continue;const d=Math.hypot(b.tx-b.x,b.ty-b.y);const k=Math.min(1,dt*13);b.x+=(b.tx-b.x)*k;b.y+=(b.ty-b.y)*k;b.moving=d>1.5||(b.moving&&waiting.clock-(b.received||0)<.23);if(b.moving)b.step+=dt*10;}
+ const nearest=waitingNearest();const interact=$('waitingInteract'),hideInteract=!nearest||!!waiting.dialog||waiting.menu;if(interact.hidden!==hideInteract)interact.hidden=hideInteract;if(nearest){const text='CONVERSAR · '+(nearest.id==='caine'?'CAINE':'AMATERASU');if(interact.textContent!==text)interact.textContent=text;}
  const surface=$('waitingCanvas'),c=surface.getContext('2d');if(!c)return;
+ const rect=surface.getBoundingClientRect(),ratio=Math.max(.4,Math.min(4,(rect.width||960)/(rect.height||600)));const cw=ratio>=1?960:Math.round(600*ratio),ch=ratio>=1?Math.round(960/ratio):600;if(surface.width!==cw||surface.height!==ch){surface.width=cw;surface.height=ch;}
  const prior=ctx,wasMoving=movingNow,oldElapsed=elapsed;ctx=c;elapsed=waiting.clock;
- c.save();try{c.setTransform(1,0,0,1,0,0);c.fillStyle='#151324';c.fillRect(0,0,960,600);const map=isNordicEntry(coopMode)?NORDIC_ARENA:ARENA;
- const sx=244,sy=180,sw=960,sh=600; // slightly enlarged view of the temple / Midgard courtyard
- if(map.complete&&map.naturalWidth)c.drawImage(map,sx,sy,sw,sh,0,0,960,600);
- c.translate(-sx,-sy);
- for(const [id,b] of [...waiting.actors].sort((a,b)=>a[1].y-b[1].y)){movingNow=b.moving;heroSprite(b.x,b.y,b.type,b.face,b.step,false,1.28,b);c.textAlign='center';c.font='bold 13px system-ui';c.lineWidth=3;c.strokeStyle='#14101b';c.fillStyle=id===coop.id?'#ffdf93':'#eee2ff';const text=b.type.toUpperCase()+(id===coop.hostId?' · HOST':'');c.strokeText(text,b.x,b.y-(b.type==='mollitiam'?100:76));c.fillText(text,b.x,b.y-(b.type==='mollitiam'?100:76));}
+ c.save();try{c.setTransform(1,0,0,1,0,0);c.fillStyle='#151324';c.fillRect(0,0,cw,ch);const nordic=isNordicEntry(coopMode),map=nordic?NORDIC_ARENA:waitingJapanMap;
+ const zoom=Math.max(1,cw/960,ch/600)*1.12,vw=cw/zoom,vh=ch/zoom,sx=clamp(a.x-vw/2,244,1204-vw),sy=clamp(a.y-vh/2,180,780-vh);c.scale(zoom,zoom);c.translate(-sx,-sy);
+ if(map.complete&&map.naturalWidth){if(nordic)c.drawImage(map,244,180,960,600,244,180,960,600);else c.drawImage(map,244,180,960,600);}
+ const drawList=[...waiting.actors].map(([id,b])=>({id,b,y:b.y}));if(!nordic)for(const n of WAIT_NPCS)drawList.push({npc:n,y:n.y});
+ for(const item of drawList.sort((a,b)=>a.y-b.y)){if(item.npc){const n=item.npc,frames=waitingNpcArt[n.id],talking=waiting.dialog?.id===n.id;const im=frames[n.id==='caine'?0:talking?2+Math.floor(waiting.clock*2)%2:(Math.floor(waiting.clock*2)%8===7?1:0)];if(im.complete&&im.naturalWidth){const h=n.id==='caine'?58:78,w=h*im.naturalWidth/im.naturalHeight;c.drawImage(im,n.x-w/2,n.y-h,w,h);}c.font='bold 12px system-ui';c.textAlign='center';c.lineWidth=3;c.strokeStyle='#14101b';c.fillStyle='#ffdc9f';const label=n.id==='caine'?'Caine':'Amaterasu';c.strokeText(label,n.x,n.y-83);c.fillText(label,n.x,n.y-83);continue;}
+ const {id,b}=item;movingNow=b.moving;heroSprite(b.x,b.y,b.type,b.face,b.step,false,1.05,b);c.textAlign='center';c.font='bold 12px system-ui';c.lineWidth=3;c.strokeStyle='#14101b';c.fillStyle=id===coop.id?'#ffdf93':'#eee2ff';const text=b.type.toUpperCase()+(id===coop.hostId?' · HOST':'');c.strokeText(text,b.x,b.y-(b.type==='mollitiam'?86:65));c.fillText(text,b.x,b.y-(b.type==='mollitiam'?86:65));}
  }finally{c.restore();ctx=prior;movingNow=wasMoving;elapsed=oldElapsed;}
 }
 function coopRenderLobby(){
@@ -2327,7 +2344,7 @@ function coopRenderLobby(){
  $('coopRoomCode').textContent=coop.room||'------';
  $('coopPeople').textContent=coop.members.length+' de 5 jogadores: '+coop.members.map(m=>(m.id===coop.id?'VOCÊ':m.id===coop.hostId?'ANFITRIÃO':'ALIADO')+' — '+(m.hero||'escolhendo')+(isNordicEntry(coopMode)?' · '+((m.passives||[]).length)+'/3 passivas':'')).join(' · ');
  const balance=coopBalance(coop.members.length),scale=$('coopScale');if(scale)scale.textContent=`ESCALA COOPERATIVA · ${balance.players}P · Chefes: ${Math.round(balance.bossHp*100)}% VIDA · ${Math.round(balance.bossDamage*100)}% DANO`;
- $('coopHostOptions').hidden=!coop.host;
+ $('coopHostOptions').hidden=!coop.host;$('coopBegin').hidden=!coop.host;
  if(coop.host){const d=$('coopDifficulty');if(d&&!d.dataset.touched)d.value=difficulty;const b=$('coopBoss');if(b)b.value=coopMode;}renderCoopPassives();
  document.querySelectorAll('[data-coop-hero]').forEach(b=>{const mine=coop.members.some(m=>m.id===coop.id&&m.hero===b.dataset.coopHero);const occupied=coop.members.some(m=>m.id!==coop.id&&m.hero===b.dataset.coopHero);b.classList.toggle('selected',mine);b.disabled=occupied;b.classList.toggle('secret-locked',b.dataset.coopHero==='l0id'&&!l0idUnlocked);b.title=occupied?'Já escolhido por outro jogador':'';});
  $('coopBegin').disabled=!coop.host||coop.members.length<2||coop.members.some(m=>!m.hero)||new Set(coop.members.map(m=>m.hero)).size!==coop.members.length||(isNordicEntry(coopMode)&&coop.members.some(m=>!validNordicPassives(m.passives)));
@@ -2641,6 +2658,12 @@ $('coopJoin').addEventListener('click',()=>coopConnect('join',$('coopCode').valu
 $('coopBack').addEventListener('click',()=>{coopLeave();phase='title';$('titleScreen').classList.remove('hidden');});
 $('coopCopy').addEventListener('click',()=>{if(coop.room&&navigator.clipboard)navigator.clipboard.writeText(coop.room).then(()=>coopNote('Código copiado!')).catch(()=>coopNote('Código da sala: '+coop.room));});
 $('waitingChange').addEventListener('click',()=>{waiting.editing=true;waitingUI();});
+$('waitingMenu').addEventListener('click',()=>{waitingDialogClose();$('waitingAudio').textContent=$('toggleAudio').textContent;$('waitingVolume').value=$('audioVolume').value;waiting.menu=true;keys.clear();waiting.joy={x:0,y:0};$('waitingOptions').classList.add('is-open');});
+$('waitingOptionsClose').addEventListener('click',waitingMenuClose);
+$('waitingControls').addEventListener('click',()=>{waitingMenuClose();openControlSettings();$('settingsScreen').classList.add('waiting-settings-active');});
+$('waitingAudio').addEventListener('click',()=>{$('toggleAudio').click();$('waitingAudio').textContent=$('toggleAudio').textContent;});$('waitingVolume').addEventListener('input',e=>{YG_AUDIO.setVolume(e.target.value);});
+$('waitingInteract').addEventListener('click',()=>waitingTalk());$('waitingNext').addEventListener('click',()=>waitingTalk(true));$('waitingDialogClose').addEventListener('click',waitingDialogClose);
+$('waitingCanvas').addEventListener('pointerdown',()=>{if(waitingNearest()&&!waiting.menu&&!waiting.dialog)waitingTalk();});
 for(const b of document.querySelectorAll('[data-coop-hero]'))b.addEventListener('click',()=>{if(b.dataset.coopHero==='l0id'&&!l0idUnlocked)return;waiting.editing=false;waitingUI();coopSend({t:'choose',hero:b.dataset.coopHero});});
 const waitingStick=$('waitingStick'),waitingKnob=$('waitingKnob');
 function waitingTouch(e){const box=waitingStick.getBoundingClientRect(),r=box.width*.32;let x=e.clientX-box.left-box.width/2,y=e.clientY-box.top-box.height/2;const l=Math.hypot(x,y);if(l>r){x*=r/l;y*=r/l;}waiting.joy={x:x/r,y:y/r};waitingKnob.style.left=`calc(50% + ${x}px)`;waitingKnob.style.top=`calc(50% + ${y}px)`;}
@@ -2658,7 +2681,7 @@ const ctrlSettings={scale:1,attackStick:false,aimAssist:true};
 function applyControlSettings(){document.documentElement.style.setProperty('--control-zoom',ctrlSettings.scale);attackStick=ctrlSettings.attackStick;const t=$('attackModeLabel');if(t)t.textContent=attackStick?'JOYSTICK DE ATAQUE':'BOTÃO DE ATAQUE';const b=$('btnAttack');if(b)b.classList.toggle('aim-stick',attackStick);}
 function openControlSettings(){$('settingsScreen').classList.remove('hidden');$('sizeControl').value=String(Math.round(ctrlSettings.scale*100));$('stickControl').checked=ctrlSettings.attackStick;$('assistControl').checked=ctrlSettings.aimAssist;}
 $('openSettings').addEventListener('click',openControlSettings);
-$('closeSettings').addEventListener('click',()=>$('settingsScreen').classList.add('hidden'));
+$('closeSettings').addEventListener('click',()=>{$('settingsScreen').classList.add('hidden');$('settingsScreen').classList.remove('waiting-settings-active');});
 $('sizeControl').addEventListener('input',e=>{ctrlSettings.scale=Number(e.target.value)/100;applyControlSettings();});
 $('stickControl').addEventListener('change',e=>{ctrlSettings.attackStick=e.target.checked;applyControlSettings();});
 $('assistControl').addEventListener('change',e=>{ctrlSettings.aimAssist=e.target.checked;if(!e.target.checked&&touchUI){mouseAim=null;attackManualAim=false;}});

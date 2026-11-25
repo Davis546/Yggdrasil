@@ -9,6 +9,10 @@ const makeResumeToken=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),
 const MAX_COOP_PLAYERS = 5; // five players per room; six selectable heroes
 const BOSSES = new Set(['japan', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'odin', 'nameless', 'pecadoNordic']);
 const NORSE_BOSSES=new Set(['nordic','frostjarl','odin','nameless','pecadoNordic']);
+const WAIT_JP_POLYS=[[[650,345],[1184,345],[1200,570],[1150,620],[1100,675],[925,675],[870,620],[780,620],[710,670],[650,595],[620,535],[620,460]],[[330,505],[650,490],[665,565],[330,575]],[[205,575],[335,505],[350,575],[265,680],[255,750],[295,825],[330,900],[302,946],[217,850],[185,735],[180,650]]];
+const WAIT_NPCS=[{id:'amaterasu',x:914,y:391},{id:'caine',x:1015,y:463}];
+function waitingJapanWalk(x,y){const px=(x-244)*1448/960,py=(y-180)*1086/600;return WAIT_JP_POLYS.some(poly=>{let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const [xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>py)!==(yj>py)&&px<(xj-xi)*(py-yi)/(yj-yi)+xi)inside=!inside;}return inside;})&&!WAIT_NPCS.some(n=>Math.hypot(x-n.x,y-n.y)<18);}
+function waitingSpawn(i,nordic){return {x:nordic?584+(i%5)*70:780+(i%5)*58,y:nordic?600:490,face:'down',moving:false};}
 const PASSIVE_IDS=new Set(['odin','tyr','ymir','sleipnir','eir','huginn']);
 const validPassives=p=>Array.isArray(p)&&p.length===3&&new Set(p).size===3&&p.every(id=>PASSIVE_IDS.has(id));
 const ACTIONS = new Set(['attack', 'q', 'eDown', 'eUp', 'dash', 'ultimate', 'card', 'ultimateChoice', 'f']);
@@ -90,7 +94,7 @@ export class Lobby extends DurableObject {
   }
 
   waitingPositions(room) {
-    const positions={};let i=0;for(const c of room.members){if(!c.hero)continue;const spawn={x:584+(i++%5)*70,y:600,face:'down',moving:false};positions[c.id]=c.waitingPos||spawn;}return positions;
+    const positions={};let i=0;for(const c of room.members){if(!c.hero)continue;const spawn=waitingSpawn(i++,NORSE_BOSSES.has(room.selectedBoss));positions[c.id]=c.waitingPos||spawn;}return positions;
   }
 
   notify(room) {
@@ -427,6 +431,7 @@ export class Lobby extends DurableObject {
       if(!Number.isFinite(m.x)||!Number.isFinite(m.y))return;
       c.waitingAt=now;
       const pos={x:Math.round(Math.max(360,Math.min(1088,m.x))),y:Math.round(Math.max(365,Math.min(760,m.y))),face:['up','down','left','right'].includes(m.face)?m.face:'down',moving:m.moving===true};
+      if(!NORSE_BOSSES.has(r.selectedBoss)&&!waitingJapanWalk(pos.x,pos.y))return;
       c.waitingPos=pos;
       const packet={t:'waitingMove',id:c.id,...pos};const wire=JSON.stringify(packet);
       for(const peer of r.members)if(peer!==c)this.safeSend(peer,packet,wire);
@@ -442,8 +447,8 @@ export class Lobby extends DurableObject {
       return;
     }
     if(m.t==='mode' && !r.started && r.host===c){
-      r.selectedBoss=BOSSES.has(m.boss)?m.boss:'japan';
-      for(const p of r.members)this.persist(p);
+      const wasNorse=NORSE_BOSSES.has(r.selectedBoss);r.selectedBoss=BOSSES.has(m.boss)?m.boss:'japan';
+      for(const p of r.members){if(wasNorse!==NORSE_BOSSES.has(r.selectedBoss))p.waitingPos=null;this.persist(p);}
       this.notify(r);return;
     }
     if(m.t==='passives' && !r.started){
