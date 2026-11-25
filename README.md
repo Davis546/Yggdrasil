@@ -1,3 +1,7 @@
+# v4.9.6 — Runas do Norte
+
+Veja [README_v496.md](README_v496.md).
+
 # v4.9.5 — FPS livre
 
 Veja [README_v495.md](README_v495.md).
@@ -80,3 +84,7 @@ Sombras pré-renderizadas, interpolação, diagnóstico de RTT e borda, preferê
 
 ## v4.9.4 — Ascensão dos Suportes
 Kali e Moretti receberam cura e buffs coletivos calculados pelo anfitrião, incluindo convidados. HUD de efeitos ativos, reflexos otimizados e autoria de projéteis corrigida. Veja [README_v494.md](README_v494.md). Teste: `npm run test:support494`.
+
+## V4.9.7 — Encontro dos Reinos
+
+Lobby jogável e seguro para até cinco jogadores, com Templo do Japão e Midgard. Consulte [README_v497.md](README_v497.md). Atualização cumulativa inclui V4.9.6.

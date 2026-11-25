@@ -79,7 +79,7 @@ export class Lobby extends DurableObject {
     try {
       // A slow guest must not accumulate an ever-growing queue of obsolete frames.
       // Critical events (cards, lobby, start, attack controls) are never dropped.
-      if ((value.t === 'motion' || value.t === 'state' || value.t === 'pvpSnapshot' || value.t === 'pvpMotion') &&
+      if ((value.t === 'waitingMove' || value.t === 'motion' || value.t === 'state' || value.t === 'pvpSnapshot' || value.t === 'pvpMotion') &&
           typeof c.socket.bufferedAmount === 'number' && c.socket.bufferedAmount > 131072) return;
       c.socket.send(encoded??JSON.stringify(value));
     } catch { /* disconnected */ }
@@ -89,9 +89,13 @@ export class Lobby extends DurableObject {
     return [...room.members].map(c => ({ id: c.id, hero: c.hero || null, passives:c.passives||[] }));
   }
 
+  waitingPositions(room) {
+    const positions={};let i=0;for(const c of room.members){if(!c.hero)continue;const spawn={x:584+(i++%5)*70,y:600,face:'down',moving:false};positions[c.id]=c.waitingPos||spawn;}return positions;
+  }
+
   notify(room) {
     if (!room?.host) return;
-    const state = { t: 'lobby', members: this.members(room), host: room.host.id, code: room.code, started: room.started, boss:room.selectedBoss||'japan' };
+    const state = { t: 'lobby', members: this.members(room), host: room.host.id, code: room.code, started: room.started, boss:room.selectedBoss||'japan', positions:room.started?undefined:this.waitingPositions(room) };
     for (const c of room.members) this.safeSend(c, state);
   }
 
@@ -118,9 +122,9 @@ export class Lobby extends DurableObject {
     if (c.room) this.leaveRoom(c);
     room.members.add(c);
     c.room = room;
-    c.hero = null;c.passives=[];c.token=makeResumeToken();
+    c.hero = null;c.passives=[];c.waitingPos=null;c.waitingAt=0;c.token=makeResumeToken();
     this.persist(c);
-    this.safeSend(c, { t: 'welcome', id: c.id, code: room.code, host: room.host.id, members: this.members(room), token:c.token, epoch:room.epoch||1 });
+    this.safeSend(c, { t: 'welcome', id: c.id, code: room.code, host: room.host.id, members: this.members(room), token:c.token, epoch:room.epoch||1, boss:room.selectedBoss, positions:this.waitingPositions(room) });
     this.notify(room);
   }
 
@@ -156,7 +160,7 @@ export class Lobby extends DurableObject {
     room.reserved??=new Map();
     if(reserve&&c.token){
       room.reserved.set(c.id,{id:c.id,token:c.token,hero:c.hero,passives:c.passives||[],until:Date.now()+RESUME_MS,
-        actor:room.checkpoint?.actors?.[c.id]||null,chosenStage:room.checkpoint?.choices?.includes(c.id)?room.checkpoint.stage:null});
+        waitingPos:c.waitingPos,actor:room.checkpoint?.actors?.[c.id]||null,chosenStage:room.checkpoint?.choices?.includes(c.id)?room.checkpoint.stage:null});
       this.ensureCoopTicker();
     }
     room.members.delete(c);c.room=null;c.hero=null;c.passives=[];this.persist(c);
@@ -175,12 +179,12 @@ export class Lobby extends DurableObject {
     if(c.room){this.safeSend(c,{t:'resumeDenied'});return;}
     const old=entry||live,oldId=old.id;const wasHost=room.host===live&&!!live;
     if(live){room.members.delete(live);this.players.delete(live.id);live.room=null;try{live.socket.close(4001,'Sessão substituída');}catch{}}
-    room.reserved?.delete(oldId);this.players.delete(c.id);c.id=oldId;c.token=old.token;c.hero=old.hero;c.passives=old.passives||[];c.room=room;this.players.set(c.id,c);room.members.add(c);
+    room.reserved?.delete(oldId);this.players.delete(c.id);c.id=oldId;c.token=old.token;c.hero=old.hero;c.passives=old.passives||[];c.waitingPos=old.waitingPos||null;c.waitingAt=0;c.room=room;this.players.set(c.id,c);room.members.add(c);
     const takeover=wasHost||!room.host;
     if(takeover){room.host=c;room.epoch=(room.epoch||1)+1;}
     this.persist(c);
     const actor=entry?.actor||room.checkpoint?.actors?.[c.id]||null;
-    this.safeSend(c,{t:'resumed',id:c.id,token:c.token,code:room.code,host:room.host.id,epoch:room.epoch||1,members:this.members(room),started:room.started,startInfo:room.startInfo,checkpoint:room.checkpoint,boss:room.selectedBoss,actor,returning:!!entry,chosenStage:entry?.chosenStage??null});
+    this.safeSend(c,{t:'resumed',id:c.id,token:c.token,code:room.code,host:room.host.id,epoch:room.epoch||1,members:this.members(room),started:room.started,startInfo:room.startInfo,checkpoint:room.checkpoint,boss:room.selectedBoss,actor,positions:room.started?undefined:this.waitingPositions(room),returning:!!entry,chosenStage:entry?.chosenStage??null});
     if(takeover){for(const p of room.members)if(p!==c){this.persist(p);this.safeSend(p,{t:'hostChanged',host:c.id,epoch:room.epoch,members:this.members(room),started:room.started});}}
     else if(entry&&room.started)this.safeSend(room.host,{t:'rejoined',id:c.id,actor,chosenStage:entry.chosenStage});
     this.notify(room);
@@ -418,16 +422,28 @@ export class Lobby extends DurableObject {
     if (m.t === 'leave') { this.leaveRoom(c); return; }
     const r = c.room;
     if (!r) return;
+    if(m.t==='waitingMove'&&!r.started&&c.hero){
+      const now=Date.now();if(c.waitingAt&&now-c.waitingAt<55)return;
+      if(!Number.isFinite(m.x)||!Number.isFinite(m.y))return;
+      c.waitingAt=now;
+      const pos={x:Math.round(Math.max(360,Math.min(1088,m.x))),y:Math.round(Math.max(365,Math.min(760,m.y))),face:['up','down','left','right'].includes(m.face)?m.face:'down',moving:m.moving===true};
+      c.waitingPos=pos;
+      const packet={t:'waitingMove',id:c.id,...pos};const wire=JSON.stringify(packet);
+      for(const peer of r.members)if(peer!==c)this.safeSend(peer,packet,wire);
+      return;
+    }
     if (m.t === 'choose' && !r.started) {
       if (!HEROES.has(m.hero)) return;
       if ([...r.members].some(p => p !== c && p.hero === m.hero)) { this.safeSend(c, {t:'error',message:'Esse personagem já foi escolhido. Escolha outro!'}); return; }
       c.hero = m.hero;
+      c.waitingPos=this.waitingPositions(r)[c.id];
       this.persist(c);
       this.notify(r);
       return;
     }
     if(m.t==='mode' && !r.started && r.host===c){
       r.selectedBoss=BOSSES.has(m.boss)?m.boss:'japan';
+      for(const p of r.members)this.persist(p);
       this.notify(r);return;
     }
     if(m.t==='passives' && !r.started){
@@ -459,7 +475,7 @@ export class Lobby extends DurableObject {
     if (m.t === 'rematchRequest' && r.started && r.host !== c) { this.safeSend(r.host,{t:'rematchRequest',id:c.id});return; }
     if (m.t === 'rematch' && r.started && r.host === c) {
       r.started=false;r.selectedBoss='japan';r.checkpoint=null;r.startInfo=null;r.reserved?.clear();
-      for (const p of r.members) {p.passives=[];p.hero=null;this.persist(p);this.safeSend(p,{t:'lobbyReset'});}
+      for (const p of r.members) {p.passives=[];p.hero=null;p.waitingPos=null;p.waitingAt=0;this.persist(p);this.safeSend(p,{t:'lobbyReset'});}
       this.notify(r);return;
     }
     if (!r.started) return;

@@ -1,6 +1,6 @@
 {
   "name": "yggdrasil-online-cloudflare",
-  "version": "4.9.5",
+  "version": "4.9.7",
   "private": true,
   "type": "module",
   "scripts": {
@@ -29,7 +29,9 @@
     "test:network492": "node tests/network-v492.test.mjs",
     "test:performance493": "node tests/performance-v493.test.mjs",
     "test:support494": "node tests/support-v494.test.mjs",
-    "test:fps495": "node tests/fps-v495.test.mjs"
+    "test:fps495": "node tests/fps-v495.test.mjs",
+    "test:futhark496": "node tests/nordic-v496.test.mjs",
+    "test:lobby497": "node tests/lobby-v497.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.50.0"

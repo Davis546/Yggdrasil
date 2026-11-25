@@ -29,7 +29,7 @@ assert.equal(run("enemies.filter(e=>e.type==='pecadoEcho').length"),1,'Only one 
 run("selectedCampaign='nordic';start('loid');");
 assert.equal(run('player.cards.length'),5);
 assert.equal(run("player.cardPower"),'','No free exclusive F at beginning');
-run("stage=25");assert.equal(run("pickCards().some(c=>c.id==='granita')"),true);
+run("stage=25");assert.equal(run("pickCards().some(c=>c.id==='n_f_loid')"),true);
 run("selectedCampaign='nordic';start('kris','pecadoNordic');");
 assert.equal(run('stage'),40);assert.equal(run('activeCampaign'),'nordic');assert.equal(run('player.cardPower'),'frog');
 run('player.ultimateCharge=100;skill()');assert.ok(run('player.skillCd')>0,'Kris Q must remain original');assert.equal(run('player.frogTime'),0);

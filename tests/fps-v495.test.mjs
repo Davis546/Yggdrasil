@@ -22,5 +22,5 @@ for(const hz of [30,60,90,120,144]){
  }
 }
 assert(!src.includes('maxDrawGap'));
-assert.match(html,/game\.js\?v=495/);
+assert.match(html,/game\.js\?v=49[5-9]/);
 console.log('PASS all 4 graphic modes draw every callback at 30, 60, 90, 120, 144 Hz; simulation timing at 60+ Hz');

@@ -24,7 +24,7 @@ function coopSend(data){
  const socket=coop.socket;
  if(!socket||socket.readyState!==WebSocket.OPEN)return false;
  // Drop expendable visual updates instead of queueing stale frames behind a slow connection.
- if((data.t==='state'||data.t==='motion'||data.t==='input')&&socket.bufferedAmount>48000)return false;
+ if((data.t==='waitingMove'||data.t==='state'||data.t==='motion'||data.t==='input')&&socket.bufferedAmount>48000)return false;
  try{socket.send(JSON.stringify(data));return true;}catch(e){console.warn('Yggdrasil: falha de rede',e);return false;}
 }
 function coopNote(message){const n=$('coopNotice');if(n)n.textContent=message;}
@@ -186,7 +186,7 @@ function renderCoopPassives(){
 }
 
 const NORDIC_CARD_CAP=5;
-const NORDIC_RUNE_CAP=5; // teto de bênçãos permanentes contra acúmulo desbalanceado
+const NORDIC_RUNE_CAP=19; // uma escolha após cada uma das 19 ondas anteriores ao boss final
 const NORDIC_LIMITS={hp:1.45,damage:1.30,attackDelay:.85,speed:1.20,reach:1.20,armor:.25,crit:.32,echo:.20,dodge:.25,dashDelay:.85,skillDelay:.85,secondaryDelay:.85};
 function nordicClamp(p){
  p.maxHp=Math.min(Math.floor(p.baseMaxHp*NORDIC_LIMITS.hp), p.maxHp);
@@ -209,7 +209,7 @@ function nordicClamp(p){
 }
 const nCard=(id,name,desc,icon,rarity,effect)=>({id:'n_'+id,name,desc,icon,rarity,effect});
 const nordicCards=[
- nCard('fehu','ᚠ Fehu','Chance de coração +4 pontos percentuais e recursos +8%.','ᚠ','common',p=>{p.heartBonus=(p.heartBonus||0)+.04;}),
+ nCard('fehu','ᚠ Fehu','Chance de coração +4 pontos percentuais.','ᚠ','common',p=>{p.heartBonus=(p.heartBonus||0)+.04;}),
  nCard('uruz','ᚢ Uruz','Vida máxima +14 e dano corpo a corpo +4%.','ᚢ','common',p=>{p.maxHp+=14;p.hp+=14;p.damage*=1.04}),
  nCard('thurisaz','ᚦ Thurisaz','Dano contra chefes +8%.','ᚦ','rare',p=>p.bossAmp=(p.bossAmp||1)*1.08),
  nCard('ansuz','ᚨ Ansuz','Recarga Q -8%.','ᚨ','rare',p=>p.skillDelay*=.92),
@@ -228,7 +228,11 @@ const nordicCards=[
  nCard('tiwaz','ᛏ Tiwaz','Dano contra chefes +10%.','ᛏ','rare',p=>p.bossAmp=(p.bossAmp||1)*1.10),
  nCard('berkana','ᛒ Berkana','Cura recebida +15% e vida máxima +8.','ᛒ','common',p=>{p.healAmp=(p.healAmp||1)*1.15;p.maxHp+=8;p.hp+=8}),
  nCard('ehwaz','ᛖ Ehwaz','Recarga do dash -8%.','ᛖ','common',p=>p.dashDelay*=.92),
- nCard('mannaz','ᛗ Mannaz','Dano +4%, defesa +4%.','ᛗ','common',p=>{p.damage*=1.04;p.armor=1-(1-p.armor)*.96})
+ nCard('mannaz','ᛗ Mannaz','Dano +4%, defesa +4%.','ᛗ','common',p=>{p.damage*=1.04;p.armor=1-(1-p.armor)*.96}),
+ nCard('laguz','ᛚ Laguz','Corrente vital: recupera mais 5 HP no começo de cada onda.','ᛚ','common',p=>p.betweenHeal+=5),
+ nCard('ingwaz','ᛜ Ingwaz','Eco ancestral: +8 pontos percentuais de chance de golpe ecoado (60% de dano extra).','ᛜ','rare',p=>p.echo+=.08),
+ nCard('dagaz','ᛞ Dagaz','Aurora: recarga da habilidade E -10%.','ᛞ','rare',p=>p.secondaryDelay*=.90),
+ nCard('othala','ᛟ Othala','Herança ancestral: +4 pontos percentuais de chance de coração e +2 HP por inimigo derrotado.','ᛟ','rare',p=>{p.heartBonus=(p.heartBonus||0)+.04;p.onKillHeal+=2})
 ];
 for(const c of nordicCards)CARD_IMAGES[c.id]=`assets/cards/futhark/${c.id.slice(2)}.png?v=45`;
 const nordicSpecials=[
@@ -239,23 +243,36 @@ cards.push({id:'eveprime',name:'Eve Lorey · Retorno ao Auge',desc:'F (carta exc
 CARD_IMAGES.eveprime=CARD_IMAGES.timeward;
 cards.push({id:'mollitiamHeart',name:'Mollitiam · Coração de Yggdrasil',desc:'Carta especial F (1 uso): 8s de poder ancestral; +40% resistência, +30% velocidade de ataque, +50% dano contra chefes, pisão maior e E cura 35%.',icon:'ᛉ',rarity:'legendary',hero:'mollitiam',effect:p=>{p.cardPower='mollitiamHeart';p.cardPowerUsed=false;}});
 for(const [id,hero,name,desc] of [['authorReality','moretti','O Autor do Impossível','F: 12s de fortalecimento; dois D20, maior resultado, também nas próximas Q e E.'],['godShadow','l0id','A Sombra que Devorou Deus','F: 10s de cortes extras, 3s de imunidade e dez sombras.']]){cards.push({id,hero,name,desc,icon:'✦',rarity:'legendary',effect:p=>{p.cardPower=id;p.cardPowerUsed=false;}});CARD_IMAGES[id]=`assets/cards/${hero}_special.png?v=49`;}
-// Suprimentos são oferecidos somente depois de preencher os cinco espaços de runas.
-// As cinco cartas japonesas iniciais continuam intactas durante toda a jornada.
-const nordicSupplies=[
- {id:'supply_heal',name:'Bandagem de Viagem',desc:'Recupera 16 HP e reduz 2s da recarga de Q.',icon:'♥',rarity:'common',effect:p=>{p.hp=Math.min(p.maxHp,p.hp+16);p.skillCd=Math.max(0,p.skillCd-2)}},
- {id:'supply_rest',name:'Descanso na Neve',desc:'Recupera 25 HP, até o limite de vida.',icon:'✚',rarity:'rare',effect:p=>{p.hp=Math.min(p.maxHp,p.hp+25)}},
- {id:'supply_recover',name:'Fogueira de Batalha',desc:'Recupera 20 HP e reinicia o tempo de esquiva.',icon:'✧',rarity:'rare',effect:p=>{p.hp=Math.min(p.maxHp,p.hp+20);p.dashCd=0}}
-];
-for(const c of nordicSupplies)CARD_IMAGES[c.id]=CARD_IMAGES.heal;
+// Especiais exclusivas mantêm o poder original, mas têm identidade rúnica própria no Nórdico.
+const nordicSpecialRunes=nordicSpecials.map(({id,hero})=>{
+ const original=cards.find(c=>c.id===id);
+ const rune=({kris:'thurisaz',cross:'hagalaz',loid:'isa',kali:'algiz',eve:'dagaz',mollitiam:'uruz',moretti:'ansuz',l0id:'eihwaz'})[hero];
+ const base=nordicCards.find(c=>c.id==='n_'+rune);
+ const variant={...original,id:'n_f_'+hero,specialId:id,name:base.name+' · '+original.name,icon:base.icon,rarity:'legendary'};
+ CARD_IMAGES[variant.id]=`assets/cards/futhark/special_${hero}.png?v=496`;
+ return variant;
+});
+function eligibleNordicSpecial(p){return localNordicWave()>=5&&!p.nordicSpecialEarned&&!p.cardPower&&!p.frogSkill;}
+function nordicRewardPool(p){
+ const owned=p.runes||[];
+ if(owned.length>=NORDIC_RUNE_CAP)return [];
+ const pool=nordicCards.filter(c=>!owned.includes(c.id));
+ const special=eligibleNordicSpecial(p)?nordicSpecialRunes.find(c=>c.hero===p.type&&!owned.includes(c.id)):null;
+ return special?[...pool,special]:pool;
+}
 function awardCard(p,c){
- if(c.id.startsWith('supply_')){c.effect(p);return true;}
+ if(!c)return false;
+ if(c.id.startsWith('supply_'))return false;
  // Runas têm slots próprios: não ocupam nem alteram as 5 cartas japonesas iniciais.
  if(activeCampaign==='nordic'&&c.id.startsWith('n_')){
   p.runes=p.runes||[];
-  if(p.runes.length>=NORDIC_RUNE_CAP||p.runes.includes(c.id))return false;
-  c.effect(p);p.runes.push(c.id);nordicClamp(p);return true;
+  const canonical=nordicRewardPool(p).find(x=>x.id===c.id);if(!canonical)return false;
+  canonical.effect(p);if(canonical.specialId)p.nordicSpecialEarned=true;
+  p.runes.push(canonical.id);nordicClamp(p);return true;
  }
  if(activeCampaign==='nordic'&&nordicSpecials.some(x=>x.id===c.id)){
+  // Compatibilidade com o desafio direto e testes antigos; nunca aparece no sorteio.
+  if(c.hero!==p.type)return false;
   if(p.nordicSpecialEarned||p.cardPower||p.frogSkill)return false;
   c.effect(p);p.nordicSpecialEarned=true;return true;
  }
@@ -1563,7 +1580,7 @@ function heroSprite(x,y,type,face='down',step=0,transform=false,scale=1,actor=nu
   ctx.restore();return;
  }
  const row={down:0,left:1,right:2,up:3}[face]??0;
- const walk=movingNow&&phase==='play';const sequence=[1,0,1,2];
+ const walk=movingNow&&(phase==='play'||phase==='coop');const sequence=[1,0,1,2];
  const col=walk?sequence[Math.floor(step*1.15)%sequence.length]:1;
  ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(scale,scale);
  if(transform&&!lowFx()){
@@ -1913,7 +1930,7 @@ function updateHud(){
  if(!player)return;
  // Throttle HUD-only DOM updates on mobile; simulation is untouched.
  const now=performance.now();if(touchUI&&phase==='play'&&now-lastHudStamp<75)return;lastHudStamp=now;
- const runeHud=$('nordicCardHUD');if(runeHud){const ids=isNordic()?(player.cards||[]):[];const runes=isNordic()?(player.runes||[]):[];const key=ids.join('|')+'~'+runes.join('|');runeHud.style.display=isNordic()?'flex':'none';if(key!==runeHud.dataset.key){runeHud.dataset.key=key;runeHud.innerHTML='<small>JAPÃO · 5</small>'+ids.map(id=>'<img loading="lazy" src="'+(CARD_IMAGES[id]||CARD_IMAGES.heart)+'" title="'+id+'" alt="'+id+'">').join('')+'<small>FUTHARK · '+runes.length+'/5</small>'+runes.map(id=>'<img loading="lazy" src="'+(CARD_IMAGES[id]||CARD_IMAGES.heart)+'" title="'+id.slice(2)+'" alt="'+id+'">').join('');}}
+ const runeHud=$('nordicCardHUD');if(runeHud){const ids=isNordic()?(player.cards||[]):[];const runes=isNordic()?(player.runes||[]):[];const key=ids.join('|')+'~'+runes.join('|');runeHud.style.display=isNordic()?'flex':'none';if(key!==runeHud.dataset.key){runeHud.dataset.key=key;runeHud.innerHTML='<small>JAPÃO · 5</small>'+ids.map(id=>'<img loading="lazy" src="'+(CARD_IMAGES[id]||CARD_IMAGES.heart)+'" title="'+id+'" alt="'+id+'">').join('')+'<small>FUTHARK · '+runes.length+'/'+NORDIC_RUNE_CAP+'</small>'+runes.map(id=>'<img loading="lazy" src="'+(CARD_IMAGES[id]||CARD_IMAGES.heart)+'" title="'+id.slice(2)+'" alt="'+id+'">').join('');}}
  syncSkillArt(player.type);$('secondaryName').textContent=player.type==='loid'?'SOMBRAS':player.type==='cross'?'OSSOS':player.type==='eve'?'TEMPO':player.type==='kali'?'ILUSÕES':player.type==='mollitiam'?'RAÍZES':player.type==='moretti'?'DISTORÇÃO':player.type==='l0id'?'LEGIÃO':'CORTE';
  $('btnSecondary').querySelector('b').textContent=player.type==='loid'?'SOMBRAS E':player.type==='cross'?'OSSOS E':player.type==='eve'?'TEMPO E':player.type==='kali'?'ESPELHOS E':player.type==='mollitiam'?'CURA E':player.type==='moretti'?'REALIDADE E':player.type==='l0id'?'LEGIÃO E':'CORTE E';
  $('playerName').textContent=(player.type==='loid'?'LOID · ESCURIDÃO':player.type==='cross'?'XANS · CORRUPÇÃO':player.type==='eve'?'EVE LOREY · VAZIO':player.type==='kali'?'KALI · ESPELHOS':player.type==='mollitiam'?'MOLLITIAM · TITÃ DA RAIZ':player.type==='moretti'?'MORETTI · REALIDADE':player.type==='l0id'?'L0ID · SOMBRAMANTE':player.frogSkill?'KRIS · FORMA DO SAPO':'KRIS · ESPADA NEGRA')+(player.curseTime>0?' · ⚠ FRAQUEZA '+Math.ceil(player.curseTime)+'s':'');
@@ -1949,16 +1966,17 @@ function updateHud(){
  $('cooldownUltimateSlot').style.setProperty('--readiness',charge+'%');
  $('stageText').textContent=(isNordic()?'NÓRDICO '+String(localNordicWave()).padStart(2,'0'):'JAPÃO '+String(stage).padStart(2,'0'))+(stage===40?' · PECADO':isNordic()?'':stage===20?' · PECADO':stage===15?' · TSUKUOMI':stage===10?' · REUNI':stage%5===0?' · CHEFE':'')+(isPecador()?' ✦ PECADOR':'');
  $('themeText').textContent=theme().name;
- $('counterText').textContent=`INIMIGOS ${enemies.filter(e=>e.hp>0).length} · ESSÊNCIA ${essence}`+(isNordic()?' · 5 JAPONESAS + '+(player.runes||[]).length+'/5 FUTHARK':'')+(coop.active?` · ONLINE ${coop.members.length}/5 · ESCALA ${waveBalance.players}P`:'');
+ $('counterText').textContent=`INIMIGOS ${enemies.filter(e=>e.hp>0).length} · ESSÊNCIA ${essence}`+(isNordic()?' · 5 JAPONESAS + '+(player.runes||[]).length+'/'+NORDIC_RUNE_CAP+' FUTHARK':'')+(coop.active?` · ONLINE ${coop.members.length}/5 · ESCALA ${waveBalance.players}P`:'');
 }
 
-function pickCards(){if(isNordic()){const owned=player?.runes||[];
-  const specialId=nordicSpecials.find(x=>x.hero===player.type)?.id;
-  const eligible=localNordicWave()>=5&&!player.nordicSpecialEarned&&!player.cardPower&&!player.frogSkill;
-  const special=eligible?cards.find(c=>c.id===specialId):null;if(owned.length>=NORDIC_RUNE_CAP)return special?[special,...nordicSupplies.slice(0,2)]:nordicSupplies.slice();const available=nordicCards.filter(c=>!owned.includes(c.id)),chosen=[];while(chosen.length<3&&available.length){const idx=Math.floor(Math.random()*available.length);chosen.push(available.splice(idx,1)[0]);}if(special)chosen[2]=special;return chosen.length===3?chosen:[...chosen,...nordicSupplies.slice(0,3-chosen.length)];}const pool=cards;let valid=pool.filter(c=>(!c.hero||c.hero===player.type)&&!(c.id==='gaster'&&player.cardPower)&&!(c.id==='granita'&&player.cardPower)&&!(c.id==='eveprime'&&player.cardPower)&&!(['mollitiamHeart','authorReality','godShadow'].includes(c.id)&&player.cardPower)&&!(c.id==='frog'&&(player.frogSkill||player.frogUsed))&&!(player.frogSkill&&['black','form','awakening','bloodmoon'].includes(c.id))),selected=[];while(selected.length<3&&valid.length){let index=Math.floor(Math.random()*valid.length),c=valid.splice(index,1)[0],weight=c.rarity==='legendary'?.11:c.rarity==='rare'?.45:1;if(Math.random()<weight||valid.length<3-selected.length)selected.push(c)}if(!isNordic()&&player.type==='kris'&&!player.frogSkill&&stage===8&&!selected.some(c=>c.id==='frog')){selected[1]=cards.find(c=>c.id==='frog');}if(!isNordic()&&player.type==='cross'&&!player.cardPower&&stage===8&&!selected.some(c=>c.id==='gaster'))selected[1]=cards.find(c=>c.id==='gaster');if(!isNordic()&&player.type==='mollitiam'&&!player.cardPower&&stage===10&&!selected.some(c=>c.id==='mollitiamHeart'))selected[1]=cards.find(c=>c.id==='mollitiamHeart');if(!isNordic()&&player.type==='loid'&&!player.cardPower&&stage===11&&!selected.some(c=>c.id==='granita'))selected[1]=cards.find(c=>c.id==='granita');if(!player.cardPower&&stage===8&&['moretti','l0id'].includes(player.type)){const c=cards.find(c=>c.hero===player.type&&['authorReality','godShadow'].includes(c.id));if(!selected.includes(c))selected[1]=c;}return selected.slice(0,3)}
+function pickCards(){if(isNordic()){
+ const available=nordicRewardPool(player),special=available.find(c=>c.specialId),regular=available.filter(c=>!c.specialId),chosen=[];
+ while(chosen.length<(special?2:3)&&regular.length){const idx=Math.floor(Math.random()*regular.length);chosen.push(regular.splice(idx,1)[0]);}
+ if(special)chosen.push(special);return chosen;
+ }const pool=cards;let valid=pool.filter(c=>(!c.hero||c.hero===player.type)&&!(c.id==='gaster'&&player.cardPower)&&!(c.id==='granita'&&player.cardPower)&&!(c.id==='eveprime'&&player.cardPower)&&!(['mollitiamHeart','authorReality','godShadow'].includes(c.id)&&player.cardPower)&&!(c.id==='frog'&&(player.frogSkill||player.frogUsed))&&!(player.frogSkill&&['black','form','awakening','bloodmoon'].includes(c.id))),selected=[];while(selected.length<3&&valid.length){let index=Math.floor(Math.random()*valid.length),c=valid.splice(index,1)[0],weight=c.rarity==='legendary'?.11:c.rarity==='rare'?.45:1;if(Math.random()<weight||valid.length<3-selected.length)selected.push(c)}if(!isNordic()&&player.type==='kris'&&!player.frogSkill&&stage===8&&!selected.some(c=>c.id==='frog')){selected[1]=cards.find(c=>c.id==='frog');}if(!isNordic()&&player.type==='cross'&&!player.cardPower&&stage===8&&!selected.some(c=>c.id==='gaster'))selected[1]=cards.find(c=>c.id==='gaster');if(!isNordic()&&player.type==='mollitiam'&&!player.cardPower&&stage===10&&!selected.some(c=>c.id==='mollitiamHeart'))selected[1]=cards.find(c=>c.id==='mollitiamHeart');if(!isNordic()&&player.type==='loid'&&!player.cardPower&&stage===11&&!selected.some(c=>c.id==='granita'))selected[1]=cards.find(c=>c.id==='granita');if(!player.cardPower&&stage===8&&['moretti','l0id'].includes(player.type)){const c=cards.find(c=>c.hero===player.type&&['authorReality','godShadow'].includes(c.id));if(!selected.includes(c))selected[1]=c;}return selected.slice(0,3)}
 const rarLabel={common:'COMUM',rare:'RARA',legendary:'LENDÁRIA'};
-function showRewards(){if(coop.active)coop.chosen=false;YG_AUDIO.play('waveClear',1.17);opts=pickCards();let gg=$('rewardGrid');gg.innerHTML='';for(let i=0;i<opts.length;i++){const c=opts[i],b=document.createElement('button');b.className='upgrade '+c.rarity+(isNordic()?' nordic-card':'');b.innerHTML=`<span class="num">0${i+1}</span><div class="iconbox"><img class="card-art" alt="" src="${CARD_IMAGES[c.id]}"></div><strong>${c.name}</strong><span class="rar">◆ ${rarLabel[c.rarity]}</span><div class="desc">${c.desc}</div>`;b.onclick=()=>chooseCard(i);gg.appendChild(b)}$('rewardSubtitle').textContent=(isNordic()?'❄ NÓRDICO · ONDA '+String(localNordicWave()).padStart(2,'0')+' · '+(opts.some(c=>c.id.startsWith('n_'))?'ESCOLHA UMA RUNA FUTHARK':'SUPRIMENTOS')+' ❄':'◆ ONDA '+String(stage).padStart(2,'0')+' VENCIDA ◆');$('rewardScreen').classList.remove('hidden');updateHud()}
-function chooseCard(i){if(coop.reconnecting)return;if(phase!=='reward'||!opts[i])return;let c=opts[i];YG_AUDIO.play('card',1.15);if(coop.active){if(coop.chosen)return;coop.chosen=true;$('rewardScreen').classList.add('hidden');if(coop.host){awardCard(player,c);coop.choices.add(coop.id);showWaitingCards();coopTryWave();coop.checkpointDirty=true;coopSendState(true);}else {showWaitingCards();coopAction('card',c.id);}return;}awardCard(player,c);makeParticles(player.x,player.y,'#dfb9ff',25);testBossMode=false;stage++;spawnStage();}
+function showRewards(){if(coop.active)coop.chosen=false;YG_AUDIO.play('waveClear',1.17);opts=pickCards();let gg=$('rewardGrid');gg.innerHTML='';for(let i=0;i<opts.length;i++){const c=opts[i],b=document.createElement('button');b.className='upgrade '+c.rarity+(isNordic()?' nordic-card':'');b.innerHTML=`<span class="num">0${i+1}</span><div class="iconbox"><img class="card-art" alt="" src="${CARD_IMAGES[c.id]}"></div><strong>${c.name}</strong><span class="rar">◆ ${rarLabel[c.rarity]}</span><div class="desc">${c.desc}</div>`;b.onclick=()=>chooseCard(i);gg.appendChild(b)}$('rewardSubtitle').textContent=(isNordic()?'❄ NÓRDICO · ONDA '+String(localNordicWave()).padStart(2,'0')+' · '+'ESCOLHA UMA RUNA FUTHARK'+' ❄':'◆ ONDA '+String(stage).padStart(2,'0')+' VENCIDA ◆');$('rewardScreen').classList.remove('hidden');updateHud()}
+function chooseCard(i){if(coop.reconnecting)return;if(phase!=='reward'||!opts[i])return;let c=opts[i];YG_AUDIO.play('card',1.15);if(coop.active){if(coop.chosen)return;coop.chosen=true;$('rewardScreen').classList.add('hidden');if(coop.host){if(!awardCard(player,c)){coop.chosen=false;showRewards();return;}coop.choices.add(coop.id);showWaitingCards();coopTryWave();coop.checkpointDirty=true;coopSendState(true);}else {showWaitingCards();coopAction('card',c.id);}return;}if(!awardCard(player,c))return;makeParticles(player.x,player.y,'#dfb9ff',25);testBossMode=false;stage++;spawnStage();}
 function restart(){if(coop.active){if(coop.host){coopSend({t:'rematch'});coopNote('Voltando à mesma sala...');}else{coopSend({t:'rematchRequest'});coopNote('Solicitação de revanche enviada ao anfitrião.');$('retry').textContent='AGUARDANDO ANFITRIÃO...';}return;}YG_AUDIO.play('menu',.75);phase='title';testBossMode=false;waveClearTimer=-1;dashShadows=[];shadowClones=[];hazards=[];frostBursts=[];bossMessageTimer=0;player=null;keys.clear();mouseAim=null;pointerDown=false;attackMobile=false;mobileMove={x:0,y:0};enemies=[];particles=[];slashes=[];$('titleScreen').classList.remove('hidden');$('selectScreen').classList.add('hidden');$('worldScreen').classList.add('hidden');$('supremeScreen').classList.add('hidden');$('rewardScreen').classList.add('hidden');$('waitingCards').classList.add('hidden');$('gameOverScreen').classList.add('hidden');$('coopScreen').classList.add('hidden');$('hud').style.display='none';$('mobileControls').style.display='none';document.body.classList.remove('is-playing');adaptViewport()}
 function frame(time){
  if(coop.active&&player){const death=$('fallenScreen');if(death)death.classList.toggle('hidden',!(phase==='play'&&player.hp<=0));}
@@ -1977,7 +1995,7 @@ function frame(time){
     fastSeconds=0; // preserve render resolution
    }
   }
-  const el=$('performanceMeter');if(el){const ms=netRtt===null?'CONECTANDO':Math.round(netRtt)+' ms';const loss=coop.active&&!coop.host&&time-(coop.lastMotionArrival||0)>1500?' · SINAL FRACO':'';
+  const el=$('performanceMeter');if(el){const ms=netRtt===null?'CONECTANDO':Math.round(netRtt)+' ms';const loss=coop.active&&coop.remoteStarted&&!coop.host&&time-(coop.lastMotionArrival||0)>1500?' · SINAL FRACO':'';
    const visual=renderMode==='auto'&&touchUI?(autoFxTier===2?' · AUTO DESEMP.':autoFxTier===1?' · AUTO LEVE':' · AUTO HD'):renderMode==='desempenho'?' · DESEMP.':'';
    el.textContent='FPS '+drawnFps+' · '+(!coop.active?'OFFLINE':'PING '+ms+' · EDGE '+(edgeRtt===null?'--':edgeRtt+'ms')+' · J '+Math.round(netJitter)+' · '+coop.networkRx+'/s'+loss)+visual;el.title='PING: mediana WebSocket até lobby. EDGE: HTTP até Worker '+edgeColo+'. J: variação das chegadas. Não é perda de pacotes.';
   }
@@ -1985,6 +2003,7 @@ function frame(time){
  }
  if(coop.active&&!coop.heartbeat&&coop.socket?.readyState===WebSocket.OPEN&&time-netPingStart>3500){netPingStart=time;coopSend({t:'ping',ts:Date.now()});}
  if(!last)last=time;const dt=Math.min((time-last)/1000,.032);last=time;
+ if(waitingVisible()){if(!coop.reconnecting)waitingFrame(dt,time);drawnFrames++;requestAnimationFrame(frame);return;}
  if(coop.reconnecting){if(player)draw();requestAnimationFrame(frame);return;}
  if(coop.active&&!coop.host){
   if(touchUI&&attackMobile&&!attackManualAim)mobileAutoAim(false);
@@ -2118,10 +2137,11 @@ function mobilePreparePowerAim(){
 // Input: full keyboard, mouse aim, and touch virtual controls.
 window.addEventListener('keydown',e=>{
  if(coop.reconnecting)return;
- const key=e.key.toLowerCase(); if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(key))e.preventDefault();
+ const key=e.key.toLowerCase(); if(!['INPUT','SELECT','TEXTAREA','BUTTON'].includes(e.target?.tagName)&&[' ','arrowup','arrowdown','arrowleft','arrowright'].includes(key))e.preventDefault();
  if(phase==='ultimate'){if(['1','2','3','4'].includes(key))chooseUltimate(['fight','defesa','itens','piedade'][Number(key)-1]);return;}
  if(phase==='reward'){if(['1','2','3'].includes(key))chooseCard(Number(key)-1);return;}
  if(phase==='title'){if(key==='enter')openSelection();return;}
+ if(phase==='coop'&&waitingVisible()&&!['INPUT','SELECT','TEXTAREA','BUTTON'].includes(e.target?.tagName)){if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key))keys.add(key);return;}
  if(phase!=='play')return;
  keys.add(key);
  if(key===' ')dash();if(key==='q')skill();if(key==='e'&&!e.repeat)secondaryDown();if(key==='r')ultimate();if(key==='f')cardPower();if(key==='j')attack();
@@ -2252,7 +2272,7 @@ function coopRestoreCheckpoint(cp){
 }
 function coopResumeStart(m){
  coop.active=true;coop.id=m.id;coop.token=m.token;coop.room=m.code;coop.hostId=m.host;coop.host=m.host===m.id;coop.members=m.members;coopMode=m.startInfo?.boss||m.boss||'japan';coopResetSeq(m.epoch);
- if(!m.started){phase='coop';$('titleScreen').classList.add('hidden');$('coopScreen').classList.remove('hidden');coopRenderLobby();coopFinishResume();return;}
+ if(!m.started){phase='coop';coop.remoteStarted=false;waitingReset();waitingRoster(m.positions);coopPassiveSelection=(m.members.find(p=>p.id===m.id)?.passives||[]).slice();waiting.editing=false;$('titleScreen').classList.add('hidden');$('coopScreen').classList.remove('hidden');coopRenderLobby();coopFinishResume();return;}
  const cp=m.checkpoint;if(!cp){coopRecoveryFailed('Partida sem checkpoint.');return;}
  if(m.actor)cp.actors[m.id]=m.actor;if(m.chosenStage===cp.stage&&cp.phase==='reward'&&!cp.choices.includes(m.id))cp.choices.push(m.id);
  const wasPlaying=coop.remoteStarted&&!!player;
@@ -2262,7 +2282,47 @@ function coopResumeStart(m){
  else{for(const id of ['rewardScreen','waitingCards','supremeScreen','gameOverScreen','fallenScreen'])$(id).classList.add('hidden');phase='play';coop.selectingUltimate=false;coop.chosen=false;const visual={...cp,seq:1,actors:Object.fromEntries(Object.entries(cp.actors).filter(([id])=>coop.members.some(p=>p.id===id)))};coopApplyState(visual);coop.lastStateSeq=0;if(cp.choices?.includes(coop.id)&&phase==='reward'){coop.chosen=true;$('rewardScreen').classList.add('hidden');showWaitingCards(cp.choices.length,coop.members.length);}coopFinishResume();}
  coopNote('Conexão recuperada.');
 }
+// Lobby uses separate visual actors: no combat state, cards, or cooldowns are carried into wave 1.
+const waiting={actors:new Map(),editing:false,clock:0,lastSend:0,lastSig:'',joy:{x:0,y:0},pid:null};
+function waitingVisible(){return coop.active&&!coop.remoteStarted&&phase==='coop'&&!$('waitingMap').hidden;}
+function waitingReset(){waiting.actors.clear();waiting.editing=false;waiting.lastSend=0;waiting.lastSig='';waiting.joy={x:0,y:0};waiting.pid=null;keys.clear();$('waitingMap').hidden=true;}
+function waitingRoster(positions={}){
+ const ids=new Set(coop.members.filter(m=>m.hero).map(m=>m.id));
+ for(const id of waiting.actors.keys())if(!ids.has(id))waiting.actors.delete(id);
+ let i=0;for(const m of coop.members){if(!m.hero)continue;const pos=positions?.[m.id]||{x:584+(i%5)*70,y:600,face:'down',moving:false};i++;
+  const old=waiting.actors.get(m.id);if(!old||old.type!==m.hero){waiting.actors.set(m.id,{type:m.hero,x:pos.x,y:pos.y,tx:pos.x,ty:pos.y,face:pos.face||'down',moving:false,step:0});}else if(m.id!==coop.id&&positions?.[m.id])waitingReceive({id:m.id,...pos});
+ }
+}
+function waitingReceive(m){const a=waiting.actors.get(m.id);if(!a||m.id===coop.id||!Number.isFinite(m.x)||!Number.isFinite(m.y))return;a.tx=m.x;a.ty=m.y;a.face=m.face;a.moving=!!m.moving;a.received=waiting.clock;}
+function waitingUI(){
+ const mine=coop.members.find(m=>m.id===coop.id);const show=!!mine?.hero&&!waiting.editing&&!coop.remoteStarted;
+ const wasHidden=$('waitingMap').hidden;$('waitingMap').hidden=!show;$('waitingChooseLabel').hidden=show;if(show&&wasHidden&&!touchUI)$('waitingCanvas').focus({preventScroll:true});
+ const grid=document.querySelector('#coopLobby .new-hero-selector');if(grid)grid.hidden=show;
+ const secret=document.querySelector('#coopLobby .secret-code');if(secret)secret.hidden=show;
+ $('waitingMapTitle').textContent=isNordicEntry(coopMode)?'MIDGARD · REFÚGIO DO NORTE':'TEMPLO DO JAPÃO';
+ $('waitingStatus').textContent=coop.host?'Compartilhe o código. Inicie quando todos estiverem prontos.':'Caminhe e aguarde o anfitrião iniciar a jornada.';
+ if(!show){keys.clear();waiting.joy={x:0,y:0};}
+}
+function waitingFrame(dt,time){
+ waiting.clock+=dt;const a=waiting.actors.get(coop.id);if(!a)return;
+ let mx=waiting.joy.x+(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),my=waiting.joy.y+(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);
+ const len=Math.hypot(mx,my);if(len>1){mx/=len;my/=len;}a.moving=len>.03;
+ if(a.moving){const speed=a.type==='mollitiam'?100:a.type==='l0id'?225:a.type==='moretti'?205:185;a.x=clamp(a.x+mx*speed*dt,360,1088);a.y=clamp(a.y+my*speed*dt,365,760);a.face=Math.abs(mx)>Math.abs(my)?(mx<0?'left':'right'):(my<0?'up':'down');a.step+=dt*10;}
+ const sig=[Math.round(a.x),Math.round(a.y),a.face,a.moving].join(':');
+ if(time-waiting.lastSend>=75&&(sig!==waiting.lastSig||time-waiting.lastSend>=1000)){if(coopSend({t:'waitingMove',x:Math.round(a.x),y:Math.round(a.y),face:a.face,moving:a.moving})){waiting.lastSend=time;waiting.lastSig=sig;}}
+ for(const [id,b] of waiting.actors){if(id===coop.id)continue;const d=Math.hypot(b.tx-b.x,b.ty-b.y);const k=Math.min(1,dt*13);b.x+=(b.tx-b.x)*k;b.y+=(b.ty-b.y)*k;b.moving=d>1.5||(b.moving&&waiting.clock-(b.received||0)<.23);if(b.moving)b.step+=dt*10;}
+ const surface=$('waitingCanvas'),c=surface.getContext('2d');if(!c)return;
+ const prior=ctx,wasMoving=movingNow,oldElapsed=elapsed;ctx=c;elapsed=waiting.clock;
+ c.save();try{c.setTransform(1,0,0,1,0,0);c.fillStyle='#151324';c.fillRect(0,0,960,600);const map=isNordicEntry(coopMode)?NORDIC_ARENA:ARENA;
+ const sx=244,sy=180,sw=960,sh=600; // slightly enlarged view of the temple / Midgard courtyard
+ if(map.complete&&map.naturalWidth)c.drawImage(map,sx,sy,sw,sh,0,0,960,600);
+ c.translate(-sx,-sy);
+ for(const [id,b] of [...waiting.actors].sort((a,b)=>a[1].y-b[1].y)){movingNow=b.moving;heroSprite(b.x,b.y,b.type,b.face,b.step,false,1.28,b);c.textAlign='center';c.font='bold 13px system-ui';c.lineWidth=3;c.strokeStyle='#14101b';c.fillStyle=id===coop.id?'#ffdf93':'#eee2ff';const text=b.type.toUpperCase()+(id===coop.hostId?' · HOST':'');c.strokeText(text,b.x,b.y-(b.type==='mollitiam'?100:76));c.fillText(text,b.x,b.y-(b.type==='mollitiam'?100:76));}
+ }finally{c.restore();ctx=prior;movingNow=wasMoving;elapsed=oldElapsed;}
+}
 function coopRenderLobby(){
+ if(coop.remoteStarted)return;
+ waitingRoster();waitingUI();
  $('coopConnect').hidden=true;$('coopLobby').hidden=false;
  $('coopRoomCode').textContent=coop.room||'------';
  $('coopPeople').textContent=coop.members.length+' de 5 jogadores: '+coop.members.map(m=>(m.id===coop.id?'VOCÊ':m.id===coop.hostId?'ANFITRIÃO':'ALIADO')+' — '+(m.hero||'escolhendo')+(isNordicEntry(coopMode)?' · '+((m.passives||[]).length)+'/3 passivas':'')).join(' · ');
@@ -2276,7 +2336,7 @@ function coopOnMessage(m){
  switch(m.t){
  case 'pong':coop.lastPong=Date.now();acceptPing(Number.isFinite(m.mono)?performance.now()-m.mono:Date.now()-Number(m.ts||Date.now()));return;
  case 'welcome':
-   coop.active=true;coop.id=m.id;coop.token=m.token||null;coopResetSeq(m.epoch);coop.room=m.code;coopRemember();coop.hostId=m.host;coop.host=m.host===m.id;coop.members=m.members;coopMode=m.boss||'japan';coopPassiveSelection=[];coop.allies.clear();coop.choices.clear();coop.chosen=false;coopRenderLobby();coopNote('Conectado! Escolha seu herói e compartilhe o código.');return;
+   waitingReset();coop.active=true;coop.id=m.id;coop.token=m.token||null;coopResetSeq(m.epoch);coop.room=m.code;coopRemember();coop.hostId=m.host;coop.host=m.host===m.id;coop.members=m.members;coopMode=m.boss||'japan';coopPassiveSelection=[];coop.allies.clear();coop.choices.clear();coop.chosen=false;waitingRoster(m.positions);coopRenderLobby();coopNote('Conectado! Escolha seu herói e compartilhe o código.');return;
  case 'resumed':coopResumeStart(m);return;
  case 'resumeDenied':coopRecoveryFailed('A vaga não está mais disponível.');return;
  case 'resumeWait':{const old=coop.socket;coop.socket=null;try{old?.close();}catch{}coopStopTimers();coopScheduleResume();return;}
@@ -2286,14 +2346,15 @@ function coopOnMessage(m){
    if(m.started){bossMessage='NOVO ANFITRIÃO · PARTIDA RECUPERADA';bossMessageTimer=3;}else coopRenderLobby();return;}
  case 'rejoined':if(coop.host&&m.actor){const a=Object.assign(createPlayer(m.actor.type),m.actor,{input:{x:0,y:0,aim:m.actor.aim||0,attack:false},inputAt:performance.now(),secondaryCharging:false});if(!a.reconnectProtected&&a.hp>0){a.invuln=Math.max(a.invuln||0,3);a.reconnectProtected=true;}coop.allies.set(m.id,a);if(m.chosenStage===stage&&phase==='reward')coop.choices.add(m.id);coop.checkpointDirty=true;coopSendState(true);coopTryWave();}return;
  case 'lobby':
-   coop.room=m.code;coop.hostId=m.host;coop.host=m.host===coop.id;coop.members=m.members;coopMode=m.boss||'japan';coopRenderLobby();return;
+   coop.room=m.code;coop.hostId=m.host;coop.host=m.host===coop.id;coop.members=m.members;coopMode=m.boss||'japan';if(!m.started){const before=waiting.actors.get(coop.id)?.type;const after=m.members.find(p=>p.id===coop.id)?.hero;if(after&&before!==after)waiting.editing=false;waitingRoster(m.positions);coopRenderLobby();}return;
+ case 'waitingMove':if(!coop.remoteStarted)waitingReceive(m);return;
  case 'error':coopNote(m.message||'Erro na sala.');return;
  case 'rematchRequest':if(coop.host)coopNote('Um aliado pediu revanche. Clique em Reiniciar para voltar à mesma sala.');return;
- case 'lobbyReset':{coopPassiveSelection=[];coopMode='japan';coop.active=true;coop.remoteStarted=false;coop.chosen=false;coop.choices.clear();coop.selectingUltimate=false;coop.allies.clear();coop.targetAllies.clear();coop.targetLocal=null;coop.guestVisibleHp=null;coop.hostAvatar=null;phase='coop';player=null;enemies=[];projectiles=[];healthDrops=[];shadowClones=[];waveClearTimer=-1;keys.clear();pointerDown=false;attackMobile=false;document.body.classList.remove('is-playing');$('hud').style.display='none';$('mobileControls').style.display='none';for(const id of ['gameOverScreen','rewardScreen','waitingCards','fallenScreen','supremeScreen','titleScreen'])$(id).classList.add('hidden');$('coopScreen').classList.remove('hidden');$('coopConnect').hidden=true;$('coopLobby').hidden=false;$('retry').textContent='TENTAR NOVAMENTE / MESMA SALA';coopRenderLobby();coopNote('Mesma sala! Escolham o personagem e iniciem novamente.');return;}
+ case 'lobbyReset':{waitingReset();coopPassiveSelection=[];coopMode='japan';coop.active=true;coop.remoteStarted=false;coop.chosen=false;coop.choices.clear();coop.selectingUltimate=false;coop.allies.clear();coop.targetAllies.clear();coop.targetLocal=null;coop.guestVisibleHp=null;coop.hostAvatar=null;phase='coop';player=null;enemies=[];projectiles=[];healthDrops=[];shadowClones=[];waveClearTimer=-1;keys.clear();pointerDown=false;attackMobile=false;document.body.classList.remove('is-playing');$('hud').style.display='none';$('mobileControls').style.display='none';for(const id of ['gameOverScreen','rewardScreen','waitingCards','fallenScreen','supremeScreen','titleScreen'])$(id).classList.add('hidden');$('coopScreen').classList.remove('hidden');$('coopConnect').hidden=true;$('coopLobby').hidden=false;$('retry').textContent='TENTAR NOVAMENTE / MESMA SALA';coopRenderLobby();coopNote('Mesma sala! Escolham o personagem e iniciem novamente.');return;}
  case 'closed':coopRecoveryFailed(m.message||'Sala fechada.');return;
- case 'left':{coop.members=coop.members.filter(p=>p.id!==m.id);const actor=coop.allies.get(m.id);if(actor&&m.reserved)coopSend({t:'detached',id:m.id,actor,chosenStage:phase==='reward'&&coop.choices.has(m.id)?stage:null});coop.allies.delete(m.id);coop.choices.delete(m.id);shadowClones=shadowClones.filter(v=>v.ownerId!==m.id);mirrorIllusions=mirrorIllusions.filter(v=>v.owner!==actor&&v.ownerId!==m.id&&v.casterId!==m.id);if(coop.host){coop.checkpointDirty=true;coopTryWave();coopSendState(true);}return;}
+ case 'left':{coop.members=coop.members.filter(p=>p.id!==m.id);const actor=coop.allies.get(m.id);if(actor&&m.reserved)coopSend({t:'detached',id:m.id,actor,chosenStage:phase==='reward'&&coop.choices.has(m.id)?stage:null});coop.allies.delete(m.id);coop.choices.delete(m.id);shadowClones=shadowClones.filter(v=>v.ownerId!==m.id);mirrorIllusions=mirrorIllusions.filter(v=>v.owner!==actor&&v.ownerId!==m.id&&v.casterId!==m.id);if(coop.host&&coop.remoteStarted){coop.checkpointDirty=true;coopTryWave();coopSendState(true);}return;}
  case 'begun':{
-   coop.active=true;coopResetSeq(m.epoch);coop.hostId=m.host;coop.host=m.host===coop.id;coop.members=m.members;waveBalance=coopBalance(m.playerCount||m.members.length);
+   waitingReset();coop.active=true;coopResetSeq(m.epoch);coop.hostId=m.host;coop.host=m.host===coop.id;coop.members=m.members;waveBalance=coopBalance(m.playerCount||m.members.length);
    coop.lastStateSeq=0;coop.stateSeq=0;coop.lastMotionSeq=0;coop.motionSeq=0;coop.guestVisibleHp=null;
    coop.enemyTargets.clear();coop.lastCombatPacket=0;
    const mine=m.members.find(p=>p.id===coop.id);const hero=mine?.hero||'loid';
@@ -2334,10 +2395,9 @@ function coopRemotePress(id,action,value,aim,dx,dy){
  }
  if(action==='card'){
    if(phase!=='reward'||coop.choices.has(id))return;
-   const c=(isNordic()?((a.runes||[]).length<NORDIC_RUNE_CAP?[...nordicCards,...cards.filter(x=>nordicSpecials.some(sp=>sp.id===x.id))]:[...nordicSupplies,...cards.filter(x=>nordicSpecials.some(sp=>sp.id===x.id))]):cards).find(c=>c.id===value&&(!c.hero||c.hero===a.type));if(!c)return;
+   const c=(isNordic()?nordicRewardPool(a):cards).find(c=>c.id===value&&(!c.hero||c.hero===a.type));if(!c)return;
    if((c.id==='frog'&&a.frogSkill)||(['gaster','granita','eveprime','mollitiamHeart','authorReality','godShadow'].includes(c.id)&&a.cardPower))return;
-   if(isNordic()&&nordicSpecials.some(x=>x.id===c.id)&&localNordicWave()<5)return;
-   awardCard(a,c);coop.choices.add(id);coopTryWave();coop.checkpointDirty=true;coopSendState(true);return;
+   if(!awardCard(a,c))return;coop.choices.add(id);coopTryWave();coop.checkpointDirty=true;coopSendState(true);return;
  }
  if(action==='ultimateChoice'){
    if(a.type!=='kris'||!a.coopUltimatePending)return;
@@ -2566,6 +2626,7 @@ function coopApplyState(s){
  if(s.phase==='reward'&&Array.isArray(s.choiceIds)&&s.choiceIds.includes(coop.id)){coop.chosen=true;$('rewardScreen').classList.add('hidden');showWaitingCards(s.choicesCount,s.memberCount);}updateHud();const death=$('fallenScreen');if(death)death.classList.toggle('hidden',!(coop.active&&phase==='play'&&player.hp<=0));
 }
 function coopLeave(sendLeave=true){
+ waitingReset();
  if(coop.socket){if(sendLeave)coopSend({t:'leave'});const old=coop.socket;coop.socket=null;try{old.close();}catch{}}
  coopStopTimers();coop.reconnecting=false;coop.token=null;coopRemember();coopReconnectUI();coop.remoteStarted=false;
  coop.active=false;coop.host=false;coop.id=null;coop.hostId=null;coop.room=null;coop.socket=null;
@@ -2579,7 +2640,14 @@ $('coopCreate').addEventListener('click',()=>coopConnect('create'));
 $('coopJoin').addEventListener('click',()=>coopConnect('join',$('coopCode').value));
 $('coopBack').addEventListener('click',()=>{coopLeave();phase='title';$('titleScreen').classList.remove('hidden');});
 $('coopCopy').addEventListener('click',()=>{if(coop.room&&navigator.clipboard)navigator.clipboard.writeText(coop.room).then(()=>coopNote('Código copiado!')).catch(()=>coopNote('Código da sala: '+coop.room));});
-for(const b of document.querySelectorAll('[data-coop-hero]'))b.addEventListener('click',()=>{if(b.dataset.coopHero==='l0id'&&!l0idUnlocked)return;coopSend({t:'choose',hero:b.dataset.coopHero});});
+$('waitingChange').addEventListener('click',()=>{waiting.editing=true;waitingUI();});
+for(const b of document.querySelectorAll('[data-coop-hero]'))b.addEventListener('click',()=>{if(b.dataset.coopHero==='l0id'&&!l0idUnlocked)return;waiting.editing=false;waitingUI();coopSend({t:'choose',hero:b.dataset.coopHero});});
+const waitingStick=$('waitingStick'),waitingKnob=$('waitingKnob');
+function waitingTouch(e){const box=waitingStick.getBoundingClientRect(),r=box.width*.32;let x=e.clientX-box.left-box.width/2,y=e.clientY-box.top-box.height/2;const l=Math.hypot(x,y);if(l>r){x*=r/l;y*=r/l;}waiting.joy={x:x/r,y:y/r};waitingKnob.style.left=`calc(50% + ${x}px)`;waitingKnob.style.top=`calc(50% + ${y}px)`;}
+waitingStick.addEventListener('pointerdown',e=>{e.preventDefault();if(waiting.pid!==null)return;waiting.pid=e.pointerId;waitingStick.setPointerCapture(e.pointerId);waitingTouch(e);});
+waitingStick.addEventListener('pointermove',e=>{if(e.pointerId===waiting.pid)waitingTouch(e);});
+for(const event of ['pointerup','pointercancel','lostpointercapture'])waitingStick.addEventListener(event,e=>{if(e.pointerId!==waiting.pid)return;waiting.pid=null;waiting.joy={x:0,y:0};waitingKnob.style.left='50%';waitingKnob.style.top='50%';});
+window.addEventListener('blur',()=>{waiting.joy={x:0,y:0};});
 $('coopBoss').addEventListener('change',e=>{coopMode=e.target.value;coopSend({t:'mode',boss:coopMode});coopRenderLobby();});
 $('coopDifficulty').addEventListener('change',e=>{e.target.dataset.touched='1';setDifficulty(e.target.value);});
 $('coopBegin').addEventListener('click',()=>{if(isNordicEntry(coopMode)&&coop.members.some(m=>!validNordicPassives(m.passives))){coopNote('Cada jogador precisa escolher 3 passivas antes de começar.');return;}const selected=$('coopDifficulty').value;setDifficulty(selected);coopSend({t:'begin',boss:$('coopBoss').value||'japan',difficulty:selected});});
