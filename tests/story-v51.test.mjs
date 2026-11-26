@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';import fs from 'node:fs';import {WORLD,NPC,HEROS,walkable,move} from '../public/story-world.js';
-assert.equal(Object.keys(HEROS).length,8);assert.equal(HEROS.mollitiam[0],320);assert.equal(HEROS.moretti[1],18);assert.equal(HEROS.l0id[1],85);
+assert.equal(Object.keys(HEROS).length,9);assert.equal(HEROS.mollitiam[0],320);assert.equal(HEROS.moretti[1],18);assert.equal(HEROS.l0id[1],85);
 const root=new URL('../public/',import.meta.url);let gates=0,monsters=0;
 for(const [id,m] of Object.entries(WORLD)){
  if(!m.interior)assert.ok(fs.existsSync(new URL('assets/story/'+id+'.webp',root)),id);

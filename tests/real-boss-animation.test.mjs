@@ -24,5 +24,5 @@ for(const mode of ['idle','windup','fire']){
  }assert.ok(frames.size>=2,`${mode} dragon not animated`);
 }
 assert.match(fs.readFileSync(new URL('../public/game.js',import.meta.url),'utf8'),/'step','walking','mode'/);
-for(const h of ['index.html','game.html'])assert.match(fs.readFileSync(new URL('../public/'+h,import.meta.url),'utf8'),/game\.js\?v=(?:49\d*|500|510)/);
+for(const h of ['index.html','game.html'])assert.match(fs.readFileSync(new URL('../public/'+h,import.meta.url),'utf8'),/game\.js\?v=(?:49\d*|500|510|520)/);
 console.log(`REAL BOSS ANIMATIONS PASS: ${n} boss and autonomous dragon frames rendered`);

@@ -1,9 +1,9 @@
 /* v5.0: independent animated cards, two per page, no change to hero selection rules. */
 (function(){
  'use strict';
- const order=['kris','loid','cross','eve','kali','mollitiam','moretti','l0id'];
- const labels={kris:'Kris — Santa Trindade',loid:'Loid — Sombramante',cross:'Xans — O Esqueleto',eve:'Eve Lorey — Portador do Vazio',kali:'Kali — A Rainha de Espadas',mollitiam:'Mollitiam — O Pecador Nórdico',moretti:'Moretti — O Autor da Realidade',l0id:'L0ID — Sombramante Supremo'};
- const ids={chooseKris:'kris',chooseLoid:'loid',chooseCross:'cross',chooseEve:'eve',chooseKali:'kali',chooseMollitiam:'mollitiam',chooseMoretti:'moretti',chooseL0id:'l0id'};
+ const order=['kris','loid','cross','eve','kali','mollitiam','moretti','l0id','josue'];
+ const labels={kris:'Kris — Santa Trindade',loid:'Loid — Sombramante',cross:'Xans — O Esqueleto',eve:'Eve Lorey — Portador do Vazio',kali:'Kali — A Rainha de Espadas',mollitiam:'Mollitiam — O Pecador Nórdico',moretti:'Moretti — O Autor da Realidade',l0id:'L0ID — Sombramante Supremo',josue:'Josué — Fúria Espartana'};
+ const ids={chooseKris:'kris',chooseLoid:'loid',chooseCross:'cross',chooseEve:'eve',chooseKali:'kali',chooseMollitiam:'mollitiam',chooseMoretti:'moretti',chooseL0id:'l0id',chooseJosue:'josue'};
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
  const button=(text,label)=>{const b=document.createElement('button');b.type='button';b.className='hs50-arrow';b.textContent=text;b.setAttribute('aria-label',label);return b;};
  function install(grid){
