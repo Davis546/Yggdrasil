@@ -45,7 +45,7 @@ const HERO={loid:new Image(),kris:new Image(),cross:new Image(),eve:new Image(),
 const EVE_PORTAL_FRAMES=Array.from({length:4},(_,i)=>{const a=new Image();a.src=`assets/effects/void_portal_${i}.png?v=32`;return a;});
 const MIRROR_SPRITE=new Image();MIRROR_SPRITE.src='assets/effects/mirror_projectile.png?v=32';
 HERO.moretti=new Image();HERO.moretti.src='assets/heroes/moretti_sheet.png?v=49';HERO.l0id=new Image();HERO.l0id.src='assets/heroes/l0id_sheet.png?v=49';HERO.l0idShadow=new Image();HERO.l0idShadow.src='assets/heroes/l0id_shadow_sheet.png?v=49';
-HERO.josue=new Image();HERO.josue.src='assets/heroes/josue_sheet.png?v=52';
+HERO.josue=new Image();HERO.josue.src='assets/heroes/josue_sheet.png?v=522';
 const SKILL_HEROES=new Set(['loid','kris','cross','eve','kali','mollitiam','moretti','l0id','josue']);let lastSkillArt='';
 function syncSkillArt(type){if(!SKILL_HEROES.has(type)||lastSkillArt===type)return;lastSkillArt=type; /* Keep original ✦ ✧ ✺ buttons; ability art does not replace their symbols. */}
 
@@ -1590,7 +1590,18 @@ function spritePixel(x,y,a,b=1,c=1){if(typeof a==='string')drawR(x,y,b,c,a);else
 function heroSprite(x,y,type,face='down',step=0,transform=false,scale=1,actor=null){
  const shown=actor||player;
  const frogActive=type==='kris'&&shown&&shown.frogTime>0;const im=frogActive?FROG:HERO[type];if(!im||!im.complete||!im.naturalWidth)return;
- if(type==='josue'){const a=shown||{},attacking=a.atkTime>Math.max(0,a.attackDelay-.27),row=attacking?4:({down:0,left:1,right:2,up:3}[face]??0),col=attacking?Math.min(3,Math.floor(Math.max(0,a.attackDelay-a.atkTime)*15)):((a.moving||a===player&&movingNow)?[0,1,0,2][Math.floor(step)%4]:0);ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(scale,scale);ctx.imageSmoothingEnabled=false;ctx.drawImage(im,col*256,row*256,256,256,-46,-84,92,92);if(attacking){const aim=a.aim||0;for(const off of [-.22,.22]){const ang=aim+off,ex=Math.cos(ang)*78,ey=Math.sin(ang)*78;ctx.strokeStyle='#b8b3a8';ctx.lineWidth=1.6;ctx.setLineDash([3,2]);ctx.beginPath();ctx.moveTo(0,-12);ctx.quadraticCurveTo(ex*.55+Math.sin(ang)*10,ey*.55-12,ex,ey-12);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#f4d9b3';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ex,ey-12);ctx.lineTo(ex+Math.cos(ang)*13,ey-12+Math.sin(ang)*13);ctx.stroke();}}if(a.ultimateTime>0||josueFury(a)||josueAscend(a)){ctx.strokeStyle=a.ultimateTime>0?'#7df9d9':'#f0774d';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(0,-9,27,11,0,0,TAU);ctx.stroke();}ctx.restore();return;}
+ if(type==='josue'){
+  const a=shown||{},duration=(a.attackDelay||.48)*newAttackDelay(a),age=Math.max(0,duration-(a.atkTime||0)),attacking=(a.atkTime||0)>0&&age<.27;
+  const walking=typeof a.moving==='boolean'?a.moving:a===player&&movingNow;
+  const aim=Number.isFinite(a.aim)?a.aim:({down:Math.PI/2,up:-Math.PI/2,left:Math.PI,right:0}[face]??0);
+  const attackFace=Math.abs(Math.cos(aim))>Math.abs(Math.sin(aim))?(Math.cos(aim)<0?'left':'right'):(Math.sin(aim)<0?'up':'down');
+  const row=attacking&&attackFace==='down'?4:({down:0,left:1,right:2,up:3}[attacking?attackFace:face]??0),col=attacking?0:walking?[0,1,0,2][Math.floor(step)%4]:0;
+  // 153 opaque pixels per 256px frame: 60px yields a 36px body like Kris/Loid.
+  const size=60;ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(scale,scale);ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(im,col*256,row*256,256,256,-size/2,5-size*237/256,size,size);
+  if(attacking){const t=Math.min(1,age/.27),extension=.22+.78*Math.sin(Math.PI*t),reach=(a.reach||92)*extension;for(const side of [-1,1]){const ang=aim+side*.25,ex=Math.cos(ang)*Math.max(10,reach-13),ey=Math.sin(ang)*Math.max(10,reach-13),hx=side*8,hy=-12;ctx.strokeStyle='#b8b3a8';ctx.lineWidth=1.5;ctx.setLineDash([3,2]);ctx.beginPath();ctx.moveTo(hx,hy);ctx.quadraticCurveTo(ex*.5+side*8,ey*.5-12,ex,ey-12);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#f4d9b3';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ex,ey-12);ctx.lineTo(ex+Math.cos(ang)*13,ey-12+Math.sin(ang)*13);ctx.stroke();}}
+  if(a.ultimateTime>0||josueFury(a)||josueAscend(a)){ctx.strokeStyle=a.ultimateTime>0?'#7df9d9':'#f0774d';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(0,-5,18,7,0,0,TAU);ctx.stroke();}ctx.restore();return;
+ }
  if(type==='moretti'||type==='l0id'||type==='l0idShadow'){const a=shown||{},pose=a.newPose;const moving=typeof a.moving==='boolean'&&phase==='coop'?a.moving:a===player?movingNow:a.clone||a._renderStep!==a.step;a._renderStep=a.step;const row=pose&&pose.until>elapsed?pose.row:moving?(a.dashTime>0||type.startsWith('l0id')?2:1):0;const col=Math.floor((pose&&pose.until>elapsed?elapsed*12:moving?step:elapsed*3)%4);ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(face==='left'?-scale:scale,scale);ctx.imageSmoothingEnabled=false;const size=type==='moretti'?62:82;ctx.drawImage(im,col*192,row*192,192,192,-size/2,-size+size/24,size,size);ctx.restore();return;}
  if(type==='mollitiam'){
   const shownActor=shown||{};const row=shownActor.mollitiamPose>0?(shownActor.ultimateTime>0||shownActor.mollitiamHeartTime>0?3:2):shownActor.ultimateTime>0||shownActor.mollitiamHeartTime>0?3:movingNow?1:0;
@@ -1923,7 +1934,7 @@ function draw(){
    else if(player){
     if(player.orbiters){for(let i=0;i<player.orbiters;i++){let t=elapsed*2+i*TAU/player.orbiters;ctx.fillStyle='#7e4bbb';ctx.beginPath();ctx.arc(player.x+Math.cos(t)*23,player.y+Math.sin(t)*13,4,0,TAU);ctx.fill()}}
     if(player.transformTime>0){ctx.globalAlpha=.26;ctx.fillStyle='#a452ff';ctx.beginPath();ctx.arc(player.x,player.y-8,18+Math.sin(elapsed*10)*3,0,TAU);ctx.fill();ctx.globalAlpha=1}
-    ctx.save();if(player.hp<=0){drawSpiritAura(player);ctx.globalAlpha=.46;}else if(player.invuln>0&&Math.floor(elapsed*18)%2!==0)ctx.globalAlpha=.5;
+    ctx.save();if(player.hp<=0){drawSpiritAura(player);ctx.globalAlpha=.46;}else if(player.type!=='josue'&&player.invuln>0&&Math.floor(elapsed*18)%2!==0)ctx.globalAlpha=.5;
     heroSprite(player.x,player.y,player.type,player.face,player.step,player.transformTime>0);ctx.restore();
    }
   }

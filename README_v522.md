@@ -1,0 +1,2 @@
+# V5.2.2 — Opacidade do Josué
+Hotfix cumulativo sobre V5.2 (inclui V5.2.1). Reconstrói a folha de sprites a partir da arte original, usando remoção do fundo conectado às bordas em vez de eliminar todos os pixels escuros. Mantém a escala e o alinhamento da V5.2.1. Josué vivo permanece opaco mesmo durante o piscar de invulnerabilidade; a mecânica de esquiva não foi alterada. Cache das imagens/scripts atualizado. Nenhuma alteração de dano, recarga ou alcance.
