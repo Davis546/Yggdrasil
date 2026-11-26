@@ -45,7 +45,7 @@ const HERO={loid:new Image(),kris:new Image(),cross:new Image(),eve:new Image(),
 const EVE_PORTAL_FRAMES=Array.from({length:4},(_,i)=>{const a=new Image();a.src=`assets/effects/void_portal_${i}.png?v=32`;return a;});
 const MIRROR_SPRITE=new Image();MIRROR_SPRITE.src='assets/effects/mirror_projectile.png?v=32';
 HERO.moretti=new Image();HERO.moretti.src='assets/heroes/moretti_sheet.png?v=49';HERO.l0id=new Image();HERO.l0id.src='assets/heroes/l0id_sheet.png?v=49';HERO.l0idShadow=new Image();HERO.l0idShadow.src='assets/heroes/l0id_shadow_sheet.png?v=49';
-HERO.josue=new Image();HERO.josue.src='assets/heroes/josue_sheet.png?v=522';
+HERO.josue=new Image();HERO.josue.src='assets/heroes/josue_sheet.png?v=523';
 const SKILL_HEROES=new Set(['loid','kris','cross','eve','kali','mollitiam','moretti','l0id','josue']);let lastSkillArt='';
 function syncSkillArt(type){if(!SKILL_HEROES.has(type)||lastSkillArt===type)return;lastSkillArt=type; /* Keep original ✦ ✧ ✺ buttons; ability art does not replace their symbols. */}
 
@@ -374,6 +374,7 @@ function randEnemyType(){
 function addMob(type,x,y,elite=false,bossSummon=false){
  const base=MOB_STATS[type]||MOB_STATS.walker;
  const factor=isNordic()?(2.15+(localNordicWave()-1)*.16):(1+(stage-1)*.19);let hp=base.hp*factor*(isPecador()?1.5:1)*(elite?1.72:1)*(bossSummon?.66:1)*waveBalance.mobHp;
+ if(nordicBossPecador())hp=Math.round(base.hp*(1.55+(localNordicWave()-1)*.045)*1.20*(elite?1.30:1)*(bossSummon?.55:1)*(1+.40*(waveBalance.players-1)));
  const e={id:nextEnemyId++,type,x,y,hp,maxHp:hp,elite,bossSummon,
   speed:base.speed*(1+(isNordic()?.09*localNordicWave():Math.min(stage,24)*.019))*(isPecador()?1.16:1)*(elite?1.12:1),radius:base.radius+(elite?1:0),attack:rand(.85,2.15),hurt:0,step:rand(0,6),face:'down',windup:0,chargeTime:0,chargeDir:{x:0,y:1},hitCharge:false,phase:rand(0,6)};
  enemies.push(e);return e;
@@ -499,10 +500,10 @@ function attack(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))retur
   if(!player||player.hp<=0||phase!=='play'||player.atkTime>0)return;
   // Local prediction draws ONLY the swing: damage, buffs, charges and kills stay on host.
   player.atkTime=player.attackDelay*(player.type==='josue'?newAttackDelay(player):1);
-  slash(player.x+Math.cos(player.aim)*player.reach*.55,player.y+Math.sin(player.aim)*player.reach*.55,player.aim,player.reach,player.type==='cross'?'#b97aff':player.type==='loid'?'#d9a4ff':'#7592ff');
+  if(player.type!=='josue')slash(player.x+Math.cos(player.aim)*player.reach*.55,player.y+Math.sin(player.aim)*player.reach*.55,player.aim,player.reach,player.type==='cross'?'#b97aff':player.type==='loid'?'#d9a4ff':'#7592ff');
   coopAction('attack');YG_AUDIO.play('hit',.55);return;
  }if(!player||player.hp<=0||phase!=='play'||player.atkTime>0)return;if(player.type==='kris'&&player.frogTime>0){frogSmash();return;}player.atkTime=player.attackDelay*newAttackDelay(player)*(player.type==='mollitiam'?(player.ultimateTime>0?.65:1)*(player.mollitiamHeartTime>0?1/1.30:1):1);player.attackCount++;let amp=(player.transformTime>0?1+player.transformAmp:1)*(player.ultimateBuffTime>0&&player.ultimateBuff==='fight'?2:1);let a=player.aim,range=player.reach*(player.transformTime>0?1.18:1),cx=player.x+Math.cos(a)*range*.55,cy=player.y+Math.sin(a)*range*.55;
-if(['moretti','l0id'].includes(player.type))player.newPose={row:3,until:elapsed+Math.min(.35,player.atkTime)};if(player.type!=='kali')slash(cx,cy,a,range,player.type==='loid'?'#d9a4ff':player.type==='cross'?'#b97aff':player.transformTime>0?'#ff73ec':'#7592ff');YG_AUDIO.play(player.type==='loid'?'loidSlash':'krisSlash',.95);let struck=0;for(const e of enemies){if(e.hp<=0)continue;let dx=e.x-player.x,dy=e.y-player.y,ed=Math.hypot(dx,dy),angle=Math.atan2(dy,dx),diff=Math.atan2(Math.sin(angle-a),Math.cos(angle-a));if(player.type!=='kali'&&ed<range+e.radius&&Math.abs(diff)<player.arc/2+e.radius/Math.max(20,ed)){hitEnemy(e,player.damage*amp,true);if(player.type==='l0id'&&player.godShadowUntil>elapsed){slash(cx,cy,a+.2,range*1.2,'#aa8bd0');hitEnemy(e,player.damage*.65,false);}struck++;}}
+if(['moretti','l0id'].includes(player.type))player.newPose={row:3,until:elapsed+Math.min(.35,player.atkTime)};if(player.type!=='kali'&&player.type!=='josue')slash(cx,cy,a,range,player.type==='loid'?'#d9a4ff':player.type==='cross'?'#b97aff':player.transformTime>0?'#ff73ec':'#7592ff');YG_AUDIO.play(player.type==='loid'?'loidSlash':'krisSlash',.95);let struck=0;for(const e of enemies){if(e.hp<=0)continue;let dx=e.x-player.x,dy=e.y-player.y,ed=Math.hypot(dx,dy),angle=Math.atan2(dy,dx),diff=Math.atan2(Math.sin(angle-a),Math.cos(angle-a));if(player.type!=='kali'&&ed<range+e.radius&&Math.abs(diff)<player.arc/2+e.radius/Math.max(20,ed)){hitEnemy(e,player.damage*amp,true);if(player.type==='l0id'&&player.godShadowUntil>elapsed){slash(cx,cy,a+.2,range*1.2,'#aa8bd0');hitEnemy(e,player.damage*.65,false);}struck++;}}
 if(player.type==='kali'){const vec={x:Math.cos(a),y:Math.sin(a)};projectiles.push({x:player.x+vec.x*15,y:player.y+vec.y*15-9,vx:vec.x*300,vy:vec.y*300,damage:player.damage*(player.mirrorAmp||1),from:'player',r:9,life:.86,color:'#e7c4ff',mirror:true,ownerId:coop.active?(coop.actorId||coop.id):null});YG_AUDIO.play('mirrorCast',.76);makeParticles(player.x+vec.x*20,player.y+vec.y*20-9,'#efc4ff',6,.55);}if(player.type==='kris'&&player.transformTime>0&&player.waveAttack){let vec={x:Math.cos(a),y:Math.sin(a)};projectiles.push({x:player.x+vec.x*15,y:player.y+vec.y*15,vx:vec.x*170,vy:vec.y*170,damage:player.damage*.65,from:'player',r:5,life:1.1,color:'#b572ff'})}
 if(player.ultimateBuffTime>0&&player.ultimateBuff==='itens'&&player.type==='kris'){
  // A second synchronized black sword: actual hit registration and an additional visual slash.
@@ -1318,7 +1319,7 @@ function updateTsukuomi(e,dt,d,dir,spd){
 function applyCurse(seconds=6){if(player.invuln>0||(player.type==='loid'&&player.dashTime>0)||(player.ultimateBuff==='defesa'&&player.ultimateBuffTime>0))return;
  player.curseTime=Math.max(player.curseTime,seconds);textPop(player.x,player.y-40,'FRAQUEZA','#ff4a68');YG_AUDIO.play('bossWarning',.8);}
 function pecadoSummon(e,n){
- const count=enemies.filter(x=>x.hp>0&&!isBossEnemy(x)).length,cap=isPecador()?18:14;
+ const tuned=nordicBossPecador()&&stage===40;const count=enemies.filter(x=>x.hp>0&&!isBossEnemy(x)).length,cap=tuned?10:isPecador()?18:14;
  n=Math.max(0,Math.min(n,cap-count));
  for(let i=0;i<n;i++){
   let a=TAU*(i+.45)/Math.max(n,1)+elapsed*.3;
@@ -1335,7 +1336,7 @@ function spawnPecadoEcho(e){
  const choices=[['boss',2500],['reuni',3600],['tsukuomi',5100],['frostjarl',8200],['odin',6200]];
  const [echoBossType,originalHp]=choices[Math.floor(Math.random()*choices.length)];
  const a=rand(0,TAU),x=clamp(e.x+Math.cos(a)*85,104,WORLD_W-106),y=clamp(e.y+Math.sin(a)*85,160,WORLD_H-105);
- const hp=Math.round(originalHp*.25*(isPecador()?1.35:1)*waveBalance.mobHp);
+ const hp=Math.round(originalHp*(nordicBossPecador()?.08*(1+.40*(waveBalance.players-1)):.25*(isPecador()?1.35:1)*waveBalance.mobHp));
  enemies.push({id:nextEnemyId++,type:'pecadoEcho',echoBossType,x,y,hp,maxHp:hp,speed:58,radius:14,
   attack:1.5,hurt:0,step:0,phase:0,face:'down',walking:false,elite:false,mode:'walk',windup:0});
  ring(x,y,44,'#ff526f');bossMessage='PECADO · ECO DE '+echoBossType.toUpperCase();bossMessageTimer=2.5;
@@ -1356,11 +1357,11 @@ function pecadoMove(e){
 }
 function updatePecado(e,dt,d,dir,spd){
  const ratio=e.hp/e.maxHp;
- if(e.corruptionPhase<1&&ratio<=.70){e.corruptionPhase=1;e.speed*=1.18;e.rage=true;bossMessage='PECADO · SEGUNDA FASE · CORRUPÇÃO';bossMessageTimer=3;makeParticles(e.x,e.y,'#ff243e',55,1.9);ring(e.x,e.y,142,'#ff143d');YG_AUDIO.play('bossRage',1.4);pecadoSummon(e,isPecador()?7:5);if(stage===40)spawnPecadoEcho(e);}
- if(e.corruptionPhase<2&&ratio<=.35){e.corruptionPhase=2;e.speed*=1.24;bossMessage='PECADO · FASE FINAL · FIM DAS RAÍZES';bossMessageTimer=3.5;makeParticles(e.x,e.y,'#fd173b',70,2.2);ring(e.x,e.y,174,'#ff122f');YG_AUDIO.play('bossRage',1.55);pecadoSummon(e,isPecador()?10:7);if(stage===40)spawnPecadoEcho(e);}
+ if(e.corruptionPhase<1&&ratio<=.70){e.corruptionPhase=1;e.speed*=1.18;e.rage=true;bossMessage='PECADO · SEGUNDA FASE · CORRUPÇÃO';bossMessageTimer=3;makeParticles(e.x,e.y,'#ff243e',55,1.9);ring(e.x,e.y,142,'#ff143d');YG_AUDIO.play('bossRage',1.4);pecadoSummon(e,nordicBossPecador()&&stage===40?4:isPecador()?7:5);if(stage===40)spawnPecadoEcho(e);}
+ if(e.corruptionPhase<2&&ratio<=.35){e.corruptionPhase=2;e.speed*=1.24;bossMessage='PECADO · FASE FINAL · FIM DAS RAÍZES';bossMessageTimer=3.5;makeParticles(e.x,e.y,'#fd173b',70,2.2);ring(e.x,e.y,174,'#ff122f');YG_AUDIO.play('bossRage',1.55);pecadoSummon(e,nordicBossPecador()&&stage===40?6:isPecador()?10:7);if(stage===40)spawnPecadoEcho(e);}
  if(stage===40&&e.corruptionPhase>0){e.echoTimer=(e.echoTimer??17)-dt;if(e.echoTimer<=0){spawnPecadoEcho(e);e.echoTimer=isPecador()?14:19;}}
  e.summonTimer-=dt*waveBalance.bossRate;
- if(e.summonTimer<=0){e.summonTimer=e.corruptionPhase===2?5.5:e.corruptionPhase===1?7.5:10.5;pecadoSummon(e,e.corruptionPhase===2?5:3);}
+ if(e.summonTimer<=0){const tuned=nordicBossPecador()&&stage===40;e.summonTimer=tuned?(e.corruptionPhase===2?8.5:e.corruptionPhase===1?10.5:13):(e.corruptionPhase===2?5.5:e.corruptionPhase===1?7.5:10.5);pecadoSummon(e,tuned?(e.corruptionPhase===2?3:2):(e.corruptionPhase===2?5:3));}
  if(e.mode==='windup'){
   e.windup-=dt;
   if(e.windup<=0){
@@ -1372,7 +1373,7 @@ function updatePecado(e,dt,d,dir,spd){
    }else if(e.move==='spear'){
     const count=e.corruptionPhase===2?14:e.corruptionPhase===1?11:8;
     for(let j=0;j<count;j++){const a=TAU*j/count+(elapsed*.2);shoot(e,{x:Math.cos(a),y:Math.sin(a)},155+e.corruptionPhase*20,14+e.corruptionPhase*3,'#e32044');}
-   }else if(e.move==='summon')pecadoSummon(e,e.corruptionPhase===2?8:5);
+   }else if(e.move==='summon')pecadoSummon(e,nordicBossPecador()&&stage===40?(e.corruptionPhase===2?4:3):(e.corruptionPhase===2?8:5));
    else if(e.move==='doom'){const a=e.angle;slash(e.x+Math.cos(a)*40,e.y+Math.sin(a)*40,a,134,'#ff1737');if(d<130){applyCurse(8);hurtPlayer(26+e.corruptionPhase*10);}}
    e.mode='walk';e.attack=e.corruptionPhase===2?.45:.82;
   }
@@ -1592,15 +1593,19 @@ function heroSprite(x,y,type,face='down',step=0,transform=false,scale=1,actor=nu
  const frogActive=type==='kris'&&shown&&shown.frogTime>0;const im=frogActive?FROG:HERO[type];if(!im||!im.complete||!im.naturalWidth)return;
  if(type==='josue'){
   const a=shown||{},duration=(a.attackDelay||.48)*newAttackDelay(a),age=Math.max(0,duration-(a.atkTime||0)),attacking=(a.atkTime||0)>0&&age<.27;
-  const walking=typeof a.moving==='boolean'?a.moving:a===player&&movingNow;
+  const walking=typeof a.moving==='boolean'?a.moving:a===player?movingNow:a._renderStep!==step;a._renderStep=step;
   const aim=Number.isFinite(a.aim)?a.aim:({down:Math.PI/2,up:-Math.PI/2,left:Math.PI,right:0}[face]??0);
   const attackFace=Math.abs(Math.cos(aim))>Math.abs(Math.sin(aim))?(Math.cos(aim)<0?'left':'right'):(Math.sin(aim)<0?'up':'down');
-  const row=attacking&&attackFace==='down'?4:({down:0,left:1,right:2,up:3}[attacking?attackFace:face]??0),col=attacking?0:walking?[0,1,0,2][Math.floor(step)%4]:0;
-  // 153 opaque pixels per 256px frame: 60px yields a 36px body like Kris/Loid.
-  const size=60;ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(scale,scale);ctx.imageSmoothingEnabled=false;
-  ctx.drawImage(im,col*256,row*256,256,256,-size/2,5-size*237/256,size,size);
-  if(attacking){const t=Math.min(1,age/.27),extension=.22+.78*Math.sin(Math.PI*t),reach=(a.reach||92)*extension;for(const side of [-1,1]){const ang=aim+side*.25,ex=Math.cos(ang)*Math.max(10,reach-13),ey=Math.sin(ang)*Math.max(10,reach-13),hx=side*8,hy=-12;ctx.strokeStyle='#b8b3a8';ctx.lineWidth=1.5;ctx.setLineDash([3,2]);ctx.beginPath();ctx.moveTo(hx,hy);ctx.quadraticCurveTo(ex*.5+side*8,ey*.5-12,ex,ey-12);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#f4d9b3';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ex,ey-12);ctx.lineTo(ex+Math.cos(ang)*13,ey-12+Math.sin(ang)*13);ctx.stroke();}}
-  if(a.ultimateTime>0||josueFury(a)||josueAscend(a)){ctx.strokeStyle=a.ultimateTime>0?'#7df9d9':'#f0774d';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(0,-5,18,7,0,0,TAU);ctx.stroke();}ctx.restore();return;
+  const row=({down:0,left:1,right:2,up:3}[attacking?attackFace:face]??0),col=attacking?1:walking?[1,0,1,2][Math.floor(step)%4]:1;
+  const size=40;ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(scale,scale);ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(im,col*112,row*112,112,112,-size/2,-34,size,size);
+  if(attacking){const t=Math.min(1,age/.27),extension=.18+.82*Math.sin(Math.PI*t),reach=(a.reach||92)*extension;
+   for(const side of [-1,1]){const ang=aim+(t-.5)*1.35+side*.23,hx=Math.cos(aim+side*Math.PI/2)*6,hy=-12+Math.sin(aim+side*Math.PI/2)*4,ex=Math.cos(ang)*Math.max(8,reach-13),ey=-12+Math.sin(ang)*Math.max(8,reach-13),bend=side*9*Math.sin(Math.PI*t);
+    ctx.strokeStyle='#201c21';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(hx,hy);ctx.quadraticCurveTo((hx+ex)/2+Math.cos(ang+Math.PI/2)*bend,(hy+ey)/2+Math.sin(ang+Math.PI/2)*bend,ex,ey);ctx.stroke();ctx.strokeStyle='#c8c3b8';ctx.lineWidth=1.7;ctx.setLineDash([3,2]);ctx.stroke();ctx.setLineDash([]);
+    ctx.save();ctx.translate(ex,ey);ctx.rotate(ang);ctx.fillStyle='#ddd8cb';ctx.strokeStyle='#3b3036';ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(0,-2.8);ctx.lineTo(13,0);ctx.lineTo(0,2.8);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+   }
+  }
+  if(a.ultimateTime>0||josueFury(a)||josueAscend(a)){ctx.strokeStyle=a.ultimateTime>0?'#7df9d9':'#f0774d';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(0,-5,14,5,0,0,TAU);ctx.stroke();}ctx.restore();return;
  }
  if(type==='moretti'||type==='l0id'||type==='l0idShadow'){const a=shown||{},pose=a.newPose;const moving=typeof a.moving==='boolean'&&phase==='coop'?a.moving:a===player?movingNow:a.clone||a._renderStep!==a.step;a._renderStep=a.step;const row=pose&&pose.until>elapsed?pose.row:moving?(a.dashTime>0||type.startsWith('l0id')?2:1):0;const col=Math.floor((pose&&pose.until>elapsed?elapsed*12:moving?step:elapsed*3)%4);ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(face==='left'?-scale:scale,scale);ctx.imageSmoothingEnabled=false;const size=type==='moretti'?62:82;ctx.drawImage(im,col*192,row*192,192,192,-size/2,-size+size/24,size,size);ctx.restore();return;}
  if(type==='mollitiam'){

@@ -16,7 +16,7 @@ const near=(a,b)=>assert(Math.abs(a-b)<1e-7,`${a} != ${b}`);
 for(const [realm,wave] of [['japan',5],['nordic',25]])for(const mode of ['normal','pecador']){
  setup(1,realm,mode,wave);const base=run('enemies.find(isBossEnemy).maxHp'),speed=run('enemies.find(isBossEnemy).speed'),count=run('enemies.filter(e=>!isBossEnemy(e)).length'),mob=run("addMob('walker',200,200).maxHp");
  for(let n=2;n<=5;n++){
-  setup(n,realm,mode,wave);near(run('enemies.find(isBossEnemy).maxHp'),base*expected[n-1][3]);near(run('enemies.find(isBossEnemy).speed'),speed*expected[n-1][6]);assert.equal(run('enemies.filter(e=>!isBossEnemy(e)).length'),Math.round(count*expected[n-1][2]));near(run("addMob('walker',200,200).maxHp"),mob*expected[n-1][0]);
+  setup(n,realm,mode,wave);near(run('enemies.find(isBossEnemy).maxHp'),base*expected[n-1][3]);near(run('enemies.find(isBossEnemy).speed'),speed*expected[n-1][6]);assert.equal(run('enemies.filter(e=>!isBossEnemy(e)).length'),Math.round(count*expected[n-1][2]));if(realm==='nordic'&&mode==='pecador')assert.equal(run("addMob('walker',200,200).maxHp"),Math.round(44*(1.55+(wave-21)*.045)*1.20*(1+.40*(n-1))));else near(run("addMob('walker',200,200).maxHp"),mob*expected[n-1][0]);
  }
 }
 setup(5,'japan','normal',5);run("player.hp=100;player.invuln=0;player.armor=0;player.dodgeChance=0;hurtPlayer(10,'mob')");near(run('player.hp'),87);
