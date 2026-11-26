@@ -10,6 +10,6 @@ for(const [id,m] of Object.entries(WORLD)){
 }
 assert.equal(gates,44);assert.equal(exteriors,11);assert.equal(Object.keys(WORLD).length,21);
 for(let i=1;i<=6;i++){assert(NPC['villager'+i]);const png=fs.readFileSync(new URL('assets/story/villager'+i+'.png',pub));assert.equal(png[25],6,'NPC alpha channel');}
-const story=read('story.js'),html=read('story.html');assert(story.includes("runHeld||keys.has('shift')"));assert(story.includes('running?1.65:1'));assert(story.includes("if(k===' ')dash()"));assert(story.includes("$('run').onlostpointercapture"));assert(html.includes('id="run"'));assert(html.includes('story.js?v=540'));assert(story.includes('jumpJosue'));assert(story.includes('actorsNPC.map(n=>({...n,r:2.2}))'));
+const story=read('story.js'),html=read('story.html');assert(story.includes("runHeld||keys.has('shift')"));assert(story.includes('running?1.65:1'));assert(story.includes("if(k===' ')dash()"));assert(story.includes("$('run').onlostpointercapture"));assert(html.includes('id="run"'));assert(html.includes('story.js?v=541'));assert(story.includes('jumpJosue'));assert(story.includes('actorsNPC.map(n=>({...n,r:2.2}))'));
 let a={x:190,y:120},b={...a};move(WORLD.city1,a,0,12);move(WORLD.city1,b,0,12*1.65);assert(b.y>a.y+7,'sprint distance');
 console.log(`PASS v54: 21 maps, ${exteriors} detailed exterior backgrounds, ${gates} gates, NPC alpha, route connectivity, sprint controls.`);
