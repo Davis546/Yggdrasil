@@ -42,7 +42,7 @@ for(const path of ['index.html','game.html']){
  const html=fs.readFileSync(new URL('../public/'+path,import.meta.url),'utf8');
  assert.match(html,/20 ondas · Jarl, Odin, Cavaleiro Inominável e Pecado/);
  assert.match(html,/data-boss="pecadoNordic"/);
- assert.match(html,/game\.js\?v=(?:49\d*|500|510|520|523)/);
+ assert.match(html,/game\.js\?v=(?:49\d*|500|510|520|523|530)/);
 }
 assert.match(fs.readFileSync(new URL('../src/worker.mjs',import.meta.url),'utf8'),/pecadoNordic/);
 console.log('V4.7: Japan Pecado retained, Nordic wave 20, mini boss, 3 phases, Loid charge, Kris F, progressive cards, server routes PASS');

@@ -2746,9 +2746,9 @@ try{const saved=JSON.parse(sessionStorage.getItem('ygg.coop.resume')||'null');if
 // Seven rapid taps on the playfield/background; action buttons do not count.
 let screenTapStart=null;
 const screenTapExcluded=e=>e.target?.closest?.('button,a,input,select,textarea,#waitingStick,#joystick,.actions,#waitingDialog,#settingsScreen,#waitingOptions,#studioIntro,#networkRecovery');
-window.addEventListener('pointerdown',e=>{if(screenAdjusting||e.isPrimary===false||screenTapExcluded(e)){screenTapStart=null;return;}screenTapStart={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()};},true);
+window.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'||screenAdjusting||e.isPrimary===false||screenTapExcluded(e)){screenTapStart=null;return;}screenTapStart={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()};},true);
 window.addEventListener('pointercancel',()=>{screenTapStart=null;},true);
-window.addEventListener('pointerup',e=>{const a=screenTapStart;screenTapStart=null;const now=performance.now();if(screenAdjusting||!a||a.id!==e.pointerId||screenTapExcluded(e)||now-a.t>350||Math.hypot(e.clientX-a.x,e.clientY-a.y)>20)return;if(registerScreenTap(now))setScreenAdjust(true);},true);
+window.addEventListener('pointerup',e=>{const a=screenTapStart;screenTapStart=null;const now=performance.now();if(e.pointerType!=='touch'||screenAdjusting||!a||a.id!==e.pointerId||screenTapExcluded(e)||now-a.t>350||Math.hypot(e.clientX-a.x,e.clientY-a.y)>20)return;if(registerScreenTap(now))setScreenAdjust(true);},true);
 window.visualViewport?.addEventListener('resize',screenAdjustLayout);window.visualViewport?.addEventListener('scroll',screenAdjustLayout);
 $('screenAdjustReset').addEventListener('click',resetScreenScale);
 $('screenAdjustDone').addEventListener('click',()=>setScreenAdjust(false));$('titleAdjust').addEventListener('click',()=>setScreenAdjust(true));

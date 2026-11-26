@@ -24,5 +24,5 @@ run("difficulty='pecador';activeCampaign='japan';stage=20;enemies=[];addMob('bea
 run("difficulty='pecador';selectedCampaign='nordic';start('kris','pecadoNordic')");assert.equal(run("enemies.find(e=>e.type==='pecado').hp"),17500*1.65*1.6);
 run("start('josue');enemies=[];player.aim=0;attack();draw()");
 const img=fs.readFileSync(new URL('../public/assets/heroes/josue_sheet.png',import.meta.url));assert.equal(img.readUInt32BE(16),336);assert.equal(img.readUInt32BE(20),448);
-assert.match(src,/const size=40;ctx.save\(\);ctx.translate/);assert.match(src,/ctx.drawImage\(im,col\*112,row\*112,112,112,-size\/2,-34,size,size\)/);assert.match(html,/game\.js\?v=523/);
+assert.match(src,/const size=40;ctx.save\(\);ctx.translate/);assert.match(src,/ctx.drawImage\(im,col\*112,row\*112,112,112,-size\/2,-34,size,size\)/);assert.match(html,/game\.js\?v=530/);
 console.log('PASS 523: sprite dimensions, rendering, Nordic Pecador mob HP, co-op scale, summons, echo, boss and other modes unchanged');

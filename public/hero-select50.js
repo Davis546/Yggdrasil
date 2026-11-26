@@ -22,9 +22,9 @@
   }
   grid.append(prev,next,foot);
   function asset(t,visible){const src='assets/ui/select50/'+t.id+(reduced.matches?'-still':'')+'.webp';if(visible){if(t.img.getAttribute('src')!==src)t.img.setAttribute('src',src);}else t.img.removeAttribute('src');}
-  function show(n){page=Math.max(0,Math.min(total-1,n));tiles.forEach((t,i)=>{const on=Math.floor(i/2)===page;t.b.hidden=!on;asset(t,on&&grid.getClientRects().length>0);});prev.disabled=page===0;next.disabled=page===total-1;status.textContent=`${page+1} / ${total} · Arraste ou use as setas`;dotButtons.forEach((b,i)=>{b.setAttribute('aria-current',i===page?'page':'false');});}
+  function show(n){page=Math.max(0,Math.min(total-1,n));tiles.forEach((t,i)=>{const on=Math.floor(i/2)===page;t.b.hidden=!on;t.b.dataset.cardSlot=String(i%2+1);asset(t,on&&grid.getClientRects().length>0);});prev.disabled=page===0;next.disabled=page===total-1;status.textContent=`${page+1} / ${total} · Arraste ou use as setas`;dotButtons.forEach((b,i)=>{b.setAttribute('aria-current',i===page?'page':'false');});}
   for(let i=0;i<total;i++){const d=button('◆','Página '+(i+1));d.className='hs50-dot';d.addEventListener('click',()=>show(i));dots.append(d);dotButtons.push(d);}
-  prev.addEventListener('click',()=>show(page-1));next.addEventListener('click',()=>show(page+1));
+  if(tiles.some(t=>t.id==='josue')){const jump=button('Josué','Ir para Josué');jump.className='hs50-josue';jump.addEventListener('click',()=>show(tiles.findIndex(t=>t.id==='josue')>>1));foot.append(jump);}prev.addEventListener('click',()=>show(page-1));next.addEventListener('click',()=>show(page+1));
   grid.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();e.stopPropagation();show(page+(e.key==='ArrowRight'?1:-1));(e.key==='ArrowRight'?next:prev).focus();}});
   grid.addEventListener('dragstart',e=>e.preventDefault());
   grid.addEventListener('pointerdown',e=>{if(e.isPrimary===false||e.button!==0||e.target.closest('.hs50-arrow,.hs50-foot'))return;start={id:e.pointerId,x:e.clientX,y:e.clientY,drag:false};});
