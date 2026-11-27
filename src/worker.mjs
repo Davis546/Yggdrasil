@@ -3,7 +3,7 @@ import { createDuel } from './duel-engine.mjs';
 // Host-authoritative: the host simulates combat; this Durable Object relays inputs/states.
 import { DurableObject } from 'cloudflare:workers';
 
-const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali', 'mollitiam', 'moretti', 'l0id', 'josue']);
+const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali', 'mollitiam', 'moretti', 'l0id', 'josue', 'mimic']);
 const RESUME_MS = 120000;
 const makeResumeToken=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('');
 const MAX_COOP_PLAYERS = 5; // five players per room; six selectable heroes
@@ -15,7 +15,7 @@ function waitingJapanWalk(x,y){const px=(x-244)*1448/960,py=(y-180)*1086/600;ret
 function waitingSpawn(i,nordic){return {x:nordic?584+(i%5)*70:780+(i%5)*58,y:nordic?600:490,face:'down',moving:false};}
 const PASSIVE_IDS=new Set(['odin','tyr','ymir','sleipnir','eir','huginn']);
 const validPassives=p=>Array.isArray(p)&&p.length===3&&new Set(p).size===3&&p.every(id=>PASSIVE_IDS.has(id));
-const ACTIONS = new Set(['attack', 'q', 'eDown', 'eUp', 'dash', 'ultimate', 'card', 'ultimateChoice', 'f']);
+const ACTIONS = new Set(['attack', 'q', 'eDown', 'eUp', 'dash', 'ultimate', 'card', 'ultimateChoice', 'f', 'mimic']);
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 // The PvP draft is server-generated and server-validated. No instant-kill cards in PvP.
 const PVP_CARDS = ['heart','blade','fast','speed','armor','reach','dodge','critical','arc','echo','ancient','shadowblade','shadowdash','darkburst','black','form','awakening','bloodmoon','mirror','mirrorguard','voidblade','timeward'];
@@ -319,7 +319,7 @@ export class Lobby extends DurableObject {
     if (c.room?.kind === 'pvp') {
       const r=c.room;
       if(m.t === 'pvpChoose'&&!r.started&&c.role==='fighter'){
-        if(!HEROES.has(m.hero)||['moretti','l0id','josue'].includes(m.hero))return;
+        if(!HEROES.has(m.hero)||['moretti','l0id','josue','mimic'].includes(m.hero))return;
         if([...r.members].some(p=>p!==c&&p.role==='fighter'&&p.hero===m.hero)){
           this.safeSend(c,{t:'error',message:'Esse personagem já foi escolhido.'});return;
         }

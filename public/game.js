@@ -45,8 +45,11 @@ const HERO={loid:new Image(),kris:new Image(),cross:new Image(),eve:new Image(),
 const EVE_PORTAL_FRAMES=Array.from({length:4},(_,i)=>{const a=new Image();a.src=`assets/effects/void_portal_${i}.png?v=32`;return a;});
 const MIRROR_SPRITE=new Image();MIRROR_SPRITE.src='assets/effects/mirror_projectile.png?v=32';
 HERO.moretti=new Image();HERO.moretti.src='assets/heroes/moretti_sheet.png?v=49';HERO.l0id=new Image();HERO.l0id.src='assets/heroes/l0id_sheet.png?v=49';HERO.l0idShadow=new Image();HERO.l0idShadow.src='assets/heroes/l0id_shadow_sheet.png?v=49';
+HERO.mimic=new Image();HERO.mimic.src='assets/heroes/mimic_sheet.png?v=551';
+const MIMIC_ATTACK=new Image();MIMIC_ATTACK.src='assets/heroes/mimic_attack.png?v=551';
+const MIMIC_ART={};function getMimicArt(t){if(!MIMIC_ART[t]){const im=new Image();im.src='assets/heroes/mimic/'+t+'.webp?v=551';MIMIC_ART[t]=im;}return MIMIC_ART[t];}
 HERO.josue=new Image();HERO.josue.src='assets/heroes/josue_sheet.png?v=523';
-const SKILL_HEROES=new Set(['loid','kris','cross','eve','kali','mollitiam','moretti','l0id','josue']);let lastSkillArt='';
+const SKILL_HEROES=new Set(['loid','kris','cross','eve','kali','mollitiam','moretti','l0id','josue','mimic']);let lastSkillArt='';
 function syncSkillArt(type){if(!SKILL_HEROES.has(type)||lastSkillArt===type)return;lastSkillArt=type; /* Keep original ✦ ✧ ✺ buttons; ability art does not replace their symbols. */}
 
 HERO.loid.src='assets/heroes/loid_sheet.png';
@@ -249,20 +252,21 @@ const nordicCards=[
 for(const c of nordicCards)CARD_IMAGES[c.id]=`assets/cards/futhark/${c.id.slice(2)}.png?v=45`;
 const nordicSpecials=[
  {id:'frog',hero:'kris'}, {id:'gaster',hero:'cross'}, {id:'granita',hero:'loid'},
- {id:'mirrorguard',hero:'kali'}, {id:'eveprime',hero:'eve'}, {id:'mollitiamHeart',hero:'mollitiam'}, {id:'authorReality',hero:'moretti'}, {id:'godShadow',hero:'l0id'}, {id:'chronosFury',hero:'josue'}
+ {id:'mirrorguard',hero:'kali'}, {id:'eveprime',hero:'eve'}, {id:'mollitiamHeart',hero:'mollitiam'}, {id:'authorReality',hero:'moretti'}, {id:'godShadow',hero:'l0id'}, {id:'chronosFury',hero:'josue'}, {id:'mimicMastery',hero:'mimic'}
 ];
 cards.push({id:'eveprime',name:'Eve Lorey · Retorno ao Auge',desc:'F (carta exclusiva): volta ao auge por 6s, +100% de dano e velocidade, dash recarrega 65% mais rápido. Uso único por partida. Q e R originais preservados.',icon:'◷',rarity:'legendary',hero:'eve',effect:p=>{p.evePrimeCard=true;p.cardPower='eveprime';p.cardPowerUsed=false;}});
 CARD_IMAGES.eveprime=CARD_IMAGES.timeward;
 cards.push({id:'mollitiamHeart',name:'Mollitiam · Coração de Yggdrasil',desc:'Carta especial F (1 uso): 8s de poder ancestral; +40% resistência, +30% velocidade de ataque, +50% dano contra chefes, pisão maior e E cura 35%.',icon:'ᛉ',rarity:'legendary',hero:'mollitiam',effect:p=>{p.cardPower='mollitiamHeart';p.cardPowerUsed=false;}});
 for(const [id,hero,name,desc] of [['authorReality','moretti','O Autor do Impossível','F: 12s de fortalecimento; dois D20, maior resultado, também nas próximas Q e E.'],['godShadow','l0id','A Sombra que Devorou Deus','F: 10s de cortes extras, 3s de imunidade e dez sombras.']]){cards.push({id,hero,name,desc,icon:'✦',rarity:'legendary',effect:p=>{p.cardPower=id;p.cardPowerUsed=false;}});CARD_IMAGES[id]=`assets/cards/${hero}_special.png?v=49`;}
 cards.push({id:'chronosFury',hero:'josue',name:'Josué · Fúria Além do Tempo',desc:'F: 10s de dano +35%, velocidade de ataque +25% e recarga Q/E acelerada. Uso único.',icon:'◷',rarity:'legendary',effect:p=>{p.cardPower='chronosFury';p.cardPowerUsed=false;}});CARD_IMAGES.chronosFury='assets/cards/josue_special.png?v=52';
+cards.push({id:'mimicMastery',hero:'mimic',name:'Mímico · Imitação Suprema',desc:'A recarga da troca de forma cai de 8 para 5 segundos.',icon:'◆',rarity:'legendary',effect:p=>{p.mimicMastery=true;}});CARD_IMAGES.mimicMastery='assets/cards/mimic_special.webp?v=551';
 // Especiais exclusivas mantêm o poder original, mas têm identidade rúnica própria no Nórdico.
 const nordicSpecialRunes=nordicSpecials.map(({id,hero})=>{
  const original=cards.find(c=>c.id===id);
- const rune=({kris:'thurisaz',cross:'hagalaz',loid:'isa',kali:'algiz',eve:'dagaz',mollitiam:'uruz',moretti:'ansuz',l0id:'eihwaz',josue:'tiwaz'})[hero];
+ const rune=({kris:'thurisaz',cross:'hagalaz',loid:'isa',kali:'algiz',eve:'dagaz',mollitiam:'uruz',moretti:'ansuz',l0id:'eihwaz',josue:'tiwaz',mimic:'ansuz'})[hero];
  const base=nordicCards.find(c=>c.id==='n_'+rune);
  const variant={...original,id:'n_f_'+hero,specialId:id,name:base.name+' · '+original.name,icon:base.icon,rarity:'legendary'};
- CARD_IMAGES[variant.id]=`assets/cards/futhark/special_${hero}.png?v=496`;
+ CARD_IMAGES[variant.id]=hero==='mimic'?CARD_IMAGES.mimicMastery:`assets/cards/futhark/special_${hero}.png?v=496`;
  return variant;
 });
 function eligibleNordicSpecial(p){return localNordicWave()>=5&&!p.nordicSpecialEarned&&!p.cardPower&&!p.frogSkill;}
@@ -270,7 +274,7 @@ function nordicRewardPool(p){
  const owned=p.runes||[];
  if(owned.length>=NORDIC_RUNE_CAP)return [];
  const pool=nordicCards.filter(c=>!owned.includes(c.id));
- const special=eligibleNordicSpecial(p)?nordicSpecialRunes.find(c=>c.hero===p.type&&!owned.includes(c.id)):null;
+ const special=eligibleNordicSpecial(p)?nordicSpecialRunes.find(c=>c.hero===(p.mimicOrigin?'mimic':p.type)&&!owned.includes(c.id)):null;
  return special?[...pool,special]:pool;
 }
 function awardCard(p,c){
@@ -285,7 +289,7 @@ function awardCard(p,c){
  }
  if(activeCampaign==='nordic'&&nordicSpecials.some(x=>x.id===c.id)){
   // Compatibilidade com o desafio direto e testes antigos; nunca aparece no sorteio.
-  if(c.hero!==p.type)return false;
+  if(c.hero!==p.type&&!(c.id==='mimicMastery'&&p.mimicOrigin))return false;
   if(p.nordicSpecialEarned||p.cardPower||p.frogSkill)return false;
   c.effect(p);p.nordicSpecialEarned=true;return true;
  }
@@ -313,13 +317,47 @@ function grantNordicStarter(p,directBoss=false){
 }
 
 function createPlayer(type){if(type==='mollitiam')return {type,x:WORLD_W/2,y:WORLD_H/2+120,face:'down',aim:-Math.PI/2,hp:320,maxHp:320,damage:130,attackDelay:1.36,atkTime:0,speed:57,reach:67,arc:2.08,armor:.16,crit:.10,critMultiplier:200/130,echo:0,onKillHeal:0,betweenHeal:14,dashDelay:4,dashCd:0,dashTime:0,dashV:{x:0,y:0},invuln:0,skillDelay:11.5,skillCd:0,skillAmp:1,darkAuraTime:0,darkAuraTick:0,secondaryCd:0,secondaryDelay:30,secondaryCharging:false,secondaryCharge:0,transformDuration:8,transformAmp:0,transformTime:0,shadowDash:false,orbiters:0,orbitTimer:0,waveAttack:false,cardPower:'',cardPowerUsed:false,frogSkill:false,frogUsed:false,frogTime:0,ghost:false,dodgeChance:0,mirrorGuard:0,mirrorAmp:1,mirrorDuration:4,timeDuration:5,voidField:0,voidTick:0,voidUltimate:0,voidUltTick:0,crossChain:null,curseTime:0,frostTime:0,attackCount:0,ultimateCharge:0,ultimateTime:0,ultimateTick:0,ultimateBuff:'',ultimateBuffTime:0,step:0,cards:[],kills:0,mollitiamHeartTime:0};const loid=type==='loid',cross=type==='cross',eve=type==='eve',kali=type==='kali';return {type,x:WORLD_W/2,y:WORLD_H/2+120,face:'down',aim:-Math.PI/2,hp:loid?110:cross?118:eve?115:kali?120:135,maxHp:loid?110:cross?118:eve?115:kali?120:135,damage:loid?26:cross?29:eve?42:kali?23:46,attackDelay:loid?.24:cross?.34:eve?.31:kali?.40:.43,atkTime:0,speed:loid?105:cross?106:eve?125:kali?96:91,reach:loid?33:cross?38:eve?53:kali?85:43,arc:loid?1.85:cross?1.95:2.15,armor:0,crit:cross?.26:eve?.13:.07,echo:0,onKillHeal:0,betweenHeal:11,dashDelay:loid?2.4:cross?2.55:eve?2.2:2.8,dashCd:0,dashTime:0,dashV:{x:0,y:0},invuln:0,skillDelay:loid?9:cross?6.5:eve?17.5:kali?20:14,skillCd:0,skillAmp:1,darkAuraTime:0,darkAuraTick:0,secondaryCd:0,secondaryDelay:loid?20:cross?9:eve?15:kali?18:8.5,secondaryCharging:false,secondaryCharge:0,transformDuration:6,transformAmp:.55,transformTime:0,shadowDash:false,orbiters:0,orbitTimer:0,waveAttack:false,cardPower:'',cardPowerUsed:false,frogSkill:false,frogUsed:false,frogTime:0,ghost:false,dodgeChance:(cross?.12:eve?.15:0),mirrorGuard:0,mirrorAmp:1,mirrorDuration:4,timeDuration:5,voidField:0,voidTick:0,voidUltimate:0,voidUltTick:0,crossChain:null,curseTime:0,frostTime:0,attackCount:0,ultimateCharge:0,ultimateTime:0,ultimateTick:0,ultimateBuff:'',ultimateBuffTime:0,step:0,cards:[],kills:0};}
-const originalCreatePlayer=createPlayer;createPlayer=function(type){const p=originalCreatePlayer(type);if(type==='kali')Object.assign(p,{skillDelay:18,mirrorDuration:5});if(type==='moretti')Object.assign(p,{hp:100,maxHp:100,damage:18,critMultiplier:30/18,attackDelay:.65,dashDelay:1.2,speed:155,reach:40,skillDelay:14,secondaryDelay:18});if(type==='l0id')Object.assign(p,{hp:180,maxHp:180,damage:85,critMultiplier:2,attackDelay:.22,dashDelay:.8,speed:190,reach:48,skillDelay:10,secondaryDelay:20});if(type==='josue')Object.assign(p,{hp:155,maxHp:155,damage:58,crit:.12,critMultiplier:1.7,attackDelay:.48,dashDelay:2.2,speed:108,reach:92,arc:2.35,skillDelay:14,secondaryDelay:18});p.baseMaxHp=p.maxHp;p.baseSkillDelay=p.skillDelay;p.baseSecondaryDelay=p.secondaryDelay;p.baseDamage=p.damage;p.baseAttackDelay=p.attackDelay;p.baseSpeed=p.speed;p.baseReach=p.reach;p.baseDashDelay=p.dashDelay;return p;};
+const originalCreatePlayer=createPlayer;createPlayer=function(type){const p=originalCreatePlayer(type);if(type==='kali')Object.assign(p,{skillDelay:18,mirrorDuration:5});if(type==='moretti')Object.assign(p,{hp:100,maxHp:100,damage:18,critMultiplier:30/18,attackDelay:.65,dashDelay:1.2,speed:155,reach:40,skillDelay:14,secondaryDelay:18});if(type==='l0id')Object.assign(p,{hp:180,maxHp:180,damage:85,critMultiplier:2,attackDelay:.22,dashDelay:.8,speed:190,reach:48,skillDelay:10,secondaryDelay:20});if(type==='josue')Object.assign(p,{hp:155,maxHp:155,damage:58,crit:.12,critMultiplier:1.7,attackDelay:.48,dashDelay:2.2,speed:108,reach:92,arc:2.35,skillDelay:14,secondaryDelay:18});if(type==='mimic')Object.assign(p,{mimicOrigin:true,mimicNext:0,hp:150,maxHp:150,damage:38,speed:110,reach:58,skillDelay:10,secondaryDelay:12});p.baseMaxHp=p.maxHp;p.baseSkillDelay=p.skillDelay;p.baseSecondaryDelay=p.secondaryDelay;p.baseDamage=p.damage;p.baseAttackDelay=p.attackDelay;p.baseSpeed=p.speed;p.baseReach=p.reach;p.baseDashDelay=p.dashDelay;return p;};
 // v4.9: all new ability outcomes are computed by the co-op host, not by guests.
-let realityFields=[],realityVictory=false;
+let realityFields=[],realityVictory=false,mimicVictory=false;
 let l0idUnlocked=false;try{l0idUnlocked=localStorage.getItem('yggdrasil.l0id')==='1';}catch{}
 function unlockL0id(){l0idUnlocked=true;try{localStorage.setItem('yggdrasil.l0id','1');}catch{}refreshL0id();}
 function refreshL0id(){document.querySelectorAll('[data-secret-l0id]').forEach(b=>{b.classList.toggle('secret-locked',!l0idUnlocked);b.setAttribute('aria-disabled',String(!l0idUnlocked));});}
-function secretCode(code){if(code!=='L0ID')return false;unlockL0id();return true;}
+let mimicUnlocked=false;try{mimicUnlocked=localStorage.getItem('yggdrasil.mimic')==='1';}catch{}
+function unlockMimic(){mimicUnlocked=true;try{localStorage.setItem('yggdrasil.mimic','1');}catch{}refreshMimic();}
+function refreshMimic(){document.querySelectorAll('[data-secret-mimic]').forEach(b=>{b.classList.toggle('secret-locked',!mimicUnlocked);b.setAttribute('aria-disabled',String(!mimicUnlocked));});}
+function secretCode(code){code=String(code).trim().toUpperCase();if(code==='KR1S'){unlockMimic();return true;}if(code==='L0ID'){unlockL0id();return true;}return false;}
+const MIMIC_FORMS=['mimic','kris','loid','cross','eve','kali','mollitiam','moretti','l0id','josue'];
+const MIMIC_NAMES={mimic:'Mímico',kris:'Kris',loid:'Loid',cross:'Xans',eve:'Eve Lorey',kali:'Kali',mollitiam:'Mollitiam',moretti:'Moretti',l0id:'L0ID',josue:'Josué'};
+// Actor identity stays stable; copied stats are derived from the selected hero, not stacked.
+function mimicTransform(a,type){
+ if(!a?.mimicOrigin||a.hp<=0||!MIMIC_FORMS.includes(type)||type===a.type||elapsed<(a.mimicNext||0)||phase!=='play')return false;
+ if(a.secondaryCharging||a.coopUltimatePending||a.crossTp||a.frogTime>0||a.ultimateTime>0||a.ultimateBuffTime>0||a.voidUltimate>0||a.dashTime>0||a.evePrimeTime>0||a.mollitiamHeartTime>0)return false;
+ const old={...a},fresh=createPlayer(type),owned=(old.cards||[]).slice(),runes=(old.runes||[]).slice();
+ if(type!=='mimic'){fresh.damage*=1.20;fresh.baseDamage=fresh.damage;fresh.skillDelay*=.9;fresh.baseSkillDelay=fresh.skillDelay;fresh.secondaryDelay*=.9;fresh.baseSecondaryDelay=fresh.secondaryDelay;}
+ for(const id of owned){const c=cards.find(v=>v.id===id);if(c&&(!c.hero||c.hero===type)&&!['frog','gaster','granita','eveprime','mollitiamHeart','authorReality','godShadow','chronosFury'].includes(c.id))c.effect(fresh);}
+ for(const id of runes){const c=nordicCards.find(v=>v.id===id);if(c)c.effect(fresh);}
+ if(old.passives)applyNordicPassives(fresh,old.passives);
+ if(isNordic())nordicClamp(fresh);
+ // Keep health fraction, cooldowns, charge, inventory and position. Never regenerate consumable F powers by switching.
+ for(const k of ['x','y','face','aim','step','moving','input','inputAt','lastAttack','kills','attackCount','curseTime','frostTime','invuln','ghost','nordicStarterGranted','nordicSpecialEarned','dragonPact','mimicMastery','mimicUsedPowers'])if(old[k]!==undefined)fresh[k]=old[k];
+ for(const k of ['skillCd','secondaryCd','dashCd','atkTime'])fresh[k]=Math.max(old[k]||0,k==='atkTime'?.2:0);
+ fresh.hp=Math.max(1,Math.min(fresh.maxHp,fresh.maxHp*old.hp/old.maxHp));fresh.ultimateCharge=old.ultimateCharge||0;
+ fresh.cards=owned;fresh.runes=runes;fresh.mimicOrigin=true;fresh.mimicNext=elapsed+(old.mimicMastery?5:8);
+ // Exclusive cards retain ownership and use state; only activate in the matching copied form.
+ const used={...(old.mimicUsedPowers||{})};if(old.cardPower&&(old.cardPowerUsed||old.frogUsed))used[old.cardPower]=true;
+ const special=owned.map(id=>cards.find(c=>c.id===id)).find(c=>c?.hero===type&&['frog','gaster','granita','eveprime','mollitiamHeart','authorReality','godShadow','chronosFury'].includes(c.id));
+ const runeSpecial=runes.map(id=>nordicSpecialRunes.find(c=>c.id===id)).find(c=>c?.hero===type||c?.hero==='mimic');if(special)special.effect(fresh);else if(runeSpecial)runeSpecial.effect(fresh);
+ if(fresh.cardPower&&used[fresh.cardPower]){fresh.cardPowerUsed=true;if(fresh.cardPower==='frog')fresh.frogUsed=true;}
+ fresh.mimicUsedPowers=used;
+ for(const k of Object.keys(a))delete a[k];Object.assign(a,fresh);
+ ring(a.x,a.y,60,'#ff4058');makeParticles(a.x,a.y,'#b71b36',20,1.2);textPop(a.x,a.y-36,'MÍMICO · '+MIMIC_NAMES[type].toUpperCase(),'#ff8792');return true;
+}
+function chooseMimicForm(type){if(!player?.mimicOrigin||phase!=='play'||coop.reconnecting)return;closeMimicMenu();if(coop.active&&!coop.host){coopAction('mimic',type);return;}if(mimicTransform(player,type)){updateHud();if(coop.active){coop.checkpointDirty=true;coopSendState(true);}}}
+function closeMimicMenu(){const panel=$('mimicForms');if(panel)panel.hidden=true;}
+function toggleMimicMenu(){if(!player?.mimicOrigin||phase!=='play'||player.hp<=0||screenAdjusting||coop.reconnecting)return;const panel=$('mimicForms');if(!panel.hidden){closeMimicMenu();return;}keys.clear();attackMobile=false;pointerDown=false;panel.hidden=false;panel.querySelectorAll('[data-mimic-form]').forEach(b=>{b.disabled=b.dataset.mimicForm===player.type;});}
+function updateMimicHud(){const b=$('mimicToggle');if(!b)return;const on=!!player?.mimicOrigin&&player.hp>0&&phase==='play';b.hidden=!on;if(!on){closeMimicMenu();return;}const cd=Math.max(0,(player.mimicNext||0)-elapsed);b.textContent=cd>0?'MÍMICO · '+Math.ceil(cd)+'s':'MÍMICO · T';b.disabled=cd>0;}
+
 let realityEnemyWeakness=0;function fieldWeakness(e){return Math.min(.65,realityFields.reduce((v,f)=>dist(e,f)<f.radius?Math.max(v,.18*f.power):v,0));}
 // All support effects are applied to the authoritative living roster, once per actor.
 function newTeam(){return [...new Set(coop.active&&coop.host?[coop.hostAvatar||player,...coop.allies.values()]:[player])].filter(a=>a&&a.hp>0);}
@@ -426,7 +464,7 @@ function spawnAroundPlayer(minD,maxD){
  }
  return {x,y};
 }
-function start(type, bossTest=false, frogTest=false){selectedBoss=null;activeCampaign=bossTest==='nordic'||bossTest==='frostjarl'||bossTest==='nameless'||bossTest==='odin'||bossTest==='pecadoNordic'?'nordic':bossTest&&bossTest!=='japan'?'japan':selectedCampaign;testBossMode=!!bossTest&&!['nordic','japan'].includes(bossTest);player=createPlayer(type);realityVictory=false;realityFields=[];if(activeCampaign==='nordic'){grantNordicStarter(player,testBossMode);const ids=coop.active?coop.members.find(m=>m.id===coop.id)?.passives:pendingNordicPassives;applyNordicPassives(player,ids);}if(coop.active&&coop.host)coop.hostAvatar=player;if(type==='kris'&&frogTest){player.frogSkill=true;player.cards.push('frog');}stage=bossTest==='pecadoNordic'?40:bossTest==='nordic'?21:bossTest==='frostjarl'?25:bossTest==='nameless'?35:bossTest==='odin'?30:bossTest==='pecado'?20:bossTest==='tsukuomi'?15:(bossTest==='reuni'?10:(bossTest==='samurai'?5:(activeCampaign==='nordic'?21:1)));essence=0;elapsed=0;flash=0;mouseAim=null;keys.clear();$('titleScreen').classList.add('hidden');$('selectScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('supremeScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('gameOverScreen').classList.add('hidden');$('hud').style.display='flex';$('mobileControls').style.display='';document.body.classList.add('is-playing');adaptViewport();YG_AUDIO.play('choose');if(coop.active&&coop.host)coopInitAllies();
+function start(type, bossTest=false, frogTest=false){selectedBoss=null;activeCampaign=bossTest==='nordic'||bossTest==='frostjarl'||bossTest==='nameless'||bossTest==='odin'||bossTest==='pecadoNordic'?'nordic':bossTest&&bossTest!=='japan'?'japan':selectedCampaign;testBossMode=!!bossTest&&!['nordic','japan'].includes(bossTest);player=createPlayer(type);realityVictory=false;mimicVictory=false;closeMimicMenu();realityFields=[];if(activeCampaign==='nordic'){grantNordicStarter(player,testBossMode);const ids=coop.active?coop.members.find(m=>m.id===coop.id)?.passives:pendingNordicPassives;applyNordicPassives(player,ids);}if(coop.active&&coop.host)coop.hostAvatar=player;if(type==='kris'&&frogTest){player.frogSkill=true;player.cards.push('frog');}stage=bossTest==='pecadoNordic'?40:bossTest==='nordic'?21:bossTest==='frostjarl'?25:bossTest==='nameless'?35:bossTest==='odin'?30:bossTest==='pecado'?20:bossTest==='tsukuomi'?15:(bossTest==='reuni'?10:(bossTest==='samurai'?5:(activeCampaign==='nordic'?21:1)));essence=0;elapsed=0;flash=0;mouseAim=null;keys.clear();$('titleScreen').classList.add('hidden');$('selectScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('supremeScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('gameOverScreen').classList.add('hidden');$('hud').style.display='flex';$('mobileControls').style.display='';document.body.classList.add('is-playing');adaptViewport();YG_AUDIO.play('choose');if(coop.active&&coop.host)coopInitAllies();
  if(coop.active&&!coop.host){
    phase='play';enemies=[];projectiles=[];hazards=[];healthDrops=[];shadowClones=[];slashes=[];rings=[];
    camera.x=clamp(player.x-W/2,0,WORLD_W-W);camera.y=clamp(player.y-H/2,0,WORLD_H-H);
@@ -477,7 +515,7 @@ function nearestLivingHero(e){
 }
 function slash(x,y,ang,r,color){slashes.push({x,y,ang,r,color,life:.15,max:.15});shake=Math.max(shake,1.5)}
 function ring(x,y,r,color){rings.push({x,y,r,life:.44,max:.44,color})}
-function hitEnemy(e,dmg,chargesSupreme=false,trueDamage=false,cloneHit=false){if(e.hp<=0)return;if(e.type==='nameless'&&(e.dragonIntro||0)>0)return;let isCrit=!trueDamage&&Math.random()<Math.min(.95,player.crit+(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?.27:0)),amount=dmg*newDamage(player)*(isCrit?(player.critMultiplier||1.7):1)*(isNordic()?(1+(player.jeraBonus||0)):1)*(isBossEnemy(e)?(player.bossAmp||1):1)*(player.evePrimeTime>0?2:1)*(player.type==='mollitiam'&&isBossEnemy(e)&&player.ultimateTime>0?2:1)*(player.type==='mollitiam'&&isBossEnemy(e)&&player.mollitiamHeartTime>0?1.5:1)*(player.curseTime>0&&!trueDamage?.62:1)*(player.dragonPact&&player.ultimateBuffTime>0?1.18:1)*(e.corruptTime>0&&!trueDamage?1.16:1)*(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?1.35:1);if(!trueDamage&&Math.random()<player.echo)amount*=1.6;if(isBossEnemy(e)&&!trueDamage)amount=Math.min(amount,e.maxHp*.04);if(!trueDamage&&e.type==='boss'&&e.mode==='guard'&&e.guardTime>0){amount*=.3;if(e.counterCd<=0&&dist(e,player)<62){e.counterCd=1.25;ring(e.x,e.y,60,'#ff5374');bossMessage='CONTRA-ATAQUE DO SHOGUN';bossMessageTimer=.8;hurtPlayer(e.rage?25:18,'boss');}}if(e.type==='nameless'&&(e.pactBroken||0)>0)amount*=1.2;if(e.type==='odin'&&e.odinShield>0)amount*=.70;if(player.teamAura&&coop.active&&[...coop.allies.values()].some(a=>a.hp>0&&Math.hypot(a.x-player.x,a.y-player.y)<130))amount*=1+player.teamAura;e.hp-=amount;e.hurt=.14;if(!trueDamage&&isNordic()&&e.hp>0){if(Math.random()<(player.fireChance||0)){e.burnTime=Math.max(e.burnTime||0,2);e.burnTick=.6;}if(Math.random()<(player.iceChance||0))e.slow=Math.max(e.slow||0,1.5);if(Math.random()<(player.stormChance||0))e.hp-=Math.min(12,e.maxHp*.005);}if(player.type==='cross'&&e.hp>0&&e.hp<=e.maxHp*.5&&!e.corruptTime){e.corruptTime=5.5;e.slow=Math.max(e.slow||0,1.2);textPop(e.x,e.y-28,'CORROMPIDO','#c89cff');ring(e.x,e.y,27,'#8344af');}if(!cloneHit||(elapsed<cloneAudioAt||elapsed-cloneAudioAt>=.075)){YG_AUDIO.play(isBossEnemy(e)?'heavyHit':'hit',isCrit?1.2:.82);if(cloneHit)cloneAudioAt=elapsed;}if(chargesSupreme&&player.ultimateTime<=0&&player.ultimateBuffTime<=0)player.ultimateCharge=Math.min(100,player.ultimateCharge+(['moretti','l0id'].includes(player.type)?(isBossEnemy(e)?1.8:1.1):player.type==='loid'?(isBossEnemy(e)?2.2:1.4):player.type==='eve'?(isBossEnemy(e)?4.5:3.0):player.type==='mollitiam'?(isBossEnemy(e)?5:3):player.type==='josue'?(isBossEnemy(e)?4:2.5):(isBossEnemy(e)?12:9)));textPop(e.x,e.y-12,Math.round(amount)+(isCrit?'!':''),isCrit?'#ffd67b':'#f0ccdc',e.id);makeParticles(e.x,e.y,player.type==='loid'?'#ae7de3':player.type==='cross'?'#b167ef':'#709cff',cloneHit&&lowFx()?1:4);if(e.hp<=0){if(e.type==='runeSeal'){const boss=enemies.find(n=>n.type==='nameless'&&n.hp>0);if(boss){boss.sealsBroken=(boss.sealsBroken||0)+1;if(boss.sealsBroken>=3){boss.pactBroken=5;boss.stunTime=5;boss.sealsBroken=0;bossMessage='PACTO QUEBRADO · DRAGÃO SILENCIADO!';bossMessageTimer=3;}}}YG_AUDIO.play(isBossEnemy(e)?'bossDefeat':'oniDeath',e.type==='boss'?1.2:.65);player.kills++;essence+=isBossEnemy(e)?150:10;makeParticles(e.x,e.y,isBossEnemy(e)?'#e4b7ff':'#b1519d',18,1.3);player.hp=Math.min(player.maxHp,player.hp+player.onKillHeal);if(!isBossEnemy(e)&&Math.random()<(isNordic()?Math.min(.22,.14+(player.heartBonus||0)):.05)&&healthDrops.length<35){healthDrops.push({x:e.x,y:e.y,amount:12,life:16,phase:Math.random()*6.28});}if(isBossEnemy(e)){if(e.type==='nameless'&&!player.dragonPact){player.dragonPact=true;bossMessage='CARTA LENDÁRIA · PACTO DO DRAGÃO';bossMessageTimer=4;}if(enemies.some(other=>other!==e&&other.hp>0&&isBossEnemy(other)))return;player.hp=player.maxHp;if(coop.active&&coop.host){const host=coop.hostAvatar||player;host.hp=host.maxHp;host.ghost=false;for(const ally of coop.allies.values()){ally.hp=ally.maxHp;ally.ghost=false;}}textPop(player.x,player.y-31,'VIDA RESTAURADA!','#b5ffad');hazards=[];eclipseTime=0;for(const add of enemies){if(add!==e&&!isBossEnemy(add))add.hp=0;}bossMessage=e.type==='ancestralDragon'?'PACTO DRACÔNICO ENCERRADO!':e.type==='odin'?'ODIN DERROTADO!':e.type==='nameless'?'CAVALEIRO INOMINÁVEL DERROTADO!':e.type==='frostjarl'?'JARL DO GELO DERROTADO!':e.type==='pecado'?'PECADO DERROTADO!':e.type==='tsukuomi'?'TSUKUOMI DERROTADA!':e.type==='reuni'?'REUNI DERROTADO!':'DAIMYŌ ONI DERROTADO!';bossMessageTimer=2.4;}}}
+function hitEnemy(e,dmg,chargesSupreme=false,trueDamage=false,cloneHit=false){if(e.hp<=0)return;if(e.type==='nameless'&&(e.dragonIntro||0)>0)return;let isCrit=!trueDamage&&Math.random()<Math.min(.95,player.crit+(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?.27:0)),amount=dmg*newDamage(player)*(isCrit?(player.critMultiplier||1.7):1)*(isNordic()?(1+(player.jeraBonus||0)):1)*(isBossEnemy(e)?(player.bossAmp||1):1)*(player.evePrimeTime>0?2:1)*(player.type==='mollitiam'&&isBossEnemy(e)&&player.ultimateTime>0?2:1)*(player.type==='mollitiam'&&isBossEnemy(e)&&player.mollitiamHeartTime>0?1.5:1)*(player.curseTime>0&&!trueDamage?.62:1)*(player.dragonPact&&player.ultimateBuffTime>0?1.18:1)*(e.corruptTime>0&&!trueDamage?1.16:1)*(player.type==='cross'&&player.ultimateBuff==='cross'&&player.ultimateBuffTime>0?1.35:1);if(!trueDamage&&Math.random()<player.echo)amount*=1.6;if(isBossEnemy(e)&&!trueDamage)amount=Math.min(amount,e.maxHp*.04);if(!trueDamage&&e.type==='boss'&&e.mode==='guard'&&e.guardTime>0){amount*=.3;if(e.counterCd<=0&&dist(e,player)<62){e.counterCd=1.25;ring(e.x,e.y,60,'#ff5374');bossMessage='CONTRA-ATAQUE DO SHOGUN';bossMessageTimer=.8;hurtPlayer(e.rage?25:18,'boss');}}if(e.type==='nameless'&&(e.pactBroken||0)>0)amount*=1.2;if(e.type==='odin'&&e.odinShield>0)amount*=.70;if(player.teamAura&&coop.active&&[...coop.allies.values()].some(a=>a.hp>0&&Math.hypot(a.x-player.x,a.y-player.y)<130))amount*=1+player.teamAura;e.hp-=amount;e.hurt=.14;if(!trueDamage&&isNordic()&&e.hp>0){if(Math.random()<(player.fireChance||0)){e.burnTime=Math.max(e.burnTime||0,2);e.burnTick=.6;}if(Math.random()<(player.iceChance||0))e.slow=Math.max(e.slow||0,1.5);if(Math.random()<(player.stormChance||0))e.hp-=Math.min(12,e.maxHp*.005);}if(player.type==='cross'&&e.hp>0&&e.hp<=e.maxHp*.5&&!e.corruptTime){e.corruptTime=5.5;e.slow=Math.max(e.slow||0,1.2);textPop(e.x,e.y-28,'CORROMPIDO','#c89cff');ring(e.x,e.y,27,'#8344af');}if(!cloneHit||(elapsed<cloneAudioAt||elapsed-cloneAudioAt>=.075)){YG_AUDIO.play(isBossEnemy(e)?'heavyHit':'hit',isCrit?1.2:.82);if(cloneHit)cloneAudioAt=elapsed;}if(chargesSupreme&&player.ultimateTime<=0&&player.ultimateBuffTime<=0)player.ultimateCharge=Math.min(100,player.ultimateCharge+(['moretti','l0id'].includes(player.type)?(isBossEnemy(e)?1.8:1.1):player.type==='loid'?(isBossEnemy(e)?2.2:1.4):player.type==='eve'?(isBossEnemy(e)?4.5:3.0):player.type==='mollitiam'?(isBossEnemy(e)?5:3):player.type==='josue'?(isBossEnemy(e)?4:2.5):(isBossEnemy(e)?12:9)));textPop(e.x,e.y-12,Math.round(amount)+(isCrit?'!':''),isCrit?'#ffd67b':'#f0ccdc',e.id);makeParticles(e.x,e.y,player.mimicOrigin?'#ff4058':player.type==='loid'?'#ae7de3':player.type==='cross'?'#b167ef':'#709cff',cloneHit&&lowFx()?1:4);if(e.hp<=0){if(e.type==='runeSeal'){const boss=enemies.find(n=>n.type==='nameless'&&n.hp>0);if(boss){boss.sealsBroken=(boss.sealsBroken||0)+1;if(boss.sealsBroken>=3){boss.pactBroken=5;boss.stunTime=5;boss.sealsBroken=0;bossMessage='PACTO QUEBRADO · DRAGÃO SILENCIADO!';bossMessageTimer=3;}}}YG_AUDIO.play(isBossEnemy(e)?'bossDefeat':'oniDeath',e.type==='boss'?1.2:.65);player.kills++;essence+=isBossEnemy(e)?150:10;makeParticles(e.x,e.y,isBossEnemy(e)?'#e4b7ff':'#b1519d',18,1.3);player.hp=Math.min(player.maxHp,player.hp+player.onKillHeal);if(!isBossEnemy(e)&&Math.random()<(isNordic()?Math.min(.22,.14+(player.heartBonus||0)):.05)&&healthDrops.length<35){healthDrops.push({x:e.x,y:e.y,amount:12,life:16,phase:Math.random()*6.28});}if(isBossEnemy(e)){if(e.type==='nameless'&&!player.dragonPact){player.dragonPact=true;bossMessage='CARTA LENDÁRIA · PACTO DO DRAGÃO';bossMessageTimer=4;}if(enemies.some(other=>other!==e&&other.hp>0&&isBossEnemy(other)))return;player.hp=player.maxHp;if(coop.active&&coop.host){const host=coop.hostAvatar||player;host.hp=host.maxHp;host.ghost=false;for(const ally of coop.allies.values()){ally.hp=ally.maxHp;ally.ghost=false;}}textPop(player.x,player.y-31,'VIDA RESTAURADA!','#b5ffad');hazards=[];eclipseTime=0;for(const add of enemies){if(add!==e&&!isBossEnemy(add))add.hp=0;}bossMessage=e.type==='ancestralDragon'?'PACTO DRACÔNICO ENCERRADO!':e.type==='odin'?'ODIN DERROTADO!':e.type==='nameless'?'CAVALEIRO INOMINÁVEL DERROTADO!':e.type==='frostjarl'?'JARL DO GELO DERROTADO!':e.type==='pecado'?'PECADO DERROTADO!':e.type==='tsukuomi'?'TSUKUOMI DERROTADA!':e.type==='reuni'?'REUNI DERROTADO!':'DAIMYŌ ONI DERROTADO!';bossMessageTimer=2.4;}}}
 
 // Card-exclusive, one-use frog form: the next attack performs a shadow-frog leap.
 function frogSmash(){
@@ -500,10 +538,10 @@ function attack(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))retur
   if(!player||player.hp<=0||phase!=='play'||player.atkTime>0)return;
   // Local prediction draws ONLY the swing: damage, buffs, charges and kills stay on host.
   player.atkTime=player.attackDelay*(player.type==='josue'?newAttackDelay(player):1);
-  if(player.type!=='josue')slash(player.x+Math.cos(player.aim)*player.reach*.55,player.y+Math.sin(player.aim)*player.reach*.55,player.aim,player.reach,player.type==='cross'?'#b97aff':player.type==='loid'?'#d9a4ff':'#7592ff');
+  if(player.type!=='josue')slash(player.x+Math.cos(player.aim)*player.reach*.55,player.y+Math.sin(player.aim)*player.reach*.55,player.aim,player.reach,player.mimicOrigin?'#ff4058':player.type==='cross'?'#b97aff':player.type==='loid'?'#d9a4ff':'#7592ff');
   coopAction('attack');YG_AUDIO.play('hit',.55);return;
  }if(!player||player.hp<=0||phase!=='play'||player.atkTime>0)return;if(player.type==='kris'&&player.frogTime>0){frogSmash();return;}player.atkTime=player.attackDelay*newAttackDelay(player)*(player.type==='mollitiam'?(player.ultimateTime>0?.65:1)*(player.mollitiamHeartTime>0?1/1.30:1):1);player.attackCount++;let amp=(player.transformTime>0?1+player.transformAmp:1)*(player.ultimateBuffTime>0&&player.ultimateBuff==='fight'?2:1);let a=player.aim,range=player.reach*(player.transformTime>0?1.18:1),cx=player.x+Math.cos(a)*range*.55,cy=player.y+Math.sin(a)*range*.55;
-if(['moretti','l0id'].includes(player.type))player.newPose={row:3,until:elapsed+Math.min(.35,player.atkTime)};if(player.type!=='kali'&&player.type!=='josue')slash(cx,cy,a,range,player.type==='loid'?'#d9a4ff':player.type==='cross'?'#b97aff':player.transformTime>0?'#ff73ec':'#7592ff');YG_AUDIO.play(player.type==='loid'?'loidSlash':'krisSlash',.95);let struck=0;for(const e of enemies){if(e.hp<=0)continue;let dx=e.x-player.x,dy=e.y-player.y,ed=Math.hypot(dx,dy),angle=Math.atan2(dy,dx),diff=Math.atan2(Math.sin(angle-a),Math.cos(angle-a));if(player.type!=='kali'&&ed<range+e.radius&&Math.abs(diff)<player.arc/2+e.radius/Math.max(20,ed)){hitEnemy(e,player.damage*amp,true);if(player.type==='l0id'&&player.godShadowUntil>elapsed){slash(cx,cy,a+.2,range*1.2,'#aa8bd0');hitEnemy(e,player.damage*.65,false);}struck++;}}
+if(['moretti','l0id'].includes(player.type))player.newPose={row:3,until:elapsed+Math.min(.35,player.atkTime)};if(player.type!=='kali'&&player.type!=='josue')slash(cx,cy,a,range,player.mimicOrigin?'#ff4058':player.type==='loid'?'#d9a4ff':player.type==='cross'?'#b97aff':player.transformTime>0?'#ff73ec':'#7592ff');YG_AUDIO.play(player.type==='loid'?'loidSlash':'krisSlash',.95);let struck=0;for(const e of enemies){if(e.hp<=0)continue;let dx=e.x-player.x,dy=e.y-player.y,ed=Math.hypot(dx,dy),angle=Math.atan2(dy,dx),diff=Math.atan2(Math.sin(angle-a),Math.cos(angle-a));if(player.type!=='kali'&&ed<range+e.radius&&Math.abs(diff)<player.arc/2+e.radius/Math.max(20,ed)){hitEnemy(e,player.damage*amp,true);if(player.type==='l0id'&&player.godShadowUntil>elapsed){slash(cx,cy,a+.2,range*1.2,'#aa8bd0');hitEnemy(e,player.damage*.65,false);}struck++;}}
 if(player.type==='kali'){const vec={x:Math.cos(a),y:Math.sin(a)};projectiles.push({x:player.x+vec.x*15,y:player.y+vec.y*15-9,vx:vec.x*300,vy:vec.y*300,damage:player.damage*(player.mirrorAmp||1),from:'player',r:9,life:.86,color:'#e7c4ff',mirror:true,ownerId:coop.active?(coop.actorId||coop.id):null});YG_AUDIO.play('mirrorCast',.76);makeParticles(player.x+vec.x*20,player.y+vec.y*20-9,'#efc4ff',6,.55);}if(player.type==='kris'&&player.transformTime>0&&player.waveAttack){let vec={x:Math.cos(a),y:Math.sin(a)};projectiles.push({x:player.x+vec.x*15,y:player.y+vec.y*15,vx:vec.x*170,vy:vec.y*170,damage:player.damage*.65,from:'player',r:5,life:1.1,color:'#b572ff'})}
 if(player.ultimateBuffTime>0&&player.ultimateBuff==='itens'&&player.type==='kris'){
  // A second synchronized black sword: actual hit registration and an additional visual slash.
@@ -765,7 +803,7 @@ function crossMultiStrike(){const c=player.crossChain;if(!c||c.remaining<=0)retu
  player.x=c.x;player.y=c.y;c.remaining--;c.time=.65;if(!c.remaining)player.crossChain=null;
  return true;
 }
-function skill(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;
+function skill(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;if(player?.type==='mimic'){if(!coop.executing)toggleMimicMenu();return;}
  if(coop.active&&!coop.host&&!coop.executing){coopAction('q');return;}if(!player||player.hp<=0||phase!=='play'||(player.skillCd>0&&!(player.type==='cross'&&player.crossChain&&player.crossChain.time>0)))return;
  if(player.type==='josue'){josueAbility('Q');return;}if(['moretti','l0id'].includes(player.type)){newAbility('Q');return;}
  if(player.type==='mollitiam'){
@@ -792,7 +830,7 @@ function skill(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return
 }
 
 // E — Loid summons exactly four hostile dark duplicates. Kris holds E to charge a long-range dimensional slash.
-function secondaryDown(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;
+function secondaryDown(){if(coop.reconnecting||(screenAdjusting&&!coop.executing)||player?.type==='mimic')return;
  if(coop.active&&!coop.host&&!coop.executing){coopAction('eDown');return;}if(!player||player.hp<=0||phase!=='play'||player.secondaryCd>0)return;
  if(player.type==='josue'){josueAbility('E');return;}if(['moretti','l0id'].includes(player.type)){newAbility('E');return;}
  if(player.type==='mollitiam'){
@@ -819,7 +857,7 @@ function secondaryDown(){if(coop.reconnecting||(screenAdjusting&&!coop.executing
  }
  updateHud();
 }
-function secondaryUp(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;
+function secondaryUp(){if(coop.reconnecting||(screenAdjusting&&!coop.executing)||player?.type==='mimic')return;
  if(coop.active&&!coop.host&&!coop.executing){coopAction('eUp');return;}if(!player||player.type!=='kris'||!player.secondaryCharging)return;
  const fraction=clamp(player.secondaryCharge/1.6,0,1);
  player.secondaryCharging=false;player.secondaryCharge=0;
@@ -968,7 +1006,7 @@ function drawXansSkulls(){
   ctx.restore();
  }
 }
-function ultimate(){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;
+function ultimate(){if(coop.reconnecting||(screenAdjusting&&!coop.executing)||player?.type==='mimic')return;
  if(coop.active&&!coop.host&&!coop.executing){coopAction('ultimate');return;}if(!player||player.hp<=0||phase!=='play'||player.ultimateCharge<100)return;
  player.ultimateCharge=0;YG_AUDIO.play('ultimate',1.24);if(player.type==='josue'){josueAbility('R');return;}if(['moretti','l0id'].includes(player.type)){newAbility('R');return;}
  if(player.type==='mollitiam'){player.ultimateTime=8;player.mollitiamPose=1.0;player.invuln=.7;ring(player.x,player.y,120,'#ffcc76');makeParticles(player.x,player.y,'#f6c25b',lowFx()?16:42,1.3);bossMessage='MOLLITIAM · TITÃ RÚNICO · 8s';bossMessageTimer=2.2;}
@@ -1108,7 +1146,7 @@ for(let i=healthDrops.length-1;i>=0;i--){const h=healthDrops[i];h.life-=dt;if(h.
 // No countdown overlay appears; projectiles/hazards are removed for safety.
 if(enemies.length===0&&phase==='play'){
  if(waveClearTimer<0){waveClearTimer=3;projectiles=[];hazards=[];}
- else {waveClearTimer=Math.max(0,waveClearTimer-dt);if(waveClearTimer===0){waveClearTimer=-1;if(isCampaignFinalWave()){if(activeCampaign==='japan'&&isPecador()&&!testBossMode){realityVictory=true;unlockL0id();}phase='over';player.hp=player.maxHp;$('endTitle').textContent=activeCampaign==='nordic'?'REINO NÓRDICO CONQUISTADO!':'JAPÃO CONQUISTADO!';$('endText').textContent=activeCampaign==='nordic'?'Você derrotou Pecado no trono nórdico! O reino foi conquistado após vinte ondas.':'Você derrotou Pecado e concluiu a campanha do Japão! Escolha o Reino Nórdico pelo menu para outra jornada.';$('gameOverScreen').classList.remove('hidden');}else{phase='reward';showRewards();}}}
+ else {waveClearTimer=Math.max(0,waveClearTimer-dt);if(waveClearTimer===0){waveClearTimer=-1;if(isCampaignFinalWave()){if(activeCampaign==='japan'&&isPecador()&&!testBossMode){realityVictory=true;unlockL0id();}if(activeCampaign==='nordic'&&!testBossMode){mimicVictory=true;unlockMimic();}phase='over';player.hp=player.maxHp;$('endTitle').textContent=activeCampaign==='nordic'?'REINO NÓRDICO CONQUISTADO!':'JAPÃO CONQUISTADO!';$('endText').textContent=activeCampaign==='nordic'?'Você derrotou Pecado no trono nórdico! O reino foi conquistado após vinte ondas.':'Você derrotou Pecado e concluiu a campanha do Japão! Escolha o Reino Nórdico pelo menu para outra jornada.';$('gameOverScreen').classList.remove('hidden');}else{phase='reward';showRewards();}}}
 }
 updateHud();}
 // Boss state machine. Boss damages only when the visible warning resolves and the hitbox connects.
@@ -1590,7 +1628,19 @@ function shiftColor(hex,step){let n=parseInt(hex.slice(1),16),r=clamp((n>>16)+st
 function spritePixel(x,y,a,b=1,c=1){if(typeof a==='string')drawR(x,y,b,c,a);else drawR(x,y,a,b,c)}
 function heroSprite(x,y,type,face='down',step=0,transform=false,scale=1,actor=null){
  const shown=actor||player;
- const frogActive=type==='kris'&&shown&&shown.frogTime>0;const im=frogActive?FROG:HERO[type];if(!im||!im.complete||!im.naturalWidth)return;
+ const frogActive=type==='kris'&&shown&&shown.frogTime>0;const copied=shown?.mimicOrigin&&shown.type===type&&type!=='mimic';const alt=copied?getMimicArt(frogActive?'kris_frog':type):null;const im=alt?.complete&&alt.naturalWidth?alt:(frogActive?FROG:HERO[type]);if(!im||!im.complete||!im.naturalWidth)return;
+ if(copied){ctx.save();ctx.strokeStyle='#ff304b';ctx.globalAlpha*=.75;ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(x,y-2,17*scale,6*scale,0,0,TAU);ctx.stroke();ctx.restore();}
+ if(type==='mimic'){
+  const a=shown?.type==='mimic'?shown:{};const duration=(a.attackDelay||.48)*newAttackDelay(a),age=Math.max(0,duration-(a.atkTime||0)),attacking=(a.atkTime||0)>0&&age<.24;
+  const aim=Number.isFinite(a.aim)?a.aim:({down:Math.PI/2,up:-Math.PI/2,left:Math.PI,right:0}[face]??0);
+  const attackFace=Math.abs(Math.cos(aim))>Math.abs(Math.sin(aim))?(Math.cos(aim)<0?'left':'right'):(Math.sin(aim)<0?'up':'down');
+  const row=({down:0,left:1,right:2,up:3}[attacking?attackFace:face]??0);
+  const walking=a===player?movingNow:typeof a.moving==='boolean'?a.moving:a._renderStep!==undefined&&a._renderStep!==step;a._renderStep=step;
+  ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(scale,scale);ctx.imageSmoothingEnabled=false;
+  if(attacking&&MIMIC_ATTACK.complete&&MIMIC_ATTACK.naturalWidth){const size=224*40/112;ctx.drawImage(MIMIC_ATTACK,0,row*224,224,224,-size/2,-184*40/112,size,size);}
+  else{const col=walking?[0,1,0,2][Math.floor(step)%4]:0;ctx.drawImage(im,col*112,row*112,112,112,-20,-35,40,40);}
+  ctx.restore();return;
+ }
  if(type==='josue'){
   const a=shown||{},duration=(a.attackDelay||.48)*newAttackDelay(a),age=Math.max(0,duration-(a.atkTime||0)),attacking=(a.atkTime||0)>0&&age<.27;
   const walking=typeof a.moving==='boolean'?a.moving:a===player?movingNow:a._renderStep!==step;a._renderStep=step;
@@ -1966,6 +2016,7 @@ function draw(){
 }
 function updateHud(){
  if(!player)return;
+ updateMimicHud();
  // Throttle HUD-only DOM updates on mobile; simulation is untouched.
  const now=performance.now();if(touchUI&&phase==='play'&&now-lastHudStamp<75)return;lastHudStamp=now;
  const runeHud=$('nordicCardHUD');if(runeHud){const ids=isNordic()?(player.cards||[]):[];const runes=isNordic()?(player.runes||[]):[];const key=ids.join('|')+'~'+runes.join('|');runeHud.style.display=isNordic()?'flex':'none';if(key!==runeHud.dataset.key){runeHud.dataset.key=key;runeHud.innerHTML='<small>JAPÃO · 5</small>'+ids.map(id=>'<img loading="lazy" src="'+(CARD_IMAGES[id]||CARD_IMAGES.heart)+'" title="'+id+'" alt="'+id+'">').join('')+'<small>FUTHARK · '+runes.length+'/'+NORDIC_RUNE_CAP+'</small>'+runes.map(id=>'<img loading="lazy" src="'+(CARD_IMAGES[id]||CARD_IMAGES.heart)+'" title="'+id.slice(2)+'" alt="'+id+'">').join('');}}
@@ -1973,6 +2024,7 @@ function updateHud(){
  $('btnSecondary').querySelector('b').textContent=player.type==='loid'?'SOMBRAS E':player.type==='cross'?'OSSOS E':player.type==='eve'?'TEMPO E':player.type==='kali'?'ESPELHOS E':player.type==='mollitiam'?'CURA E':player.type==='moretti'?'REALIDADE E':player.type==='l0id'?'LEGIÃO E':player.type==='josue'?'TEMPO E':'CORTE E';
  $('playerName').textContent=(player.type==='loid'?'LOID · ESCURIDÃO':player.type==='cross'?'XANS · CORRUPÇÃO':player.type==='eve'?'EVE LOREY · VAZIO':player.type==='kali'?'KALI · ESPELHOS':player.type==='mollitiam'?'MOLLITIAM · TITÃ DA RAIZ':player.type==='moretti'?'MORETTI · REALIDADE':player.type==='l0id'?'L0ID · SOMBRAMANTE':player.type==='josue'?'JOSUÉ · FÚRIA ESPARTANA':player.frogSkill?'KRIS · FORMA DO SAPO':'KRIS · SANTA TRINDADE')+(player.curseTime>0?' · ⚠ FRAQUEZA '+Math.ceil(player.curseTime)+'s':'');
  const supportHud=$('supportBuffHUD');if(supportHud){const status=supportStatus(player);if(supportHud.textContent!==status)supportHud.textContent=status;supportHud.style.display=status?'block':'none';}
+ if(player.mimicOrigin)$('playerName').textContent='MÍMICO · '+MIMIC_NAMES[player.type].toUpperCase();
  $('hpFill').style.width=Math.max(0,player.hp/player.maxHp*100)+'%';
  $('hpText').textContent=`${Math.ceil(player.hp)} / ${player.maxHp}`;
  const skillPct=Math.max(0,100*(1-player.skillCd/player.skillDelay));
@@ -2011,11 +2063,11 @@ function pickCards(){if(isNordic()){
  const available=nordicRewardPool(player),special=available.find(c=>c.specialId),regular=available.filter(c=>!c.specialId),chosen=[];
  while(chosen.length<(special?2:3)&&regular.length){const idx=Math.floor(Math.random()*regular.length);chosen.push(regular.splice(idx,1)[0]);}
  if(special)chosen.push(special);return chosen;
- }const pool=cards;let valid=pool.filter(c=>(!c.hero||c.hero===player.type)&&!(c.id==='gaster'&&player.cardPower)&&!(c.id==='granita'&&player.cardPower)&&!(c.id==='eveprime'&&player.cardPower)&&!(['mollitiamHeart','authorReality','godShadow','chronosFury'].includes(c.id)&&player.cardPower)&&!(c.id==='frog'&&(player.frogSkill||player.frogUsed))&&!(player.frogSkill&&['black','form','awakening','bloodmoon'].includes(c.id))),selected=[];while(selected.length<3&&valid.length){let index=Math.floor(Math.random()*valid.length),c=valid.splice(index,1)[0],weight=c.rarity==='legendary'?.11:c.rarity==='rare'?.45:1;if(Math.random()<weight||valid.length<3-selected.length)selected.push(c)}if(!isNordic()&&player.type==='kris'&&!player.frogSkill&&stage===8&&!selected.some(c=>c.id==='frog')){selected[1]=cards.find(c=>c.id==='frog');}if(!isNordic()&&player.type==='cross'&&!player.cardPower&&stage===8&&!selected.some(c=>c.id==='gaster'))selected[1]=cards.find(c=>c.id==='gaster');if(!isNordic()&&player.type==='mollitiam'&&!player.cardPower&&stage===10&&!selected.some(c=>c.id==='mollitiamHeart'))selected[1]=cards.find(c=>c.id==='mollitiamHeart');if(!isNordic()&&player.type==='loid'&&!player.cardPower&&stage===11&&!selected.some(c=>c.id==='granita'))selected[1]=cards.find(c=>c.id==='granita');if(!player.cardPower&&stage===8&&['moretti','l0id'].includes(player.type)){const c=cards.find(c=>c.hero===player.type&&['authorReality','godShadow'].includes(c.id));if(!selected.includes(c))selected[1]=c;}return selected.slice(0,3)}
+ }const pool=cards;let valid=pool.filter(c=>(!c.hero||c.hero===player.type||(c.id==='mimicMastery'&&player.mimicOrigin))&&!(c.id==='mimicMastery'&&player.mimicMastery)&&!(c.id==='gaster'&&player.cardPower)&&!(c.id==='granita'&&player.cardPower)&&!(c.id==='eveprime'&&player.cardPower)&&!(['mollitiamHeart','authorReality','godShadow','chronosFury'].includes(c.id)&&player.cardPower)&&!(c.id==='frog'&&(player.frogSkill||player.frogUsed))&&!(player.frogSkill&&['black','form','awakening','bloodmoon'].includes(c.id))),selected=[];while(selected.length<3&&valid.length){let index=Math.floor(Math.random()*valid.length),c=valid.splice(index,1)[0],weight=c.rarity==='legendary'?.11:c.rarity==='rare'?.45:1;if(Math.random()<weight||valid.length<3-selected.length)selected.push(c)}if(!isNordic()&&player.type==='kris'&&!player.frogSkill&&stage===8&&!selected.some(c=>c.id==='frog')){selected[1]=cards.find(c=>c.id==='frog');}if(!isNordic()&&player.type==='cross'&&!player.cardPower&&stage===8&&!selected.some(c=>c.id==='gaster'))selected[1]=cards.find(c=>c.id==='gaster');if(!isNordic()&&player.type==='mollitiam'&&!player.cardPower&&stage===10&&!selected.some(c=>c.id==='mollitiamHeart'))selected[1]=cards.find(c=>c.id==='mollitiamHeart');if(!isNordic()&&player.type==='loid'&&!player.cardPower&&stage===11&&!selected.some(c=>c.id==='granita'))selected[1]=cards.find(c=>c.id==='granita');if(!player.cardPower&&stage===8&&['moretti','l0id'].includes(player.type)){const c=cards.find(c=>c.hero===player.type&&['authorReality','godShadow'].includes(c.id));if(!selected.includes(c))selected[1]=c;}return selected.slice(0,3)}
 const rarLabel={common:'COMUM',rare:'RARA',legendary:'LENDÁRIA'};
 function showRewards(){if(coop.active)coop.chosen=false;YG_AUDIO.play('waveClear',1.17);opts=pickCards();let gg=$('rewardGrid');gg.innerHTML='';for(let i=0;i<opts.length;i++){const c=opts[i],b=document.createElement('button');b.className='upgrade '+c.rarity+(isNordic()?' nordic-card':'');b.innerHTML=`<span class="num">0${i+1}</span><div class="iconbox"><img class="card-art" alt="" src="${CARD_IMAGES[c.id]}"></div><strong>${c.name}</strong><span class="rar">◆ ${rarLabel[c.rarity]}</span><div class="desc">${c.desc}</div>`;b.onclick=()=>chooseCard(i);gg.appendChild(b)}$('rewardSubtitle').textContent=(isNordic()?'❄ NÓRDICO · ONDA '+String(localNordicWave()).padStart(2,'0')+' · '+'ESCOLHA UMA RUNA FUTHARK'+' ❄':'◆ ONDA '+String(stage).padStart(2,'0')+' VENCIDA ◆');$('rewardScreen').classList.remove('hidden');updateHud()}
 function chooseCard(i){if(coop.reconnecting||(screenAdjusting&&!coop.executing))return;if(phase!=='reward'||!opts[i])return;let c=opts[i];YG_AUDIO.play('card',1.15);if(coop.active){if(coop.chosen)return;coop.chosen=true;$('rewardScreen').classList.add('hidden');if(coop.host){if(!awardCard(player,c)){coop.chosen=false;showRewards();return;}coop.choices.add(coop.id);showWaitingCards();coopTryWave();coop.checkpointDirty=true;coopSendState(true);}else {showWaitingCards();coopAction('card',c.id);}return;}if(!awardCard(player,c))return;makeParticles(player.x,player.y,'#dfb9ff',25);testBossMode=false;stage++;spawnStage();}
-function restart(){if(coop.active){if(coop.host){coopSend({t:'rematch'});coopNote('Voltando à mesma sala...');}else{coopSend({t:'rematchRequest'});coopNote('Solicitação de revanche enviada ao anfitrião.');$('retry').textContent='AGUARDANDO ANFITRIÃO...';}return;}YG_AUDIO.play('menu',.75);phase='title';testBossMode=false;waveClearTimer=-1;dashShadows=[];shadowClones=[];hazards=[];frostBursts=[];bossMessageTimer=0;player=null;keys.clear();mouseAim=null;pointerDown=false;attackMobile=false;mobileMove={x:0,y:0};enemies=[];particles=[];slashes=[];$('titleScreen').classList.remove('hidden');$('selectScreen').classList.add('hidden');$('worldScreen').classList.add('hidden');$('supremeScreen').classList.add('hidden');$('rewardScreen').classList.add('hidden');$('waitingCards').classList.add('hidden');$('gameOverScreen').classList.add('hidden');$('coopScreen').classList.add('hidden');$('hud').style.display='none';$('mobileControls').style.display='none';document.body.classList.remove('is-playing');adaptViewport()}
+function restart(){closeMimicMenu();$('mimicToggle').hidden=true;if(coop.active){if(coop.host){coopSend({t:'rematch'});coopNote('Voltando à mesma sala...');}else{coopSend({t:'rematchRequest'});coopNote('Solicitação de revanche enviada ao anfitrião.');$('retry').textContent='AGUARDANDO ANFITRIÃO...';}return;}YG_AUDIO.play('menu',.75);phase='title';testBossMode=false;waveClearTimer=-1;dashShadows=[];shadowClones=[];hazards=[];frostBursts=[];bossMessageTimer=0;player=null;keys.clear();mouseAim=null;pointerDown=false;attackMobile=false;mobileMove={x:0,y:0};enemies=[];particles=[];slashes=[];$('titleScreen').classList.remove('hidden');$('selectScreen').classList.add('hidden');$('worldScreen').classList.add('hidden');$('supremeScreen').classList.add('hidden');$('rewardScreen').classList.add('hidden');$('waitingCards').classList.add('hidden');$('gameOverScreen').classList.add('hidden');$('coopScreen').classList.add('hidden');$('hud').style.display='none';$('mobileControls').style.display='none';document.body.classList.remove('is-playing');adaptViewport()}
 function frame(time){
  if(coop.active&&player){const death=$('fallenScreen');if(death)death.classList.toggle('hidden',!(phase==='play'&&player.hp<=0));}
  perfFrames++;if(!perfStart)perfStart=time;
@@ -2183,6 +2235,7 @@ window.addEventListener('keydown',e=>{
  if(phase==='title'){if(key==='enter')openSelection();return;}
  if(phase==='coop'&&waitingVisible()&&!['INPUT','SELECT','TEXTAREA'].includes(e.target?.tagName)){if(key==='e'&&!e.repeat){waitingTalk();return;}if(key==='escape'){waitingDialogClose();waitingMenuClose();return;}if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key))keys.add(key);return;}
  if(phase!=='play')return;
+ if(key==='t'&&!e.repeat){toggleMimicMenu();return;}if(key==='escape'){closeMimicMenu();return;}
  keys.add(key);
  if(key===' ')dash();if(key==='q')skill();if(key==='e'&&!e.repeat)secondaryDown();if(key==='r')ultimate();if(key==='f')cardPower();if(key==='j')attack();
 });
@@ -2240,7 +2293,7 @@ function openSelection(bossId=null){
  $('selectionBack').textContent=bossId?'← VOLTAR AOS CHEFES':'← ESCOLHER OUTRO REINO';
 }
 function openBossList(){YG_AUDIO.play('menu');phase='bosslist';$('titleScreen').classList.add('hidden');$('selectScreen').classList.add('hidden');$('bossScreen').classList.remove('hidden');}
-function launchHero(type){if(type==='l0id'&&!l0idUnlocked)return;if(isNordicEntry(selectedBoss)||(selectedBoss===null&&selectedCampaign==='nordic')){openNordicPassiveScreen(type);return;}start(type,selectedBoss,false);}
+function launchHero(type){if(type==='mimic'&&!mimicUnlocked)return;if(type==='l0id'&&!l0idUnlocked)return;if(isNordicEntry(selectedBoss)||(selectedBoss===null&&selectedCampaign==='nordic')){openNordicPassiveScreen(type);return;}start(type,selectedBoss,false);}
 function openWorldSelect(){YG_AUDIO.play('menu');phase='world';$('titleScreen').classList.add('hidden');$('selectScreen').classList.add('hidden');$('worldScreen').classList.remove('hidden');}
 function chooseWorld(world){selectedCampaign=world==='nordic'?'nordic':'japan';$('worldScreen').classList.add('hidden');openSelection();}
 $('worldJapan').addEventListener('click',()=>chooseWorld('japan'));
@@ -2300,7 +2353,7 @@ function coopRestoreCheckpoint(cp){
  const restoreActor=(a)=>Object.assign(createPlayer(a.type),a,{input:{x:0,y:0,aim:a.aim||0,attack:false},inputAt:performance.now(),secondaryCharging:false});
  player=restoreActor(cp.actors[coop.id]);coop.hostAvatar=player;coop.allies=new Map();
  for(const m of coop.members){if(m.id!==coop.id&&cp.actors[m.id])coop.allies.set(m.id,restoreActor(cp.actors[m.id]));}
- stage=cp.stage;phase=cp.phase;difficulty=cp.difficulty;activeCampaign=cp.activeCampaign;selectedCampaign=activeCampaign;testBossMode=!!cp.testBossMode;selectedBoss=cp.selectedBoss;essence=cp.essence;elapsed=cp.elapsed;waveBalance=coopBalance(cp.wavePlayers);nextEnemyId=cp.nextEnemyId;waveClearTimer=cp.waveClearTimer;waveIntro=cp.waveIntro;eclipseTime=cp.eclipseTime;voidCollapse=cp.voidCollapse;bossMessage=cp.bossMessage;bossMessageTimer=cp.bossMessageTimer;realityVictory=!!cp.realityVictory;
+ stage=cp.stage;phase=cp.phase;difficulty=cp.difficulty;activeCampaign=cp.activeCampaign;selectedCampaign=activeCampaign;testBossMode=!!cp.testBossMode;selectedBoss=cp.selectedBoss;essence=cp.essence;elapsed=cp.elapsed;waveBalance=coopBalance(cp.wavePlayers);nextEnemyId=cp.nextEnemyId;waveClearTimer=cp.waveClearTimer;waveIntro=cp.waveIntro;eclipseTime=cp.eclipseTime;voidCollapse=cp.voidCollapse;bossMessage=cp.bossMessage;bossMessageTimer=cp.bossMessageTimer;realityVictory=!!cp.realityVictory;mimicVictory=!!cp.mimicVictory;if(mimicVictory)unlockMimic();
  enemies=cp.enemies||[];projectiles=cp.projectiles||[];hazards=cp.hazards||[];frostBursts=cp.frostBursts||[];healthDrops=cp.healthDrops||[];rings=cp.rings||[];slashes=cp.slashes||[];shadowClones=(cp.shadowClones||[]).filter(v=>!v.ownerId||coop.members.some(m=>m.id===v.ownerId));realityFields=cp.realityFields||[];dashShadows=cp.dashShadows||[];bonusBeam=cp.bonusBeam||null;xansBlasters=cp.xansBlasters||[];timeFields=cp.timeFields||[];evePortals=cp.evePortals||[];mirrorIllusions=(cp.mirrorIllusions||[]).map(v=>({...v,owner:v.ownerId===coop.id?player:coop.allies.get(v.ownerId)})).filter(v=>v.owner);
  particles=[];damageFloats=[];coop.choices=new Set((cp.choices||[]).filter(id=>coop.members.some(m=>m.id===id)));coop.chosen=coop.choices.has(coop.id);coop.selectingUltimate=false;
  coop.enemyTargets.clear();coop.targetAllies.clear();coop.targetLocal=null;coop.guestVisibleHp=player.hp;camera.x=clamp(player.x-W/2,0,WORLD_W-W);camera.y=clamp(player.y-H/2,0,WORLD_H-H);
@@ -2387,7 +2440,7 @@ function coopRenderLobby(){
  const balance=coopBalance(coop.members.length),scale=$('coopScale');if(scale)scale.textContent=`ESCALA COOPERATIVA · ${balance.players}P · Chefes: ${Math.round(balance.bossHp*100)}% VIDA · ${Math.round(balance.bossDamage*100)}% DANO`;
  $('coopHostOptions').hidden=!coop.host;$('coopBegin').hidden=!coop.host;
  if(coop.host){const d=$('coopDifficulty');if(d&&!d.dataset.touched)d.value=difficulty;const b=$('coopBoss');if(b)b.value=coopMode;}renderCoopPassives();
- document.querySelectorAll('[data-coop-hero]').forEach(b=>{const mine=coop.members.some(m=>m.id===coop.id&&m.hero===b.dataset.coopHero);const occupied=coop.members.some(m=>m.id!==coop.id&&m.hero===b.dataset.coopHero);b.classList.toggle('selected',mine);b.disabled=occupied;b.classList.toggle('secret-locked',b.dataset.coopHero==='l0id'&&!l0idUnlocked);b.title=occupied?'Já escolhido por outro jogador':'';});
+ document.querySelectorAll('[data-coop-hero]').forEach(b=>{const mine=coop.members.some(m=>m.id===coop.id&&m.hero===b.dataset.coopHero);const occupied=coop.members.some(m=>m.id!==coop.id&&m.hero===b.dataset.coopHero);b.classList.toggle('selected',mine);b.disabled=occupied;b.classList.toggle('secret-locked',(b.dataset.coopHero==='l0id'&&!l0idUnlocked)||(b.dataset.coopHero==='mimic'&&!mimicUnlocked));b.title=occupied?'Já escolhido por outro jogador':'';});
  $('coopBegin').disabled=!coop.host||coop.members.length<2||coop.members.some(m=>!m.hero)||new Set(coop.members.map(m=>m.hero)).size!==coop.members.length||(isNordicEntry(coopMode)&&coop.members.some(m=>!validNordicPassives(m.passives)));
 }
 function coopOnMessage(m){
@@ -2453,7 +2506,7 @@ function coopRemotePress(id,action,value,aim,dx,dy){
  }
  if(action==='card'){
    if(phase!=='reward'||coop.choices.has(id))return;
-   const c=(isNordic()?nordicRewardPool(a):cards).find(c=>c.id===value&&(!c.hero||c.hero===a.type));if(!c)return;
+   const c=(isNordic()?nordicRewardPool(a):cards).find(c=>c.id===value&&(!c.hero||c.hero===a.type||(c.id==='mimicMastery'&&a.mimicOrigin)));if(!c||c.id==='mimicMastery'&&a.mimicMastery)return;
    if((c.id==='frog'&&a.frogSkill)||(['gaster','granita','eveprime','mollitiamHeart','authorReality','godShadow'].includes(c.id)&&a.cardPower))return;
    if(!awardCard(a,c))return;coop.choices.add(id);coopTryWave();coop.checkpointDirty=true;coopSendState(true);return;
  }
@@ -2465,6 +2518,7 @@ function coopRemotePress(id,action,value,aim,dx,dy){
    ring(a.x,a.y,50,'#bd84ff');return;
  }
  if(phase!=='play'||a.hp<=0)return;
+ if(action==='mimic'){if(mimicTransform(a,value)){coop.checkpointDirty=true;coopSendState(true);}return;}
  // Held attack is checked every frame; skip no-op strikes before expensive camera/actor setup.
  if(action==='attack'&&a.atkTime>0)return;
  if(action==='ultimate'&&a.type==='kris'){
@@ -2616,7 +2670,7 @@ function coopSendState(force=false){
   projectiles:projectiles.slice(-160).map(slim),
   hazards:hazards.slice(-60),healthDrops:healthDrops,
   rings:rings.slice(-20),slashes:slashes.slice(-20),
-  shadowClones:shadowClones.slice(-64).map(cloneWire),realityFields,realityVictory,dashShadows:dashShadows.slice(-18),
+  shadowClones:shadowClones.slice(-64).map(cloneWire),realityFields,realityVictory,mimicVictory,dashShadows:dashShadows.slice(-18),
   bonusBeam,xansBlasters:xansBlasters.slice(-4),timeFields:timeFields.slice(-3).map(t=>({...t})),mirrorIllusions:mirrorIllusions.slice(-25).map(v=>({x:v.x,y:v.y,life:v.life,ownerType:v.owner?.type||'kali'})),voidCollapse,evePortals:evePortals.slice(-5),waveIntro,eclipseTime,bossMessage,bossMessageTimer,elapsed,mandatory
  }};
  // A complete authoritative checkpoint is kept by the room server only, not broadcast to all guests.
@@ -2673,7 +2727,7 @@ function coopApplyState(s){
  for(const incoming of s.enemies||[]){if(!nextEnemyTargets.has(incoming.id))nextEnemyTargets.set(incoming.id,{x:incoming.x,y:incoming.y,vx:0,vy:0});}
  coop.enemyTargets=nextEnemyTargets;
  projectiles=s.projectiles||[];hazards=s.hazards||[];
- healthDrops=s.healthDrops||[];rings=s.rings||[];slashes=s.slashes||[];shadowClones=wasStage===s.stage?mergeGuestClones(s.shadowClones||[]):(s.shadowClones||[]);realityFields=s.realityFields||[];if(s.realityVictory)unlockL0id();dashShadows=s.dashShadows||[];
+ healthDrops=s.healthDrops||[];rings=s.rings||[];slashes=s.slashes||[];shadowClones=wasStage===s.stage?mergeGuestClones(s.shadowClones||[]):(s.shadowClones||[]);realityFields=s.realityFields||[];if(s.realityVictory)unlockL0id();if(s.mimicVictory)unlockMimic();dashShadows=s.dashShadows||[];
  bonusBeam=s.bonusBeam||null;xansBlasters=s.xansBlasters||[];timeFields=s.timeFields||[];mirrorIllusions=(s.mirrorIllusions||[]).map(v=>({...v,owner:{type:v.ownerType}}));voidCollapse=s.voidCollapse||0;if(Array.isArray(s.evePortals)&&s.evePortals.length){const old=evePortals.filter(x=>x.local);evePortals=[...old,...s.evePortals.map(p=>({...p}))].slice(-7);}waveIntro=s.waveIntro||0;eclipseTime=s.eclipseTime||0;
  if(Number.isFinite(s.elapsed))elapsed=s.elapsed;bossMessage=s.bossMessage||'';bossMessageTimer=s.bossMessageTimer||0;
  if(!coop.selectingUltimate){
@@ -2705,7 +2759,7 @@ $('waitingControls').addEventListener('click',()=>{waitingMenuClose();openContro
 $('waitingAudio').addEventListener('click',()=>{$('toggleAudio').click();$('waitingAudio').textContent=$('toggleAudio').textContent;});$('waitingVolume').addEventListener('input',e=>{YG_AUDIO.setVolume(e.target.value);});
 $('waitingInteract').addEventListener('click',()=>waitingTalk());$('waitingDialogClose').addEventListener('click',waitingDialogClose);
 // NPC interaction is explicit (button or E), never a random tap on the map.
-for(const b of document.querySelectorAll('[data-coop-hero]'))b.addEventListener('click',()=>{if(b.dataset.coopHero==='l0id'&&!l0idUnlocked)return;waiting.editing=false;waitingUI();coopSend({t:'choose',hero:b.dataset.coopHero});});
+for(const b of document.querySelectorAll('[data-coop-hero]'))b.addEventListener('click',()=>{if((b.dataset.coopHero==='l0id'&&!l0idUnlocked)||(b.dataset.coopHero==='mimic'&&!mimicUnlocked))return;waiting.editing=false;waitingUI();coopSend({t:'choose',hero:b.dataset.coopHero});});
 const waitingStick=$('waitingStick'),waitingKnob=$('waitingKnob');
 function waitingTouch(e){const box=waitingStick.getBoundingClientRect(),r=box.width*.32;let x=e.clientX-box.left-box.width/2,y=e.clientY-box.top-box.height/2;const l=Math.hypot(x,y);if(l>r){x*=r/l;y*=r/l;}waiting.joy={x:x/r,y:y/r};waitingKnob.style.left=`calc(50% + ${x}px)`;waitingKnob.style.top=`calc(50% + ${y}px)`;}
 waitingStick.addEventListener('pointerdown',e=>{e.preventDefault();if(waiting.pid!==null)return;waiting.pid=e.pointerId;waitingStick.setPointerCapture(e.pointerId);waitingTouch(e);});
@@ -2738,7 +2792,8 @@ applyControlSettings();
 
 requestAnimationFrame(frame);
 
-$('chooseJosue').addEventListener('click',()=>launchHero('josue'));$('chooseMoretti').addEventListener('click',()=>launchHero('moretti'));$('chooseL0id').addEventListener('click',()=>launchHero('l0id'));document.querySelectorAll('[data-secret-code]').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault();const field=form.querySelector('input');form.querySelector('output').textContent=secretCode(field.value)?'L0ID desbloqueado!':'Código inválido';}));refreshL0id();
+$('chooseMimic').addEventListener('click',()=>launchHero('mimic'));$('mimicToggle').addEventListener('click',toggleMimicMenu);$('mimicClose').addEventListener('click',closeMimicMenu);document.querySelectorAll('[data-mimic-form]').forEach(b=>b.addEventListener('click',()=>chooseMimicForm(b.dataset.mimicForm)));refreshMimic();
+$('chooseJosue').addEventListener('click',()=>launchHero('josue'));$('chooseMoretti').addEventListener('click',()=>launchHero('moretti'));$('chooseL0id').addEventListener('click',()=>launchHero('l0id'));document.querySelectorAll('[data-secret-code]').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault();const field=form.querySelector('input');form.querySelector('output').textContent=secretCode(field.value)?(field.value.trim().toUpperCase()==='KR1S'?'Mímico desbloqueado!':'L0ID desbloqueado!'):'Código inválido';}));refreshL0id();
 
 $('networkRecoveryCancel')?.addEventListener('click',()=>coopRecoveryFailed('Reconexão cancelada.'));
 try{const saved=JSON.parse(sessionStorage.getItem('ygg.coop.resume')||'null');if(saved?.token&&saved?.code&&window.WebSocket&&location.protocol!=='file:'){coop.room=saved.code;coop.token=saved.token;coop.active=true;coop.reconnecting=true;coop.reconnectUntil=Date.now()+120000;coopReconnectUI();coopOpenSocket({t:'resume',code:coop.room,token:coop.token});}}catch{}
