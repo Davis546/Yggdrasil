@@ -1,0 +1,12 @@
+# Yggdrasil RPG V6.2.0 — Guardiões de Yggdrasil
+Patch cumulativo a partir da V6.1.6, para extrair sobre o repositório existente. Não é uma distribuição independente com todas as músicas e imagens anteriores.
+
+- Boss Rush: remove +12% dano e +10% PV base de toda carta. Incrementos numéricos selecionados recebem 20% de reforço em relação à Jornada, não 20 pontos percentuais; limites de PV (225% base), dano base (165%), crítico, recargas e outros atributos. Chefes escalam mais após a onda 8. Dano de golpes comuns em chefes tem teto por golpe; poderes especiais têm regras específicas. Não é um teto absoluto de dano final de habilidades.
+- Defesa: solo e cooperativo, mapa procedural, árvore 1.200 PV, ondas ilimitadas, chefes a cada cinco, cartas de cura, escudo e raízes. O host continua simulando o cooperativo.
+- Perfil local: maestria 1–10, 10 XP por onda, skin alternativa por personagem no nível 3 (recolorização dos sprites, não arte nova), conquistas, desafios permanentes, estatísticas de dano, abates e cura de suporte (não inclui todas as fontes de cura).
+- Inimigos de elite: regeneração, velocidade, resistência ou explosão. Cinco cartas de sinergia cooperativa dependentes da composição da equipe.
+- Duelo experimental: 1v1 e 2v2, servidor autoritativo, equipes por ordem de entrada, dano entre aliados bloqueado. Reaproveita o motor anterior, aproxima algumas habilidades da Jornada (Xans, Kali, Mollitiam, Eve), sem paridade integral; apenas os seis heróis já implementados no Duelo são selecionáveis. Mira para celular e envio imediato de mudanças de controle. Ranking separado por modalidade, +25 vitória/-15 derrota, sem pontos por empate/desconexão; armazenamento persistente no servidor, apelido e identificador aleatório local. Não há conta autenticada, temporadas nem proteção completa contra combinação de resultados. Skins/maestria são locais no PvE.
+- Mantém as otimizações da V6.1.6, sem promessa de redução do RTT real. Mira móvel PvE é atualizada antes do envio de comandos; mensagem de transformação bloqueada no Mímico solo. Não houve validação em celulares físicos ou servidor Cloudflare real.
+
+## Testes
+`npm run test:620`: limites das cartas, defesa, árvore, sinergia, maestria, transformação, Duelo 1v1/2v2 e ranking simulado no servidor, relay da árvore. Também executada regressão V6.1.6 ajustando apenas a expectativa de versão para 620. Testes automatizados, não substituem partidas reais.

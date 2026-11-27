@@ -8,7 +8,7 @@ const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali', 'mollitiam', 'mo
 const RESUME_MS = 120000;
 const makeResumeToken=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('');
 const MAX_COOP_PLAYERS = 5; // five players per room; six selectable heroes
-const BOSSES = new Set(['japan', 'rush', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'odin', 'nameless', 'pecadoNordic']);
+const BOSSES = new Set(['japan', 'rush', 'defense', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'odin', 'nameless', 'pecadoNordic']);
 const NORSE_BOSSES=new Set(['nordic','frostjarl','odin','nameless','pecadoNordic']);
 const WAIT_JP_POLYS=[[[650,345],[1184,345],[1200,570],[1150,620],[1100,675],[925,675],[870,620],[780,620],[710,670],[650,595],[620,535],[620,460]],[[330,505],[650,490],[665,565],[330,575]],[[205,575],[335,505],[350,575],[265,680],[255,750],[295,825],[330,900],[302,946],[217,850],[185,735],[180,650]]];
 const WAIT_NPCS=[{id:'amaterasu',x:914,y:391},{id:'caine',x:1015,y:463}];
@@ -27,11 +27,15 @@ function pvpOffer(hero){
 }
 
 
-const rankModes60=new Set(['rush','japan','nordic']),rankKinds60=new Set(['solo','coop']),rankDiffs60=new Set(['normal','pecador']);
+const rankModes60=new Set(['rush','japan','nordic','defense']),rankKinds60=new Set(['solo','coop']),rankDiffs60=new Set(['normal','pecador']);
 const rankJson60=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 function rankCategory60(v){return rankModes60.has(v.mode)&&rankKinds60.has(v.kind)&&rankDiffs60.has(v.difficulty)?`rank60:${v.mode}:${v.kind}:${v.difficulty}`:null;}
-async function ranking60(request,storage){const url=new URL(request.url);if(request.method==='GET'){const key=rankCategory60(Object.fromEntries(url.searchParams));if(!key)return rankJson60({error:'Categoria inválida'},400);return rankJson60({entries:await storage.get(key)||[],verified:false});}if(request.method!=='POST')return rankJson60({error:'Método inválido'},405);let v;try{const body=await request.text();if(body.length>2048)return rankJson60({error:'Pedido muito grande'},413);v=JSON.parse(body);}catch{return rankJson60({error:'JSON inválido'},400);}if(!v||typeof v!=='object')return rankJson60({error:'Dados inválidos'},400);const key=rankCategory60(v);const name=typeof v.name==='string'?v.name.trim().normalize('NFC'):'';const wave=v.wave;if(!key||!HEROES.has(v.hero)||!name||name.length>24||!/^[\p{L}\p{N} _.-]+$/u.test(name)||!Number.isInteger(wave)||wave<1||wave>(v.mode==='rush'?10000:20))return rankJson60({error:'Dados inválidos'},400);const row={name,hero:v.hero,wave};await storage.transaction(async tx=>{const entries=await tx.get(key)||[];const i=entries.findIndex(x=>x.name.toLocaleLowerCase('pt-BR')===name.toLocaleLowerCase('pt-BR')&&x.hero===v.hero);if(i>=0&&entries[i].wave>=wave)return;if(i>=0)entries.splice(i,1);entries.push(row);entries.sort((a,b)=>b.wave-a.wave||a.name.localeCompare(b.name,'pt-BR')||a.hero.localeCompare(b.hero));await tx.put(key,entries.slice(0,100));});return rankJson60({ok:true,verified:false});}
+async function ranking60(request,storage){const url=new URL(request.url);if(request.method==='GET'){const key=rankCategory60(Object.fromEntries(url.searchParams));if(!key)return rankJson60({error:'Categoria inválida'},400);return rankJson60({entries:await storage.get(key)||[],verified:false});}if(request.method!=='POST')return rankJson60({error:'Método inválido'},405);let v;try{const body=await request.text();if(body.length>2048)return rankJson60({error:'Pedido muito grande'},413);v=JSON.parse(body);}catch{return rankJson60({error:'JSON inválido'},400);}if(!v||typeof v!=='object')return rankJson60({error:'Dados inválidos'},400);const key=rankCategory60(v);const name=typeof v.name==='string'?v.name.trim().normalize('NFC'):'';const wave=v.wave;if(!key||!HEROES.has(v.hero)||!name||name.length>24||!/^[\p{L}\p{N} _.-]+$/u.test(name)||!Number.isInteger(wave)||wave<1||wave>(['rush','defense'].includes(v.mode)?10000:20))return rankJson60({error:'Dados inválidos'},400);const row={name,hero:v.hero,wave};await storage.transaction(async tx=>{const entries=await tx.get(key)||[];const i=entries.findIndex(x=>x.name.toLocaleLowerCase('pt-BR')===name.toLocaleLowerCase('pt-BR')&&x.hero===v.hero);if(i>=0&&entries[i].wave>=wave)return;if(i>=0)entries.splice(i,1);entries.push(row);entries.sort((a,b)=>b.wave-a.wave||a.name.localeCompare(b.name,'pt-BR')||a.hero.localeCompare(b.hero));await tx.put(key,entries.slice(0,100));});return rankJson60({ok:true,verified:false});}
 
+const rankName62=p=>p>=1500?'Yggdrasil':p>=1000?'Divindade':p>=700?'Diamante':p>=450?'Platina':p>=250?'Ouro':p>=100?'Prata':'Bronze';
+function identity62(m){const name=typeof m.name==='string'?m.name.trim().normalize('NFC'):'';return /^[a-f0-9]{48}$/.test(m.key||'')&&name.length>=1&&name.length<=24&&/^[\p{L}\p{N} _.-]+$/u.test(name)?{key:m.key,name}:null;}
+const duelRankKey62=size=>'duelrank62:'+(size===4?4:2);
+async function saveDuelRank62(storage,room){if(!room.ranked||room.match.winnerTeam==null)return false;const fighters=[...room.members].filter(x=>x.role==='fighter');if(fighters.length!==room.size||fighters.some(x=>!x.duelIdentity))return false;const winner=room.match.winnerTeam;await storage.transaction(async tx=>{const key=duelRankKey62(room.size);const rows=await tx.get(key)||[];fighters.forEach((f,i)=>{let row=rows.find(x=>x.key===f.duelIdentity.key);if(!row){row={...f.duelIdentity,points:0,wins:0,losses:0};rows.push(row);}row.name=f.duelIdentity.name;const win=i%2===winner;row.points=Math.max(0,row.points+(win?25:-15));row.wins+=win?1:0;row.losses+=win?0:1;});rows.sort((a,b)=>b.points-a.points||b.wins-a.wins);await tx.put(key,rows.slice(0,1000));});return true;}
 export class Lobby extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -46,7 +50,7 @@ export class Lobby extends DurableObject {
       const a = socket.deserializeAttachment() || {};
       const id = typeof a.id === 'string' ? a.id : String(this.nextId++);
       this.nextId = Math.max(this.nextId, (Number(id) || 0) + 1);
-      const c = { id, socket, hero: a.hero || null, room: null, role:a.role||'fighter', offer:a.offer||[], picks:a.picks||[], passives:a.passives||[], token:a.token||null,wire616:a.wire616===true };
+      const c = { id, socket, hero: a.hero || null, room: null, role:a.role||'fighter', offer:a.offer||[], picks:a.picks||[], passives:a.passives||[], token:a.token||null,wire616:a.wire616===true,duelIdentity:a.duelIdentity||null };
       this.players.set(id, c);
     }
     for (const c of this.players.values()) {
@@ -54,7 +58,7 @@ export class Lobby extends DurableObject {
       if (!a.code) continue;
       let room = this.rooms.get(a.code);
       if (!room) {
-        room = { code: a.code, members: new Set(), host: null, started: !!a.started, kind:a.kind||'coop', selectedBoss:a.boss||'japan', lastSnapshot:null, finished:false };
+        room = { code: a.code, members: new Set(), host: null, started: !!a.started, kind:a.kind||'coop', selectedBoss:a.boss||'japan', lastSnapshot:null, finished:false,size:a.duelSize===4?4:2,ranked:a.duelRanked===true };
         this.rooms.set(a.code, room);
       }
       room.members.add(c);
@@ -63,7 +67,7 @@ export class Lobby extends DurableObject {
     }
     for (const [code, room] of this.rooms) {
       if(room.kind!=='pvp'){room.reserved=new Map();room.epoch=1;room.checkpoint=null;room.startInfo=null;}
-      if (!room.host || (room.kind!=='pvp'&&room.started)) {
+      if (!room.host || room.started) {
         for (const c of room.members) this.safeSend(c, { t: 'closed', message: 'Anfitrião desconectado.' });
         for (const c of room.members) { c.room = null; this.persist(c); }
         this.rooms.delete(code);
@@ -74,7 +78,7 @@ export class Lobby extends DurableObject {
   persist(c) {
     if(!c.socket)return;
     c.socket.serializeAttachment({
-      token:c.token||null,wire616:c.wire616===true,
+      token:c.token||null,wire616:c.wire616===true,duelIdentity:c.duelIdentity||null,duelSize:c.room?.size||2,duelRanked:c.room?.ranked===true,
       id: c.id,
       code: c.room?.code || null,
       hero: c.hero || null,
@@ -225,9 +229,9 @@ export class Lobby extends DurableObject {
           }
           if(room.match.finished){
             room.finished=true;
-            const result={t:'pvpResult',winner:room.match.winner,reason:'DUELO ENCERRADO'};
-            for(const p of room.members)this.safeSend(p,result);
-            this.pvpLobby(room);
+            const result={t:'pvpResult',winner:room.match.winner,winnerTeam:room.match.winnerTeam,reason:'DUELO ENCERRADO',ranked:false};
+            const recipients=[...room.members];const done=ok=>{for(const p of recipients)if(p.room===room)this.safeSend(p,{...result,ranked:ok});this.pvpLobby(room);};
+            if(room.ranked&&this.ctx?.storage){room.savingRank=true;const task=saveDuelRank62(this.ctx.storage,room).then(done,()=>done(false)).finally(()=>{room.savingRank=false;});this.ctx.waitUntil?.(task);}else done(false);
           }
         }catch(e){
           room.finished=true;
@@ -238,10 +242,10 @@ export class Lobby extends DurableObject {
     },50);
   }
   pvpMembers(room){
-    return [...room.members].map(c=>({id:c.id,role:c.role,hero:c.hero||null,chosen:(c.picks||[]).length,ready:(c.picks||[]).length===3&&!!c.hero}));
+    let i=0;return [...room.members].map(c=>({id:c.id,role:c.role,team:c.role==='fighter'?i++%2:null,hero:c.hero||null,chosen:(c.picks||[]).length,ready:(c.picks||[]).length===3&&!!c.hero}));
   }
   pvpLobby(room){
-    const data={t:'pvpLobby',code:room.code,members:this.pvpMembers(room),host:room.host.id,started:room.started,finished:!!room.finished};
+    const data={t:'pvpLobby',code:room.code,members:this.pvpMembers(room),host:room.host.id,started:room.started,finished:!!room.finished,size:room.size||2,ranked:!!room.ranked};
     for(const p of room.members)this.safeSend(p,data);
   }
   pvpLeave(c,room){
@@ -252,22 +256,23 @@ export class Lobby extends DurableObject {
     if(c.role==='fighter' && room.started && !room.finished){
       const survivor=[...room.members].find(x=>x.role==='fighter');
       room.finished=true;
-      for(const other of room.members)this.safeSend(other,{t:'pvpResult',winner:survivor?.id||null,reason:'Oponente desconectado'});
+      for(const other of room.members)this.safeSend(other,{t:'pvpResult',winner:room.size===4?null:survivor?.id||null,winnerTeam:null,ranked:false,reason:'Oponente desconectado'});
     }
     this.pvpLobby(room);
   }
-  pvpJoin(c,room,role){
+  pvpJoin(c,room,role,identity=null){
     if(room.kind!=='pvp'){this.safeSend(c,{t:'error',message:'Esta não é uma sala X1.'});return;}
     if(room.members.size>=12){this.safeSend(c,{t:'error',message:'Arena cheia.'});return;}
     const fighters=[...room.members].filter(x=>x.role==='fighter');
-    if(role==='fighter'&&(fighters.length>=2||room.started)){
-      this.safeSend(c,{t:'error',message:'As duas vagas de lutador estão ocupadas. Entre como espectador.'});return;
+    if(role==='fighter'&&(fighters.length>=(room.size||2)||room.started)){
+      this.safeSend(c,{t:'error',message:'As vagas de lutador estão ocupadas. Entre como espectador.'});return;
     }
+    if(role==='fighter'&&room.ranked&&(!identity||fighters.some(x=>x.duelIdentity?.key===identity.key))){this.safeSend(c,{t:'error',message:'Informe um apelido válido e use um perfil diferente por lutador.'});return;}
     if(c.room)this.leaveRoom(c);
-    c.room=room;c.role=role;c.hero=null;c.picks=[];c.offer=[];
+    c.room=room;c.role=role;c.hero=null;c.picks=[];c.offer=[];c.duelIdentity=identity;
     room.members.add(c);this.persist(c);
     this.safeSend(c,{t:'pvpWelcome',id:c.id,code:room.code,role:c.role,host:room.host.id,offer:c.offer,
-      members:this.pvpMembers(room),started:room.started,finished:!!room.finished});
+      members:this.pvpMembers(room),started:room.started,finished:!!room.finished,size:room.size||2,ranked:!!room.ranked});
     this.pvpLobby(room);
     if(room.started){
       this.safeSend(c,{t:'pvpBegin',fighters:this.pvpMembers(room).filter(x=>x.role==='fighter').map(x=>({...x,cards:this.players.get(x.id)?.picks||[]})),
@@ -278,6 +283,7 @@ export class Lobby extends DurableObject {
 
   async fetch(request) {
     const url = new URL(request.url);
+    if(url.pathname==='/duel-ranking'){if(request.method!=='GET')return rankJson60({error:'Método inválido'},405);const rows=await this.ctx.storage.get(duelRankKey62(Number(url.searchParams.get('size'))))||[];return rankJson60({entries:rows.slice(0,100).map(({name,points,wins,losses})=>({name,points,wins,losses,rank:rankName62(points)}))});}
     if (url.pathname === '/ranking') return ranking60(request,this.ctx.storage);
     if (url.pathname === '/health') {
       return new Response(JSON.stringify({ ok: true, rooms: this.rooms.size }), {
@@ -310,17 +316,18 @@ export class Lobby extends DurableObject {
     if(raw.length>180000&&!(m.t==='state'&&c.room?.host===c&&c.room.kind!=='pvp'))return;
     // PvP is isolated from the original cooperative protocol.
     if (m.t === 'pvpCreate') {
+      const identity=identity62(m);if(m.ranked===true&&!identity){this.safeSend(c,{t:'error',message:'Digite um apelido válido para o competitivo.'});return;}
       if(c.room)this.leaveRoom(c);
       const code=this.makeCode();
-      const room={code,host:c,members:new Set(),started:false,finished:false,kind:'pvp',lastSnapshot:null};
+      const room={code,host:c,members:new Set(),started:false,finished:false,kind:'pvp',lastSnapshot:null,size:m.size===4?4:2,ranked:m.ranked===true};
       this.rooms.set(code,room);
-      this.pvpJoin(c,room,'fighter');return;
+      this.pvpJoin(c,room,'fighter',identity);return;
     }
     if (m.t === 'pvpJoin') {
       const code=String(m.code||'').trim().toUpperCase();
       const room=this.rooms.get(code);
       if(!room){this.safeSend(c,{t:'error',message:'Sala X1 não encontrada.'});return;}
-      this.pvpJoin(c,room,m.role==='spectator'?'spectator':'fighter');return;
+      this.pvpJoin(c,room,m.role==='spectator'?'spectator':'fighter',identity62(m));return;
     }
     if (m.t === 'pvpLeave'){this.leaveRoom(c);return;}
     if (c.room?.kind === 'pvp') {
@@ -340,14 +347,14 @@ export class Lobby extends DurableObject {
       }
       if(m.t==='pvpBegin'&&!r.started&&r.host===c){
         const fighters=[...r.members].filter(p=>p.role==='fighter');
-        if(fighters.length!==2||fighters.some(p=>!p.hero||p.picks.length!==3)||fighters[0].hero===fighters[1].hero){
-          this.safeSend(c,{t:'error',message:'Aguarde dois lutadores com personagem e 3 cartas escolhidas.'});return;
+        if(fighters.length!==(r.size||2)||fighters.some(p=>!p.hero||p.picks.length!==3)||new Set(fighters.map(p=>p.hero)).size!==fighters.length){
+          this.safeSend(c,{t:'error',message:'Aguarde todos os lutadores com personagem e 3 cartas escolhidas.'});return;
         }
         r.started=true;r.finished=false;r.lastSnapshot=null;
         r.match=createDuel(fighters.map(p=>({id:p.id,hero:p.hero,cards:p.picks})));
         this.ensureDuelTicker();
         const started={t:'pvpBegin',host:r.host.id,authority:'server',hp:11200,
-          fighters:fighters.map(p=>({id:p.id,hero:p.hero,cards:p.picks}))};
+          size:r.size||2,fighters:fighters.map((p,i)=>({id:p.id,hero:p.hero,cards:p.picks,team:i%2}))};
         for(const p of r.members){this.persist(p);this.safeSend(p,started);}this.pvpLobby(r);return;
       }
       // Server-authoritative movement and skills: applies equally to both fighters.
@@ -364,6 +371,12 @@ export class Lobby extends DurableObject {
         const packet={t:'pvpSnapshot',data:r.match.snapshot()};r.lastSnapshot=packet.data;
         for(const p of r.members)this.safeSend(p,packet);
         return;
+      }
+      if(m.t==='pvpRematch'&&r.host===c&&r.started&&r.finished&&!r.savingRank){
+        r.started=false;r.finished=false;r.lastSnapshot=null;r.match=null;r.netTick=0;
+        for(const p of r.members){p.picks=[];p.offer=p.role==='fighter'&&p.hero?pvpOffer(p.hero):[];this.persist(p);
+          this.safeSend(p,{t:'pvpReset',offer:p.offer});}
+        this.pvpLobby(r);return;
       }
       if(r.match)return; // Legacy host/P2P transport is intentionally disabled for this duel.
       // Secure WebRTC signaling within an active X1 room. Only the two verified
@@ -406,12 +419,6 @@ export class Lobby extends DurableObject {
         for(const other of r.members)this.safeSend(other,{t:'pvpResult',winner:m.winner,reason:'DUELO ENCERRADO'});
         this.pvpLobby(r);return;
       }
-      if(m.t==='pvpRematch'&&r.host===c&&r.started){
-        r.started=false;r.finished=false;r.lastSnapshot=null;r.match=null;
-        for(const p of r.members){p.picks=[];p.offer=p.role==='fighter'&&p.hero?pvpOffer(p.hero):[];this.persist(p);
-          this.safeSend(p,{t:'pvpReset',offer:p.offer});}
-        this.pvpLobby(r);return;
-      }
       return;
     }
     if (m.t === 'create') {
@@ -419,7 +426,7 @@ export class Lobby extends DurableObject {
       // New host room. If already in one, leave it before creating another.
       if (c.room) this.leaveRoom(c);
       const code = this.makeCode();
-      const room = { code, host: c, members: new Set(), reserved:new Map(), epoch:1, checkpoint:null, startInfo:null, started: false, selectedBoss:['japan','nordic','rush'].includes(m.boss)?m.boss:'japan' };
+      const room = { code, host: c, members: new Set(), reserved:new Map(), epoch:1, checkpoint:null, startInfo:null, started: false, selectedBoss:['japan','nordic','rush','defense'].includes(m.boss)?m.boss:'japan' };
       this.rooms.set(code, room);
       this.joinRoom(c, room);
       return;
@@ -567,7 +574,7 @@ export default {
     const url = new URL(request.url);
     if(url.pathname==='/net-edge')return new Response(JSON.stringify({ok:true,colo:request.cf?.colo||'unknown'}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
     if(url.pathname==='/ranking'){const id=env.LOBBY.idFromName('yggdrasil-world-ranking-v60');return env.LOBBY.get(id).fetch(request);}
-    if (url.pathname === '/ws' || url.pathname === '/health') {
+    if (url.pathname === '/ws' || url.pathname === '/health' || url.pathname === '/duel-ranking') {
       const id = env.LOBBY.idFromName('yggdrasil-sam-lobby-v493');
       const stub = env.LOBBY.get(id,{locationHint:'sam'});
       return stub.fetch(request);

@@ -6,7 +6,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const nfmt=n=>Math.max(0,Math.round(n)).toLocaleString('pt-BR');
 // v3.5 — shared rules of the same skills in campaign/co-op and X1.
-const heroes={loid:{name:'LOID',dmg:128,speed:175,attack:.37,range:46,crit:.09,skill:9,second:20,dash:2.4,color:'#cda4f2'},kris:{name:'KRIS',dmg:158,speed:157,attack:.43,range:109,crit:.08,skill:14,second:8.5,dash:2.8,color:'#6dbbff'},cross:{name:'XANS',dmg:137,speed:174,attack:.40,range:98,crit:.26,skill:6.5,second:9,dash:2.55,color:'#bb74ff'},eve:{name:'EVE LOREY',dmg:175,speed:197,attack:.34,range:113,crit:.15,skill:21,second:18,dash:2.2,color:'#916aff'},kali:{name:'KALI',dmg:113,speed:162,attack:.44,range:157,crit:.08,skill:20,second:18,dash:2.6,color:'#dfaafa'},mollitiam:{name:'MOLLITIAM',dmg:245,speed:105,attack:1.16,range:112,crit:.10,skill:12,second:30,dash:4.0,color:'#e6bb7c'}};
+const heroes={loid:{name:'LOID',dmg:128,speed:175,attack:.37,range:46,crit:.09,skill:9,second:20,dash:2.4,color:'#cda4f2'},kris:{name:'KRIS',dmg:158,speed:157,attack:.43,range:109,crit:.08,skill:14,second:8.5,dash:2.8,color:'#6dbbff'},cross:{name:'XANS',dmg:75,speed:145,attack:.18,range:34,crit:.26,skill:6.5,second:9,dash:1.05,color:'#bb74ff'},eve:{name:'EVE LOREY',dmg:175,speed:197,attack:.34,range:113,crit:.15,skill:21,second:18,dash:2.2,color:'#916aff'},kali:{name:'KALI',dmg:113,speed:162,attack:.44,range:157,crit:.08,skill:20,second:18,dash:2.6,color:'#dfaafa'},mollitiam:{name:'MOLLITIAM',dmg:245,speed:105,attack:1.16,range:112,crit:.10,skill:12,second:30,dash:4.0,color:'#e6bb7c'}};
 const cards={
   heart:['Coração da Raiz','+1.100 de vida máxima.'],blade:['Fio da Ruína','+12% de dano.'],fast:['Dança das Lâminas','+10% de rapidez de ataque.'],speed:['Passos Leves','+8% velocidade de movimento.'],armor:['Casca Ancestral','9% menos dano recebido.'],reach:['Alcance da Raiz','+10% alcance (máximo 25%).'],dodge:['Reflexos Antigos','Esquiva recarrega mais rápido.'],critical:['Olho do Predador','+8% chance de crítico.'],arc:['Corte Crescente','Aumenta o arco do ataque.'],echo:['Eco da Lâmina','12% chance de segundo golpe.'],ancient:['Herança de Yggdrasil','+6% vida, dano e velocidade.'],shadowblade:['Lâmina Sombria','Loid: +14% de dano.'],shadowdash:['Passo Sombrio','Loid: esquiva 18% mais rápida.'],darkburst:['Abismo Desperto','Loid: aura mais forte.'],black:['Fúria Negra','Kris: +25% dano transformado.'],form:['Forma Perfeita','Kris: +3s de transformação.'],awakening:['Despertar','Kris: Q recarrega mais rápido.'],bloodmoon:['Lua do Abismo','Kris: corte transformado causa mais dano.'],mirror:['Reflexo Duplo','Kali: +12% de dano de ilusão.'],mirrorguard:['Espelho Protetor','Kali: defesa ilusória dura mais.'],voidblade:['Espada Voraz','Eve: +12% dano da espada.'],timeward:['Tempo Dilatado','Eve: área de tempo mais duradoura.']
 };
@@ -206,12 +206,12 @@ function handleMessage(m){
  if(m.t==='error'){note('⚠ '+m.message);return;}
  if(m.t==='closed'){closeDirect();stopDuelMusic();battle=null;view=null;state.started=false;state.finished=false;state.scene='entry';showScene('entry');note(m.message||'A sala foi fechada.');return;}
  if(m.t==='pvpWelcome'){
-   Object.assign(state,{id:m.id,host:m.host,code:m.code,role:m.role,offer:m.offer||[],picks:[],members:m.members||[],started:m.started,finished:m.finished||false});
-   $('codeLabel').textContent=state.code;showScene(m.started?'battle':'lobby');refreshLobby();note(m.role==='spectator'?'Modo espectador: você verá o mesmo duelo dos jogadores.':'Você entrou na sala X1. Escolha seu personagem e três cartas.');
+   Object.assign(state,{id:m.id,host:m.host,code:m.code,role:m.role,offer:m.offer||[],picks:[],members:m.members||[],duelSize:m.size||2,started:m.started,finished:m.finished||false});
+   $('codeLabel').textContent=state.code;showScene(m.started?'battle':'lobby');refreshLobby();note(m.role==='spectator'?'Modo espectador: você verá o mesmo duelo dos jogadores.':'Você entrou na sala de duelo. Escolha seu personagem e três cartas.');
    return;
  }
  if(m.t==='pvpLobby'){
-   if(m.code!==state.code)return;state.members=m.members;state.started=m.started;state.finished=m.finished||false;
+   if(m.code!==state.code)return;state.members=m.members;state.duelSize=m.size||2;state.started=m.started;state.finished=m.finished||false;
    if(state.scene==='lobby')refreshLobby();return;
  }
  if(m.t==='pvpDraft'){state.picks=m.picks||[];state.offer=m.offer||state.offer;renderDraft();refreshLobby();return;}
@@ -252,7 +252,7 @@ function handleMessage(m){
   }return;}
 
  if(m.t==='pvpSnapshot'&&!battle?.host){
-   if(!m.data?.players || m.data.players.length!==2)return;
+   if(!m.data?.players || ![2,4].includes(m.data.players.length))return;
    const seq=Number.isFinite(m.data.seq)?m.data.seq:latestSeq+1;
    if(seq<=latestSeq || (Number.isFinite(m.data.stamp)&&m.data.stamp<lastViewStamp))return;
    if(Number.isFinite(m.data.stamp))lastViewStamp=m.data.stamp;
@@ -278,7 +278,7 @@ function handleMessage(m){
  }
  if(m.t==='pvpMotion'&&!battle?.host&&view?.players){
    const d=m.data;
-   if(!d||!Array.isArray(d.players)||d.players.length!==2||!Number.isFinite(d.seq))return;
+   if(!d||!Array.isArray(d.players)||![2,4].includes(d.players.length)||!Number.isFinite(d.seq))return;
    if(d.seq<=lastMotionSeq||d.stamp<lastViewStamp)return;
    lastMotionSeq=d.seq;lastViewStamp=d.stamp;
    const now=performance.now(),delta=lastSnapAt?Math.max(24,now-lastSnapAt):50;
@@ -300,9 +300,9 @@ function handleMessage(m){
  }
  if(m.t==='pvpResult'){
    closeDirect();stopDuelMusic();state.finished=true;const winner=state.members.find(x=>x.id===m.winner);
-   $('winnerTitle').textContent=winner?`VITÓRIA DE ${heroes[winner.hero]?.name||'LUTADOR'}!`:'EMPATE!';
+   $('winnerTitle').textContent=m.winnerTeam!==null&&m.winnerTeam!==undefined&&state.duelSize===4?'VITÓRIA DA EQUIPE '+(m.winnerTeam+1):winner?`VITÓRIA DE ${heroes[winner.hero]?.name||'LUTADOR'}!`:'EMPATE!';
    $('winnerNote').textContent=m.reason==='Oponente desconectado'?'O oponente saiu da partida.':'A luta terminou. Vocês podem jogar novamente na mesma sala.';
-   show('resultOverlay',true);$('rematch').hidden=state.id!==state.host;
+   if(m.ranked)$('winnerNote').textContent+=' · Resultado competitivo registrado pelo servidor.';show('resultOverlay',true);$('rematch').hidden=state.id!==state.host;
    $('backLobby').hidden=state.id!==state.host;
    return;
  }
@@ -317,7 +317,7 @@ function refreshLobby(){
  const people=state.members||[];$('codeLabel').textContent=state.code;
  $('participants').replaceChildren(...people.map(p=>{
  const a=document.createElement('div');a.className='person';
- a.textContent=`${p.id===state.id?'VOCÊ · ':''}${p.role==='spectator'?'👁 ESPECTADOR':p.hero?heroes[p.hero]?.name:'ESCOLHENDO'} · ${p.role==='spectator'?'ASSISTINDO':p.ready?'PRONTO ✓':`${p.chosen}/3 CARTAS`}`;return a;
+ a.textContent=`${p.role==='fighter'&&state.duelSize===4?'EQUIPE '+((p.team||0)+1)+' · ':''}${p.id===state.id?'VOCÊ · ':''}${p.role==='spectator'?'👁 ESPECTADOR':p.hero?heroes[p.hero]?.name:'ESCOLHENDO'} · ${p.role==='spectator'?'ASSISTINDO':p.ready?'PRONTO ✓':`${p.chosen}/3 CARTAS`}`;return a;
  }));
  const spectator=state.role==='spectator';show('selectArea',!spectator);
  $('roleHint').textContent=spectator?'Você está como espectador. Os dois jogadores escolhem suas cartas antes do início.':'Cada lutador escolhe 1 personagem e 3 cartas entre 6 sorteadas. Os personagens não podem se repetir.';
@@ -327,9 +327,9 @@ function refreshLobby(){
    b.disabled=spectator||people.some(p=>p.id!==state.id&&p.role==='fighter'&&p.hero===b.dataset.hero);
  }
  renderDraft();
- const fighters=people.filter(p=>p.role==='fighter');const ready=fighters.length===2&&fighters.every(p=>p.ready)&&fighters[0].hero!==fighters[1].hero;
+ const fighters=people.filter(p=>p.role==='fighter');const ready=fighters.length===(state.duelSize||2)&&fighters.every(p=>p.ready)&&new Set(fighters.map(p=>p.hero)).size===fighters.length;
  $('begin').hidden=state.host!==state.id;$('begin').disabled=!ready;
- $('waitText').textContent=ready?'Ambos prontos! O anfitrião pode começar.':`Lutadores prontos: ${fighters.filter(p=>p.ready).length} / 2 · Espectadores: ${people.filter(p=>p.role==='spectator').length}`;
+ $('waitText').textContent=ready?'Todos prontos! O anfitrião pode começar.':`Lutadores prontos: ${fighters.filter(p=>p.ready).length} / ${state.duelSize||2} · Espectadores: ${people.filter(p=>p.role==='spectator').length}`;
 }
 function renderDraft(){let root=$('draftCards');root.replaceChildren();$('chosenCount').textContent=`(${state.picks.length}/3)`;
  for(const id of state.offer){const item=cards[id];if(!item)continue;
@@ -758,7 +758,7 @@ function paint(s,dt){
   }else{g.fillStyle=p.color;g.beginPath();g.arc(p.x,p.y,5,0,Math.PI*2);g.fill();}
  }
  for(const shade of s?.clones||[])drawShadowCopy(shade);
- for(const p of s?.players||[])drawSprite(p);
+ for(const p of s?.players||[]){if(p.hp<=0)continue;g.save();g.strokeStyle=p.team===1?'#ed766a':'#77caff';g.lineWidth=3;g.beginPath();g.ellipse(p.x,p.y,23,8,0,0,Math.PI*2);g.stroke();g.restore();drawSprite(p);}
  // The portal must remain visible even if the character and sword overlap it.
  for(const fx of [...(s?.fx||[]),...localTravelFx])if(fx.type==='portal'&&fx.t>0){
    const alpha=clamp(fx.t/(fx.max||1),0,1);const progress=1-alpha;
@@ -771,7 +771,7 @@ function paint(s,dt){
  g.restore();
 }
 function renderHud(s){if(!s||!s.players?.length)return;
- for(let i=0;i<2;i++){const p=s.players[i];if(!p)continue;$(i?'rightName':'leftName').textContent=heroes[p.hero]?.name||'LUTADOR';$(i?'rightHp':'leftHp').style.width=(clamp(p.hp/p.maxHp,0,1)*100)+'%';$(i?'rightNum':'leftNum').textContent=`${nfmt(p.hp)} / ${nfmt(p.maxHp)} · ULT ${p.ult|0}%`;}
+ for(let i=0;i<2;i++){const team=s.players.filter((p,j)=>(p.team??j%2)===i);if(!team.length)continue;const hp=team.reduce((n,p)=>n+p.hp,0),max=team.reduce((n,p)=>n+p.maxHp,0);$(i?'rightName':'leftName').textContent=team.map(p=>heroes[p.hero]?.name||'LUTADOR').join(' + ');$(i?'rightHp':'leftHp').style.width=(clamp(hp/max,0,1)*100)+'%';$(i?'rightNum':'leftNum').textContent=`${nfmt(hp)} / ${nfmt(max)} · ${team.filter(p=>p.hp>0).length} vivo(s)`;}
  let remain=Math.max(0,s.time||0),secs=Math.ceil(remain);$('timer').textContent=`${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
  $('netInfo').textContent=`${fps} FPS · ${serverDuel?'SERVIDOR':directActive()?'DIRETO P2P':'CLOUDFLARE'} · ${directRtt>0&&directActive()?Math.round(directRtt):state.ping}ms · jitter ${Math.round(networkJitter)}ms`;
  $('roundCountdown').textContent=s.starting>0?String(Math.ceil(s.starting)):s.players.some(p=>p.hero==='eve'&&p.voidUlt>0)?'EXPANSÃO DO VAZIO':'';
@@ -785,7 +785,7 @@ function renderGuests(dt){
    const mine=p.id===state.id&&state.role==='fighter';
    let targetX=p.x,targetY=p.y;
    if(mine){
-     const length=Math.hypot(controls.x,controls.y),speed=heroes[p.hero].speed;
+     const length=Math.hypot(controls.x,controls.y),speed=p.speed||heroes[p.hero].speed;
      const moving=length>.08&&view.starting<=0;
      if(moving){
        smooth.x+=controls.x/Math.max(length,1)*speed*dt;
@@ -815,12 +815,13 @@ function renderGuests(dt){
    return smooth;
  })};
 }
+function nearestDuel62(players,me){return me&&players?.filter(p=>p.id!==me.id&&p.hp>0&&(p.team===undefined||me.team===undefined||p.team!==me.team)).sort((a,b)=>Math.hypot(a.x-me.x,a.y-me.y)-Math.hypot(b.x-me.x,b.y-me.y))[0];}
 function getControls(){let x=0,y=0;if(keySet.has('w')||keySet.has('arrowup'))y--;if(keySet.has('s')||keySet.has('arrowdown'))y++;if(keySet.has('a')||keySet.has('arrowleft'))x--;if(keySet.has('d')||keySet.has('arrowright'))x++;
  controls.x=clamp(x+touchX,-1,1);controls.y=clamp(y+touchY,-1,1);
  if(keySet.has('j')||keySet.has('mouse'))controls.attack=true;
  else if(!isMobile)controls.attack=false;
  if((navigator.maxTouchPoints>0||'ontouchstart' in window)&&controls.attack){
-  const pp=battle?.host?battle.players:view?.players;const me=pp?.find(p=>p.id===state.id),other=pp?.find(p=>p.id!==state.id);
+  const pp=battle?.host?battle.players:view?.players;const me=pp?.find(p=>p.id===state.id),other=nearestDuel62(pp,me);
   if(me&&other)controls.aim=Math.atan2(other.y-me.y,other.x-me.x);
  } }
 function tick(ms){let dt=clamp((ms-last)/1000,0,.045);last=ms;gameTime+=dt;fpsTime+=dt;frames++;if(fpsTime>=1){fps=Math.round(frames/fpsTime);frames=0;fpsTime=0;
@@ -834,7 +835,7 @@ function tick(ms){let dt=clamp((ms-last)/1000,0,.045);last=ms;gameTime+=dt;fpsTi
     if(!battle.host&&self){guestFx(self.x+Math.cos(controls.aim)*48,self.y+Math.sin(controls.aim)*48,self.hero==='kali'?'mirrorcast':'slash',.23,self.hero==='kali'?22:70,heroes[self.hero]?.color||'#dcaaff',controls.aim,0);}
    }if(state.role==='fighter'){
    if(battle.host){const a=battle.players.find(p=>p.id===state.id);if(a)a.input={...controls};}
-   else if(performance.now()-lastSend>45){
+   else if(performance.now()-lastSend>45||controls.attack!==lastInputSent.attack||Math.abs(controls.x-lastInputSent.x)>.15||Math.abs(controls.y-lastInputSent.y)>.15){
     const now=performance.now();
     const changed=Math.abs(controls.x-lastInputSent.x)>.06||Math.abs(controls.y-lastInputSent.y)>.06||Math.abs(Math.atan2(Math.sin(controls.aim-lastInputSent.aim),Math.cos(controls.aim-lastInputSent.aim)))>.13||controls.attack!==lastInputSent.attack;
     if(ws?.bufferedAmount<12000&&(changed||now-lastInputHeartbeat>(serverDuel?90:140))){
@@ -854,7 +855,7 @@ function action(name,variant){if(state.role!=='fighter'||!state.started||state.f
   const p=(battle.host?battle.players:view?.players)?.find(a=>a.id===state.id);
   if(p?.hero==='kris'&&(p.ultCharge??p.ult??0)>=100){show('krisChoices',true);return;}
  }
- const mine=(battle?.host?battle.players:view?.players)?.find(p=>p.id===state.id);
+ const mine=(battle?.host?battle.players:view?.players)?.find(p=>p.id===state.id);if(isMobile&&name!=='dash'){const en=nearestDuel62(view?.players||battle.players,mine);if(en)controls.aim=Math.atan2(en.y-mine.y,en.x-mine.x);}
  duelSfx(name==='dash'&&mine?.hero==='eve'?'portal':name==='dash'?'dash':name==='r'?'ultimate':name==='q'||name==='e'?'cast':'slash');
  previewGuestAction(name);executeAction(name,variant);
 }
@@ -872,13 +873,16 @@ function moveStick(e){let rect=stick.getBoundingClientRect(),x=e.clientX-(rect.l
 stick.addEventListener('pointerdown',e=>{stick.setPointerCapture(e.pointerId);stickId=e.pointerId;moveStick(e);});stick.addEventListener('pointermove',e=>{if(e.pointerId===stickId)moveStick(e);});function endStick(e){if(e.pointerId!==stickId)return;stickId=null;touchX=touchY=0;$('moveKnob').style.transform='translate(-50%,-50%)';}stick.addEventListener('pointerup',endStick);stick.addEventListener('pointercancel',endStick);
 for(const b of document.querySelectorAll('[data-act]')){
  b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);const a=b.dataset.act;
- if(a==='attack'){controls.attack=true;const me=(battle?.host?battle.players:view?.players)?.find(x=>x.id===state.id),en=(battle?.host?battle.players:view?.players)?.find(x=>x.id!==state.id);
+ if(a==='attack'){controls.attack=true;const me=(battle?.host?battle.players:view?.players)?.find(x=>x.id===state.id),en=nearestDuel62(battle?.host?battle.players:view?.players,me);
  if(me&&en)controls.aim=Math.atan2(en.y-me.y,en.x-me.x);
  }else if(a==='e'){const own=(battle?.host?battle.players:view?.players)?.find(x=>x.id===state.id);if(own?.hero==='kris')executeAction('eDown');else action('e');}
  else action(a);
  });b.addEventListener('pointerup',e=>{if(b.dataset.act==='attack')controls.attack=false;if(b.dataset.act==='e'){const own=(battle?.host?battle.players:view?.players)?.find(x=>x.id===state.id);if(own?.hero==='kris')executeAction('eUp');}});b.addEventListener('pointercancel',()=>{if(b.dataset.act==='attack')controls.attack=false;});
 }
-$('create').onclick=()=>send({t:'pvpCreate'});$('joinFighter').onclick=()=>send({t:'pvpJoin',code:$('roomCode').value,role:'fighter'});$('joinSpectator').onclick=()=>send({t:'pvpJoin',code:$('roomCode').value,role:'spectator'});
+function duelIdentity62(){let key;try{localStorage.setItem('ygg.rank.name',$('duelName62').value.trim());key=localStorage.getItem('ygg.duel.key62');if(!/^[a-f0-9]{48}$/.test(key||'')){key=Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('');localStorage.setItem('ygg.duel.key62',key);}}catch{}return {key,name:$('duelName62').value.trim()};}
+try{$('duelName62').value=localStorage.getItem('ygg.rank.name')||'';}catch{}
+$('create').onclick=()=>send({t:'pvpCreate',size:Number($('duelSize62').value),ranked:$('duelRanked62').checked,...duelIdentity62()});
+$('duelRankOpen62').onclick=async()=>{const box=$('duelRanks62');box.textContent='Carregando...';try{const r=await fetch('/duel-ranking?size='+$('duelSize62').value,{cache:'no-store'});if(!r.ok)throw Error();const d=await r.json();box.textContent=d.entries.map((p,i)=>`${i+1}. ${p.name} · ${p.rank} · ${p.points} pts · ${p.wins}V/${p.losses}D`).join('\n')||'Nenhuma partida competitiva.';}catch{box.textContent='Ranking indisponível.';}};$('joinFighter').onclick=()=>send({t:'pvpJoin',code:$('roomCode').value,role:'fighter',...duelIdentity62()});$('joinSpectator').onclick=()=>send({t:'pvpJoin',code:$('roomCode').value,role:'spectator'});
 for(const b of document.querySelectorAll('[data-hero]'))b.onclick=()=>send({t:'pvpChoose',hero:b.dataset.hero});
 $('begin').onclick=()=>send({t:'pvpBegin'});$('leave').onclick=()=>{stopDuelMusic();send({t:'pvpLeave'});state.scene='entry';state.code='';showScene('entry');note('Você saiu da sala.');};
 const qualitySelect=$('duelQuality');if(qualitySelect){qualitySelect.value=qualityMode;qualitySelect.addEventListener('change',()=>{
