@@ -94,7 +94,7 @@ export class Lobby extends DurableObject {
       // A slow guest must not accumulate an ever-growing queue of obsolete frames.
       // Critical events (cards, lobby, start, attack controls) are never dropped.
       if ((value.t === 'waitingMove' || value.t === 'motion' || value.t === 'state' || value.t === 'pvpSnapshot' || value.t === 'pvpMotion') &&
-          typeof c.socket.bufferedAmount === 'number' && c.socket.bufferedAmount > (value.t==='motion'||value.t==='waitingMove'?24000:value.t==='state'&&!value.data?.mandatory?(c.wire616?16000:48000):131072)) return;
+          typeof c.socket.bufferedAmount === 'number' && c.socket.bufferedAmount > (value.t==='motion'||value.t==='waitingMove'?24000:value.t==='state'&&!value.data?.mandatory?(c.wire616?12000:32000):value.t==='pvpSnapshot'||value.t==='pvpMotion'?18000:131072)) return;
       c.socket.send(encoded??JSON.stringify(value));
     } catch { /* disconnected */ }
   }
@@ -220,12 +220,12 @@ export class Lobby extends DurableObject {
           room.netTick=(room.netTick||0)+1;
           const actors=room.match.getActors();
           const motion={t:'pvpMotion',data:{seq:room.netTick,stamp:room.match.getClock(),time:room.match.getTime(),starting:room.match.getStarting(),players:actors.map((a,i)=>({id:a.id,x:Number(a.x.toFixed(2)),y:Number(a.y.toFixed(2)),face:a.face,step:a.step,aim:a.aim,blinkSeq:a.blinkSeq,moving:a.moving}))}};
-          if(room.netTick%2===1 || !room.lastSnapshot){
+          if(room.netTick%2===1 || !room.lastSnapshot || room.match.finished){
             const packet={t:'pvpSnapshot',data:room.match.snapshot()};
             room.lastSnapshot=packet.data;
-            for(const p of room.members)this.safeSend(p,packet);
+            const encoded=JSON.stringify(packet);for(const p of room.members)this.safeSend(p,packet,encoded);
           }else{
-            for(const p of room.members)this.safeSend(p,motion);
+            const encoded=JSON.stringify(motion);for(const p of room.members)this.safeSend(p,motion,encoded);
           }
           if(room.match.finished){
             room.finished=true;
@@ -377,8 +377,7 @@ export class Lobby extends DurableObject {
         // Rate limit actions even if a client attempts to spam websocket packets.
         const now=Date.now();if(!['eDown','eUp'].includes(m.action)&&c.lastSkillAt&&now-c.lastSkillAt<50)return;if(!['eDown','eUp'].includes(m.action))c.lastSkillAt=now;
         r.match.action(c.id,m.action,typeof m.variant==='string'?m.variant.slice(0,12):'',Number.isFinite(m.aim)?m.aim:0);
-        const packet={t:'pvpSnapshot',data:r.match.snapshot()};r.lastSnapshot=packet.data;
-        for(const p of r.members)this.safeSend(p,packet);
+        // Next scheduled snapshot carries the skill; never enqueue extra full frames.
         return;
       }
       if(m.t==='pvpRematch'&&r.host===c&&r.started&&r.finished&&!r.savingRank){
@@ -584,7 +583,8 @@ export default {
     if(url.pathname==='/net-edge')return new Response(JSON.stringify({ok:true,colo:request.cf?.colo||'unknown'}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
     if(url.pathname==='/ranking'){const id=env.LOBBY.idFromName('yggdrasil-world-ranking-v60');return env.LOBBY.get(id).fetch(request);}
     if (url.pathname === '/ws' || url.pathname === '/health' || url.pathname === '/duel-ranking') {
-      const id = env.LOBBY.idFromName('yggdrasil-sam-lobby-v493');
+      // Keep existing PvP ranking storage; isolate cooperative traffic and checkpoints.
+      const id = env.LOBBY.idFromName(url.pathname==='/ws'&&url.searchParams.get('mode')==='coop'?'yggdrasil-sam-coop-v623':'yggdrasil-sam-lobby-v493');
       const stub = env.LOBBY.get(id,{locationHint:'sam'});
       return stub.fetch(request);
     }

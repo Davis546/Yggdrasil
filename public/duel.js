@@ -1,4 +1,4 @@
-import {createJourneyRuntime622} from './journey-runtime622.mjs?v=622';
+import {createJourneyRuntime622} from './journey-runtime622.mjs?v=623';
 // YGGDRASIL v3.7 PvP — optimised shared online arena with locally predicted input.
 // The host is the authority for damage, cooldowns, positions and the outcome.
 const $ = id => document.getElementById(id);
@@ -13,7 +13,7 @@ const heroes=Object.fromEntries(Object.entries(heroNames622).map(([h,name])=>{co
 const catalog622=Object.fromEntries(journey622.cardCatalog().map(c=>[c.id,c]));const cards=Object.fromEntries(Object.entries(catalog622).map(([k,c])=>[k,[c.name,c.desc]]));
 const $arena=$('arena'),g=$arena.getContext('2d',{alpha:false});
 const isMobile=matchMedia('(pointer:coarse)').matches;
-let DUEL_SCALE=Math.min(isMobile?1.35:1.85,Math.max(.85,window.devicePixelRatio||1));
+let DUEL_SCALE=Math.min(isMobile?1.05:1.5,Math.max(.85,window.devicePixelRatio||1));
 let qualityMode='auto',lastQualityShift=0,slowFpsTime=0;
 function resizeArena(){const rect=$arena.getBoundingClientRect();if(rect.width>0&&rect.height>0){const aspect=rect.width/rect.height;H=isMobile&&aspect<1?520:288;W=Math.max(260,Math.min(1200,Math.round(H*aspect)));}const ratio=DUEL_SCALE;$arena.width=Math.round(W*ratio);$arena.height=Math.round(H*ratio);g.imageSmoothingEnabled=false;}
 resizeArena();window.addEventListener('resize',resizeArena);let duelCamera={x:0,y:0};
@@ -68,6 +68,7 @@ duelMusicVolume.addEventListener('input',()=>{duelMusic.volume=Number(duelMusicV
 window.addEventListener('pagehide',()=>{duelMusic.pause();closeDirect();});
 
 let ws, battle=null, view=null, rendered=new Map(), gameTime=0,last=performance.now(),lastSend=0,lastSnapshot=0, fps=60, frames=0,fpsTime=0;
+let lastFullAt623=0,lastServerStamp623=null,cloneRender623=new Map();
 let latestSeq=-1,hostSeq=0,lastSnapAt=0,previousSnapAt=0,localTravelFx=[],networkJitter=0,networkGap=0;
 let lastHudAt=0,lastMotionSent=0,motionSeq=0,lastMotionSeq=-1,lastViewStamp=-1;
 // v3.5: optional direct peer-to-peer transport for the two X1 fighters.
@@ -186,13 +187,13 @@ const show=(id,yes)=>$(id).classList.toggle('hidden',!yes);
 const note=text=>{$('notice').textContent=text;};
 const send=m=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(m));};
 function connect(){let proto=location.protocol==='https:'?'wss':'ws';ws=new WebSocket(`${proto}://${location.host}/ws`);
- ws.onopen=()=>{state.online=true;note('Conectado ao Yggdrasil · Crie uma sala X1 ou entre por código.');};
+ ws.onopen=()=>{state.online=true;send({t:'ping',ts:Date.now(),mono:performance.now()});probeEdge623();note('Conectado ao Yggdrasil · Crie uma sala X1 ou entre por código.');};
  ws.onclose=()=>{state.online=false;closeDirect();note('Conexão encerrada. Recarregue a página para reconectar.');};
  ws.onerror=()=>note('Não foi possível conectar ao servidor. Confirme que o jogo está publicado no Cloudflare.');
  ws.onmessage=event=>{let m;try{m=JSON.parse(event.data)}catch{return}handleMessage(m);};
 }
 function handleMessage(m){
- if(m.t==='pong'){state.ping=Math.round(Math.max(0,Date.now()-m.ts));return;}
+ if(m.t==='pong'){state.ping=Math.round(Math.max(0,Number.isFinite(m.mono)?performance.now()-m.mono:Date.now()-m.ts));return;}
  if(m.t==='error'){note('⚠ '+m.message);return;}
  if(m.t==='closed'){closeDirect();stopDuelMusic();battle=null;view=null;state.started=false;state.finished=false;state.scene='entry';showScene('entry');note(m.message||'A sala foi fechada.');return;}
  if(m.t==='pvpWelcome'){
@@ -210,7 +211,7 @@ function handleMessage(m){
    closeDirect();directFailed=false;inputSequence=0;lastCloudSnapshot=0;
    state.started=true;state.finished=false;state.duelSize=m.size||state.duelSize;
    if(!state.id)return;
-   battle={host:!serverDuel&&state.id===m.host,fighters:m.fighters,players:[],particles:[],projectiles:[],fx:[],clones:[],clock:0,remaining:ROUND_TIME,starting:3,resultSent:false};latestSeq=-1;hostSeq=0;lastMotionSeq=-1;lastViewStamp=-1;motionSeq=0;lastMotionSent=0;lastSnapAt=0;authoritativePrevious.clear();authoritativeVelocity.clear();smoothPacketCount=0;lastInputHeartbeat=0;lastInputSent={x:0,y:0,aim:0,attack:false};rendered.clear();
+   battle={host:!serverDuel&&state.id===m.host,fighters:m.fighters,players:[],particles:[],projectiles:[],fx:[],clones:[],clock:0,remaining:ROUND_TIME,starting:3,resultSent:false};latestSeq=-1;hostSeq=0;lastMotionSeq=-1;lastViewStamp=-1;motionSeq=0;lastMotionSent=0;lastSnapAt=0;lastFullAt623=0;lastServerStamp623=null;cloneRender623.clear();authoritativePrevious.clear();authoritativeVelocity.clear();smoothPacketCount=0;lastInputHeartbeat=0;lastInputSent={x:0,y:0,aim:0,attack:false};rendered.clear();
    battle.players=m.fighters.map(p=>({id:p.id,hero:p.hero,team:p.team,bot:p.bot}));
    view=null;rendered.clear();showScene('battle');show('resultOverlay',false);showSkillArt(m.fighters.find(p=>p.id===state.id)?.hero||'');
    show('spectatorMark',state.role==='spectator');show('touchControls',state.role==='fighter');
@@ -248,7 +249,7 @@ function handleMessage(m){
    if(Number.isFinite(m.data.stamp))lastViewStamp=m.data.stamp;
    latestSeq=seq;
    const now=performance.now();const delta=lastSnapAt?Math.max(24,now-lastSnapAt):65;
-   if(lastSnapAt){networkJitter=networkJitter*.84+Math.abs(delta-62)*.16;networkGap=delta;}
+   if(lastSnapAt){const expected=lastServerStamp623===null?50:clamp((m.data.stamp-lastServerStamp623)*1000,20,500);networkJitter=networkJitter*.84+Math.abs(delta-expected)*.16;networkGap=delta;}lastServerStamp623=m.data.stamp;lastFullAt623=now;
    previousSnapAt=lastSnapAt;lastSnapAt=now;smoothPacketCount++;
    // Dead reckoning only for visual remote actors. Damage stays host authoritative.
    for(const p of m.data.players){const old=authoritativePrevious.get(p.id);
@@ -272,7 +273,7 @@ function handleMessage(m){
    if(d.seq<=lastMotionSeq||d.stamp<lastViewStamp)return;
    lastMotionSeq=d.seq;lastViewStamp=d.stamp;
    const now=performance.now(),delta=lastSnapAt?Math.max(24,now-lastSnapAt):50;
-   if(lastSnapAt){networkJitter=networkJitter*.85+Math.abs(delta-48)*.15;networkGap=delta;}
+   if(lastSnapAt){const expected=lastServerStamp623===null?50:clamp((d.stamp-lastServerStamp623)*1000,20,500);networkJitter=networkJitter*.85+Math.abs(delta-expected)*.15;networkGap=delta;}lastServerStamp623=d.stamp;
    lastSnapAt=now;smoothPacketCount++;
    for(const incoming of d.players){
      const p=view.players.find(p=>p.id===incoming.id);if(!p)continue;
@@ -635,21 +636,24 @@ function paint(s,dt){
 function renderHud(s){if(!s||!s.players?.length)return;
  for(let i=0;i<2;i++){const team=s.players.filter((p,j)=>(p.team??j%2)===i);if(!team.length)continue;const hp=team.reduce((n,p)=>n+p.hp,0),max=team.reduce((n,p)=>n+p.maxHp,0);$(i?'rightName':'leftName').textContent=team.map(p=>(p.bot?'BOT ':'')+(heroes[p.hero]?.name||'LUTADOR')).join(' + ');$(i?'rightHp':'leftHp').style.width=(clamp(hp/max,0,1)*100)+'%';$(i?'rightNum':'leftNum').textContent=`${nfmt(hp)} / ${nfmt(max)} · ${team.filter(p=>p.hp>0).length} vivo(s)`;}
  let remain=Math.max(0,s.time||0),secs=Math.ceil(remain);$('timer').textContent=`${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
- $('netInfo').textContent=`${fps} FPS · ${serverDuel?'SERVIDOR':directActive()?'DIRETO P2P':'CLOUDFLARE'} · ${directRtt>0&&directActive()?Math.round(directRtt):state.ping}ms · jitter ${Math.round(networkJitter)}ms`;
+ $('netInfo').textContent=`${fps} FPS · ${serverDuel?'SERVIDOR':directActive()?'DIRETO P2P':'CLOUDFLARE'} · ${directRtt>0&&directActive()?Math.round(directRtt):state.ping}ms · J ${Math.round(networkJitter)}ms${edge623===null?'':' · EDGE '+edge623+'ms'}`;$('netInfo').title=`RTT servidor ${state.ping} ms | borda Cloudflare ${edge623??'—'} ms`;
  $('roundCountdown').textContent=s.starting>0?String(Math.ceil(s.starting)):s.players.some(p=>p.hero==='eve'&&p.voidUlt>0)?'EXPANSÃO DO VAZIO':'';const me=s.players.find(p=>p.id===state.id);if(me){$('ownStatus622').textContent='PV '+nfmt(me.hp)+' / '+nfmt(me.maxHp)+' · SUPREMO '+me.ult+'%';for(const [a,v] of [['q',me.qCd],['e',me.eCd],['dash',me.dashCd],['r',me.ult>=100?0:100-me.ult]]){const b=document.querySelector('[data-act="'+a+'"]');b.classList.toggle('cool622',v>0);b.querySelector('small').textContent=a==='r'?(v>0?me.ult+'%':'PRONTO'):v>0?Math.ceil(v)+'s':'PRONTO';}$('mimicToggle622').hidden=!me.mimicOrigin||me.hp<=0;}
 }
 function renderGuests(dt){
  if(!view)return null;
  const age=lastSnapAt?Math.min(180,Math.max(0,performance.now()-lastSnapAt)):0;
- return {...view,players:view.players.map(p=>{
+ const fxAge=state.finished?0:Math.min(.14,Math.max(0,(performance.now()-lastFullAt623)/1000));
+ const cloneIds=new Set();const clones=(view.clones||[]).map(c=>{cloneIds.add(c.id);let old=cloneRender623.get(c.id);if(!old){old={...c};cloneRender623.set(c.id,old);}const k=1-Math.exp(-dt*16);old.x+=(c.x-old.x)*k;old.y+=(c.y-old.y)*k;old.step=(c.step||0)+fxAge*10;old.hp=c.hp;old.maxHp=c.maxHp;old.face=c.face;old.life=Math.max(0,c.life-fxAge);return old;});for(const id of cloneRender623.keys())if(!cloneIds.has(id))cloneRender623.delete(id);
+ const projectiles=(view.projectiles||[]).filter(p=>p.life===undefined||p.life>fxAge).map(p=>({...p,x:p.x+(p.vx||0)*fxAge,y:p.y+(p.vy||0)*fxAge}));
+ return {...view,sim:(view.sim||0)+fxAge,clones,projectiles,players:view.players.map(p=>{
    let smooth=rendered.get(p.id);
    if(!smooth){smooth={...p};rendered.set(p.id,smooth);}
    const mine=p.id===state.id&&state.role==='fighter';
    let targetX=p.x,targetY=p.y;
    if(p.blinkSeq!==undefined&&p.blinkSeq!==smooth.blinkSeq){smooth.x=p.x;smooth.y=p.y;smooth.blinkSeq=p.blinkSeq;}
    if(mine){
-     const length=Math.hypot(controls.x,controls.y),speed=p.speed||heroes[p.hero].speed;
-     const moving=length>.08&&view.starting<=0&&p.hp>0&&!p.crossTp&&!(p.stun>0);
+     const length=Math.hypot(controls.x,controls.y),speed=(p.speed||heroes[p.hero].speed)*(p.pvpSlowFactor||1)*(p.type==='loid'&&p.ultimateTime>0?1.65:1);
+     const moving=length>.08&&view.starting<=0&&p.hp>0&&!p.crossTp&&!(p.stun>0)&&!(p.dashTime>0);
      if(moving){
        smooth.x+=controls.x/Math.max(length,1)*speed*dt;
        smooth.y+=controls.y/Math.max(length,1)*speed*dt;
@@ -660,13 +664,13 @@ function renderGuests(dt){
        targetX+=controls.x/Math.max(length,1)*speed*horizon;
        targetY+=controls.y/Math.max(length,1)*speed*horizon;
      }
-     const distance=Math.hypot(smooth.x-targetX,smooth.y-targetY);
+     if(!moving)smooth.moving=!!p.moving;const distance=Math.hypot(smooth.x-targetX,smooth.y-targetY);
      const settle=distance>130?Math.min(1,dt*11):distance>18?Math.min(1,dt*3.5):Math.min(1,dt*1.5);
      smooth.x+=(targetX-smooth.x)*settle;
      smooth.y+=(targetY-smooth.y)*settle;
    }else{
      const vel=authoritativeVelocity.get(p.id)||{x:0,y:0};
-     const horizon=age/1000;
+     const horizon=p.moving?Math.min(.12,age/1000):0;
      targetX+=vel.x*horizon;targetY+=vel.y*horizon;
      const gap=Math.hypot(targetX-smooth.x,targetY-smooth.y);
      const blend=Math.min(1,dt*(gap>140?19:11));
@@ -674,7 +678,7 @@ function renderGuests(dt){
      smooth.y+=(targetY-smooth.y)*blend;
    }
    smooth.x=clamp(smooth.x,98,MAP_W-98);smooth.y=clamp(smooth.y,156,MAP_H-103);
-   for(const k of Object.keys(p))if(k!=='x'&&k!=='y'&&!(mine&&(k==='step'||k==='face')))smooth[k]=p[k];
+   for(const k of Object.keys(p))if(k!=='x'&&k!=='y'&&!(mine&&(k==='step'||k==='face'||k==='moving')))smooth[k]=p[k];
    return smooth;
  })};
 }
@@ -684,13 +688,13 @@ function getControls(){let x=0,y=0;if(keySet.has('w')||keySet.has('arrowup'))y--
  if(keySet.has('j')||keySet.has('mouse'))controls.attack=true;
  else if(!isMobile)controls.attack=false;
  if((navigator.maxTouchPoints>0||'ontouchstart' in window)&&controls.attack){
-  const pp=battle?.host?battle.players:view?.players;const me=pp?.find(p=>p.id===state.id),other=nearestDuel62(pp,me);
+  const pp=battle?.host?battle.players:view?.players;const me=pp?.find(p=>p.id===state.id),other=nearestDuel62([...(pp||[]),...(view?.clones||[]).map(c=>({...c,team:pp?.find(p=>p.id===c.owner)?.team}))],me);
   if(me&&other)controls.aim=Math.atan2(other.y-me.y,other.x-me.x);
  } }
 function tick(ms){let dt=clamp((ms-last)/1000,0,.045);last=ms;gameTime+=dt;fpsTime+=dt;frames++;if(fpsTime>=1){fps=Math.round(frames/fpsTime);frames=0;fpsTime=0;
    if(qualityMode==='auto'&&isMobile&&performance.now()-lastQualityShift>4500){
     if(fps<37){slowFpsTime++;if(slowFpsTime>=2&&DUEL_SCALE>0.88){DUEL_SCALE=Math.max(.85,DUEL_SCALE-.22);resizeArena();lastQualityShift=performance.now();slowFpsTime=0;}}
-    else {slowFpsTime=0;if(fps>57&&DUEL_SCALE<1.25){DUEL_SCALE=Math.min(1.25,DUEL_SCALE+.12);resizeArena();lastQualityShift=performance.now();}}
+    else {slowFpsTime=0;if(fps>57&&DUEL_SCALE<(isMobile?1.05:1.25)){DUEL_SCALE=Math.min(isMobile?1.05:1.25,DUEL_SCALE+.12);resizeArena();lastQualityShift=performance.now();}}
    }}
  if(battle){getControls();if(state.role==='fighter'&&controls.attack&&gameTime>=nextBasicSfx){
     const self=(battle.host?battle.players:view?.players)?.find(p=>p.id===state.id);
@@ -701,7 +705,7 @@ function tick(ms){let dt=clamp((ms-last)/1000,0,.045);last=ms;gameTime+=dt;fpsTi
    else if(performance.now()-lastSend>45||controls.attack!==lastInputSent.attack||Math.abs(controls.x-lastInputSent.x)>.15||Math.abs(controls.y-lastInputSent.y)>.15){
     const now=performance.now();
     const changed=Math.abs(controls.x-lastInputSent.x)>.06||Math.abs(controls.y-lastInputSent.y)>.06||Math.abs(Math.atan2(Math.sin(controls.aim-lastInputSent.aim),Math.cos(controls.aim-lastInputSent.aim)))>.13||controls.attack!==lastInputSent.attack;
-    if(ws?.bufferedAmount<12000&&(changed||now-lastInputHeartbeat>(serverDuel?90:140))){
+    if(ws?.bufferedAmount<6000&&(changed||now-lastInputHeartbeat>(serverDuel?100:140))){
       sendDuelInput({t:'pvpInput',seq:++inputSequence,...controls});lastInputSent={...controls};lastInputHeartbeat=now;
     }
     lastSend=now;
@@ -709,7 +713,7 @@ function tick(ms){let dt=clamp((ms-last)/1000,0,.045);last=ms;gameTime+=dt;fpsTi
   }
   if(battle.host&&!state.finished){sim(dt);sendCloudMotion(ms);if(ms-lastSnapshot>(directActive()?53:123))sendAuthoritativeSnapshot();}
   const s=battle.host?snapshot(false):renderGuests(dt);
-  if(state.scene==='battle'){paint(s,dt);if(ms-lastHudAt>82){renderHud(s);lastHudAt=ms;}}
+  if(state.scene==='battle'){paint(s,dt);if(ms-lastHudAt>125){renderHud(s);lastHudAt=ms;}}
   localTravelFx=localTravelFx.filter(f=>(f.t-=dt)>0);
  }requestAnimationFrame(tick);
 }
@@ -752,7 +756,7 @@ for(const b of document.querySelectorAll('[data-hero]'))b.onclick=()=>{let skin=
 $('begin').onclick=()=>send({t:'pvpBegin'});$('leave').onclick=()=>{stopDuelMusic();send({t:'pvpLeave'});state.scene='entry';state.code='';showScene('entry');note('Você saiu da sala.');};
 const qualitySelect=$('duelQuality');if(qualitySelect){qualitySelect.value=qualityMode;qualitySelect.addEventListener('change',()=>{
  qualityMode=qualitySelect.value;
- DUEL_SCALE=qualityMode==='performance'?.8:qualityMode==='light'?1:qualityMode==='high'?Math.min(2,window.devicePixelRatio||2):Math.min(isMobile?1.35:1.85,window.devicePixelRatio||1);
+ DUEL_SCALE=qualityMode==='performance'?.8:qualityMode==='light'?1:qualityMode==='high'?Math.min(2,window.devicePixelRatio||2):Math.min(isMobile?1.05:1.5,window.devicePixelRatio||1);
  resizeArena();note(qualityMode==='high'?'Nitidez máxima ativa.':'Qualidade de X1 ajustada: '+qualityMode);
 });}
 $('copyCode').onclick=async()=>{try{await navigator.clipboard.writeText(state.code);note('Código da sala copiado.')}catch{note('Código: '+state.code)}};
@@ -762,7 +766,7 @@ const modal=document.createElement('div');modal.id='krisChoices';modal.className
 document.querySelector('.arena-shell').append(modal);
 for(const b of modal.querySelectorAll('[data-ult]'))b.onclick=()=>{show('krisChoices',false);executeAction('r',b.dataset.ult)};
 modal.querySelector('#cancelUlt').onclick=()=>show('krisChoices',false);
-setInterval(()=>{if(state.online)send({t:'ping',ts:Date.now()});},4000);
+let edge623=null;async function probeEdge623(){const t=performance.now();try{const r=await fetch('/net-edge',{cache:'no-store'});if(r.ok){await r.json();edge623=Math.round(performance.now()-t);}}catch{}}setInterval(()=>{if(state.online&&ws?.bufferedAmount<2000)send({t:'ping',ts:Date.now(),mono:performance.now()});},3000);setInterval(()=>{if(state.online)probeEdge623();},15000);
 setInterval(async()=>{
  if(!directActive()||!directPeer)return;
  try{const stats=await directPeer.getStats();for(const v of stats.values()){

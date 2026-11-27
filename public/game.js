@@ -70,9 +70,9 @@ function wireRound615(k,v){return typeof v==='number'&&Number.isFinite(v)&&!Numb
 function netPacing615(buffered,bytes=0,fps=60){return {motion:buffered>10000?100:50,state:buffered>10000?320:buffered>3000||bytes>32000?200:fps<40?160:120};}
 function netPacing616(buffered,bytes=0,fps=60){
  if(buffered>10000)return {motion:100,state:360};
- if(buffered>3000||bytes>25000)return {motion:70,state:210};
- if(fps<40)return {motion:50,state:150};
- return {motion:40,state:bytes>14000?120:100};
+ if(buffered>3000||bytes>25000)return {motion:80,state:250};
+ if(fps<40)return {motion:60,state:180};
+ return {motion:50,state:bytes>14000?150:125};
 }
 function coopSend(data){
  const socket=coop.socket;
@@ -2592,7 +2592,7 @@ function coopLost(){
 }
 function coopOpenSocket(initial){
  if(coop.socket){const old=coop.socket;coop.socket=null;try{old.close();}catch{}}
- coopStopTimers();let sock;try{sock=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');}catch{coopLost();return;}
+ coopStopTimers();let sock;try{sock=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws?mode=coop');}catch{coopLost();return;}
  coop.socket=sock;coop.wire616=false;coop.lastPong=Date.now();netRtt=null;netRttSamples=[];netRawRtt=null;edgeRtt=null;edgeColo='';
  sock.onopen=()=>{if(coop.socket!==sock)return;coop.lastPong=Date.now();coop.lastEdgeProbe=Date.now();coopSend({...initial,wire616:1});coopSend({t:'ping',ts:Date.now(),mono:performance.now()});probeEdge(sock);};
  sock.onmessage=e=>{if(coop.socket!==sock)return;let m;try{m=JSON.parse(e.data)}catch{return;}coopOnMessage(m);};
@@ -2945,7 +2945,7 @@ function coopSendState(force=false){
   bonusBeam,xansBlasters:xansBlasters.slice(-4),timeFields:timeFields.slice(-3).map(t=>({...t})),mirrorIllusions:mirrorIllusions.slice(-25).map(v=>({x:v.x,y:v.y,life:v.life,ownerType:v.owner?.type||'kali'})),voidCollapse,evePortals:evePortals.slice(-5),waveIntro,eclipseTime,bossMessage,bossMessageTimer,elapsed,mandatory
  }};
  // A complete authoritative checkpoint is kept by the room server only, not broadcast to all guests.
- const checkpointDue=mandatory||(coop.checkpointDirty&&now-coop.lastCheckpoint>=500)||now-coop.lastCheckpoint>=2000;
+ const checkpointDue=mandatory||(coop.checkpointDirty&&now-coop.lastCheckpoint>=500)||now-coop.lastCheckpoint>=3000;
  if(checkpointDue){const ownerId=v=>Object.entries(actors).find(([,a])=>a===v.owner)?.[0];packet.checkpoint={...packet.data,actors:sendActors,activeCampaign,testBossMode,selectedBoss,nextEnemyId,waveClearTimer,choices:[...coop.choices],enemies,projectiles,hazards,frostBursts,shadowClones,mirrorIllusions:mirrorIllusions.map(v=>({x:v.x,y:v.y,life:v.life,attackCd:v.attackCd,ownerId:v.ownerId||ownerId(v),casterId:v.casterId})),evePortals:evePortals.filter(p=>!p.local)};}
  if(coopSend(packet)){coop.lastStateStage=stage;coop.lastStatePhase=phase;coop.lastSnapshot=now;coop.lastSnapshotAttempt615=now;if(checkpointDue){coop.lastCheckpoint=now;coop.checkpointDirty=false;}}
 }
