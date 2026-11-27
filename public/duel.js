@@ -1,4 +1,4 @@
-import {createJourneyRuntime622} from './journey-runtime622.mjs?v=624';
+import {createJourneyRuntime622} from './journey-runtime622.mjs?v=625';
 // YGGDRASIL v3.7 PvP — optimised shared online arena with locally predicted input.
 // The host is the authority for damage, cooldowns, positions and the outcome.
 const $ = id => document.getElementById(id);
