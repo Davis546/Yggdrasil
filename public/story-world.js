@@ -7,3 +7,14 @@ export function move(map,a,dx,dy,r=1.6,obstacles=[]){const count=Math.max(1,Math
 export const HEROS={kris:[135,46,.43,91,2.8],loid:[110,26,.24,105,2.4],cross:[118,29,.34,106,2.55],eve:[115,42,.31,125,2.2],kali:[120,23,.4,96,2.4],mollitiam:[320,130,1.36,57,4],moretti:[100,18,.65,155,1.2],l0id:[180,85,.22,190,.8],josue:[155,58,.48,108,2.2]};
 
 export function inspectable(map,x,y,range=8){return (map.objects||[]).filter(o=>o.lines?.length).map(o=>({o,d:Math.hypot(x-Math.max(o.x,Math.min(x,o.x+o.w)),y-Math.max(o.y,Math.min(y,o.y+o.h)))})).filter(t=>t.d<=range).sort((a,b)=>a.d-b.d)[0]?.o||null;}
+
+// V5.7: wide traversable mountain trails, art and collision share the same geometry.
+const simpleMount=(id,gates,enemies,npcs=[])=>{const m=WORLD[id];Object.assign(m,{width:400,height:260,gates,enemies,npcs,land:[[[48,0],[352,0],[352,72],[400,72],[400,188],[352,188],[352,260],[48,260],[48,188],[0,188],[0,72],[48,72]]],objects:[]});};
+simpleMount('mount1',[{x:200,y:250,to:'city1',label:'Vila',tx:198,ty:237},{x:10,y:130,to:'forest2',label:'Floresta',tx:85,ty:172},{x:200,y:10,to:'mount2',label:'Trilha do cume',tx:200,ty:237}],[{kind:'oni',x:105,y:105},{kind:'wolf',x:290,y:155}]);
+simpleMount('mount2',[{x:200,y:250,to:'mount1',label:'Vila',tx:200,ty:23},{x:390,y:130,to:'mount3',label:'Passagem rochosa',tx:23,ty:130}],[{kind:'oni',x:125,y:105},{kind:'yokai',x:290,y:155}]);
+simpleMount('mount3',[{x:10,y:130,to:'mount2',label:'Trilha do cume',tx:377,ty:130},{x:200,y:25,to:'dwarf',label:'Refúgio anão',door:true,tx:90,ty:99,rx:200,ry:39}],[{kind:'wolf',x:115,y:105},{kind:'oni',x:285,y:155}]);
+for(const g of WORLD.city1.gates)if(g.to==='mount1'){g.tx=200;g.ty=237;}
+for(const g of WORLD.forest2.gates)if(g.to==='mount1'){g.tx=23;g.ty=130;}
+WORLD.city1.civilianSlots=[];WORLD.city1.npcs.push({id:'villager1',x:120,y:109},{id:'villager2',x:274,y:112},{id:'villager3',x:123,y:151});
+const indoor=['villager4','villager1','hayato','ren','villager6','villager5','villager3','villager2','villager6'];for(let i=0;i<indoor.length;i++)WORLD['house'+(i+1)].npcs=[{id:indoor[i],x:75,y:65}];
+NPC.dwarfkeeper={name:'Guardião do refúgio',lines:['Aqui é seguro. As trilhas estão livres, mas cuidado com os Onis.']};WORLD.dwarf.npcs=[{id:'dwarfkeeper',x:115,y:65}];
