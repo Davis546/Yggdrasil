@@ -7,7 +7,7 @@ const HEROES = new Set(['loid', 'kris', 'cross', 'eve', 'kali', 'mollitiam', 'mo
 const RESUME_MS = 120000;
 const makeResumeToken=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('');
 const MAX_COOP_PLAYERS = 5; // five players per room; six selectable heroes
-const BOSSES = new Set(['japan', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'odin', 'nameless', 'pecadoNordic']);
+const BOSSES = new Set(['japan', 'rush', 'samurai', 'reuni', 'tsukuomi', 'pecado', 'nordic', 'frostjarl', 'odin', 'nameless', 'pecadoNordic']);
 const NORSE_BOSSES=new Set(['nordic','frostjarl','odin','nameless','pecadoNordic']);
 const WAIT_JP_POLYS=[[[650,345],[1184,345],[1200,570],[1150,620],[1100,675],[925,675],[870,620],[780,620],[710,670],[650,595],[620,535],[620,460]],[[330,505],[650,490],[665,565],[330,575]],[[205,575],[335,505],[350,575],[265,680],[255,750],[295,825],[330,900],[302,946],[217,850],[185,735],[180,650]]];
 const WAIT_NPCS=[{id:'amaterasu',x:914,y:391},{id:'caine',x:1015,y:463}];
@@ -411,7 +411,7 @@ export class Lobby extends DurableObject {
       // New host room. If already in one, leave it before creating another.
       if (c.room) this.leaveRoom(c);
       const code = this.makeCode();
-      const room = { code, host: c, members: new Set(), reserved:new Map(), epoch:1, checkpoint:null, startInfo:null, started: false, selectedBoss:'japan' };
+      const room = { code, host: c, members: new Set(), reserved:new Map(), epoch:1, checkpoint:null, startInfo:null, started: false, selectedBoss:['japan','nordic','rush'].includes(m.boss)?m.boss:'japan' };
       this.rooms.set(code, room);
       this.joinRoom(c, room);
       return;
@@ -512,7 +512,7 @@ export class Lobby extends DurableObject {
       for (const p of r.members) {
         const a = m.actors[p.id];
         if(!a)continue;if(!Number.isFinite(a.x)||!Number.isFinite(a.y))return;
-        positions[p.id] = { x:a.x, y:a.y, face:String(a.face||'down').slice(0,5), step:Number(a.step)||0, hp:Number(a.hp)||0 };
+        positions[p.id] = { x:a.x, y:a.y, face:String(a.face||'down').slice(0,5), step:Number(a.step)||0, hp:Number(a.hp)||0, blinkSeq:Math.max(0,Math.floor(Number(a.blinkSeq)||0)), blinking:a.blinking===true };
       }
       const packet={t:'motion',epoch:r.epoch||1,seq:Number(m.seq)||0,actors:positions};const encoded=JSON.stringify(packet);for (const p of r.members) if (p !== c) this.safeSend(p,packet,encoded);
       return;

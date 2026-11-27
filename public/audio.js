@@ -94,6 +94,7 @@ const YG_AUDIO=(()=>{
   // Waves 15 / 20 are intentionally distinct; stage 15 remains the existing
   // battle track until its custom audio is provided, stage 20 has Peccatum.
   const requested=!combat?'menu':
+   typeof rushMode!=='undefined'&&rushMode?(activeBoss('pecado')?'pecado':activeBoss('nameless')||activeBoss('ancestralDragon')?'nameless':activeBoss('frostjarl')?'nordicBoss':activeBoss('odin')?'nordic':'battle'):
    currentStage===35&&(activeBoss('nameless')||activeBoss('ancestralDragon'))?'nameless':
    (currentStage===25||currentStage===30)&&activeBoss('frostjarl')?'nordicBoss':
    (currentStage===20||currentStage===40)&&activeBoss('pecado')?'pecado':
