@@ -18,3 +18,4 @@ for(const g of WORLD.forest2.gates)if(g.to==='mount1'){g.tx=23;g.ty=130;}
 WORLD.city1.civilianSlots=[];WORLD.city1.npcs.push({id:'villager1',x:120,y:109},{id:'villager2',x:274,y:112},{id:'villager3',x:123,y:151});
 const indoor=['villager4','villager1','hayato','ren','villager6','villager5','villager3','villager2','villager6'];for(let i=0;i<indoor.length;i++)WORLD['house'+(i+1)].npcs=[{id:indoor[i],x:75,y:65}];
 NPC.dwarfkeeper={name:'Guardião do refúgio',lines:['Aqui é seguro. As trilhas estão livres, mas cuidado com os Onis.']};WORLD.dwarf.npcs=[{id:'dwarfkeeper',x:115,y:65}];
+HEROS.mimic=[150,40,.36,108,2.3];

@@ -4,9 +4,9 @@ export const freshQuest=done=>({stage:done?'done':'meet',warned:new Set(),suppli
 export function questTalk(q,id){
  if(q.stage==='meet'&&id==='caine'){q.stage='prepare';return ['Escute. Nossos batedores viram Onis marchando para a vila.','Avise três moradores e procure Lisa para receber suprimentos. Volte a mim quando estiver pronto.'];}
  if(q.stage==='prepare'&&id.startsWith('villager')){if(q.warned.has(id))return ['Já estou a caminho do abrigo. Obrigado!'];q.warned.add(id);return ['Uma invasão?! Vou procurar o abrigo imediatamente.'];}
- if(q.stage==='prepare'&&id==='lisa'){q.supplied=true;return ['Pegue os suprimentos. A unidade XXX vai lutar ao seu lado.'];}
+ if(q.stage==='prepare'&&id==='lisa'){q.supplied=true;return ['Pegue os suprimentos. A unidade XXXX vai lutar ao seu lado.'];}
  if(q.stage==='prepare'&&id==='caine'){if(q.warned.size<3||!q.supplied)return ['Ainda não estamos prontos. Avise três moradores e procure Lisa.'];q.stage='brief';return ['Todos em posição! Defenda a praça. Nossa unidade vai cobrir os flancos.','Se os Onis alcançarem o centro, a defesa sofrerá. Derrube o comandante para encerrar a invasão.'];}
- if(q.stage==='victory'&&id==='caine'){q.stage='done';return ['Você salvou a vila. A XXX reconhece sua coragem.','Mas alguém organizou esse ataque. Investigaremos as montanhas depois.'];}
+ if(q.stage==='victory'&&id==='caine'){q.stage='done';return ['Você salvou a vila. A XXXX reconhece sua coragem.','Mas alguém organizou esse ataque. Investigaremos as montanhas depois.'];}
  if(q.stage==='done'&&id==='caine')return ['A vila está segura graças a você.'];
  return null;
 }
