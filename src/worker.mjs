@@ -1,3 +1,4 @@
+import { unpackWorld616 } from './wire616.mjs';
 import { createDuel } from './duel-engine.mjs';
 // Yggdrasil Online v3.4 — Cloudflare Workers + Durable Objects (prototype)
 // Host-authoritative: the host simulates combat; this Durable Object relays inputs/states.
@@ -45,7 +46,7 @@ export class Lobby extends DurableObject {
       const a = socket.deserializeAttachment() || {};
       const id = typeof a.id === 'string' ? a.id : String(this.nextId++);
       this.nextId = Math.max(this.nextId, (Number(id) || 0) + 1);
-      const c = { id, socket, hero: a.hero || null, room: null, role:a.role||'fighter', offer:a.offer||[], picks:a.picks||[], passives:a.passives||[], token:a.token||null };
+      const c = { id, socket, hero: a.hero || null, room: null, role:a.role||'fighter', offer:a.offer||[], picks:a.picks||[], passives:a.passives||[], token:a.token||null,wire616:a.wire616===true };
       this.players.set(id, c);
     }
     for (const c of this.players.values()) {
@@ -73,7 +74,7 @@ export class Lobby extends DurableObject {
   persist(c) {
     if(!c.socket)return;
     c.socket.serializeAttachment({
-      token:c.token||null,
+      token:c.token||null,wire616:c.wire616===true,
       id: c.id,
       code: c.room?.code || null,
       hero: c.hero || null,
@@ -89,7 +90,7 @@ export class Lobby extends DurableObject {
       // A slow guest must not accumulate an ever-growing queue of obsolete frames.
       // Critical events (cards, lobby, start, attack controls) are never dropped.
       if ((value.t === 'waitingMove' || value.t === 'motion' || value.t === 'state' || value.t === 'pvpSnapshot' || value.t === 'pvpMotion') &&
-          typeof c.socket.bufferedAmount === 'number' && c.socket.bufferedAmount > 131072) return;
+          typeof c.socket.bufferedAmount === 'number' && c.socket.bufferedAmount > (value.t==='motion'||value.t==='waitingMove'?24000:value.t==='state'&&!value.data?.mandatory?(c.wire616?16000:48000):131072)) return;
       c.socket.send(encoded??JSON.stringify(value));
     } catch { /* disconnected */ }
   }
@@ -133,7 +134,7 @@ export class Lobby extends DurableObject {
     c.room = room;
     c.hero = null;c.passives=[];c.waitingPos=null;c.waitingAt=0;c.token=makeResumeToken();
     this.persist(c);
-    this.safeSend(c, { t: 'welcome', id: c.id, code: room.code, host: room.host.id, members: this.members(room), token:c.token, epoch:room.epoch||1, boss:room.selectedBoss, positions:this.waitingPositions(room) });
+    this.safeSend(c, { t: 'welcome', wire616:1, id: c.id, code: room.code, host: room.host.id, members: this.members(room), token:c.token, epoch:room.epoch||1, boss:room.selectedBoss, positions:this.waitingPositions(room) });
     this.notify(room);
   }
 
@@ -193,7 +194,7 @@ export class Lobby extends DurableObject {
     if(takeover){room.host=c;room.epoch=(room.epoch||1)+1;}
     this.persist(c);
     const actor=entry?.actor||room.checkpoint?.actors?.[c.id]||null;
-    this.safeSend(c,{t:'resumed',id:c.id,token:c.token,code:room.code,host:room.host.id,epoch:room.epoch||1,members:this.members(room),started:room.started,startInfo:room.startInfo,checkpoint:room.checkpoint,boss:room.selectedBoss,actor,positions:room.started?undefined:this.waitingPositions(room),returning:!!entry,chosenStage:entry?.chosenStage??null});
+    this.safeSend(c,{t:'resumed',wire616:1,id:c.id,token:c.token,code:room.code,host:room.host.id,epoch:room.epoch||1,members:this.members(room),started:room.started,startInfo:room.startInfo,checkpoint:room.checkpoint,boss:room.selectedBoss,actor,positions:room.started?undefined:this.waitingPositions(room),returning:!!entry,chosenStage:entry?.chosenStage??null});
     if(takeover){for(const p of room.members)if(p!==c){this.persist(p);this.safeSend(p,{t:'hostChanged',host:c.id,epoch:room.epoch,members:this.members(room),started:room.started});}}
     else if(entry&&room.started)this.safeSend(room.host,{t:'rejoined',id:c.id,actor,chosenStage:entry.chosenStage});
     this.notify(room);
@@ -305,7 +306,7 @@ export class Lobby extends DurableObject {
     if (!m || typeof m !== 'object' || typeof m.t !== 'string') return;
     if (m.t === 'ping') { this.safeSend(c,{t:'pong',ts:Number(m.ts)||Date.now(),mono:Number.isFinite(m.mono)?m.mono:undefined}); return; }
 
-    if(m.t==='resume'){this.resumeCoop(c,m);return;}
+    if(m.t==='resume'){c.wire616=m.wire616===1;this.resumeCoop(c,m);return;}
     if(raw.length>180000&&!(m.t==='state'&&c.room?.host===c&&c.room.kind!=='pvp'))return;
     // PvP is isolated from the original cooperative protocol.
     if (m.t === 'pvpCreate') {
@@ -414,6 +415,7 @@ export class Lobby extends DurableObject {
       return;
     }
     if (m.t === 'create') {
+      c.wire616=m.wire616===1;
       // New host room. If already in one, leave it before creating another.
       if (c.room) this.leaveRoom(c);
       const code = this.makeCode();
@@ -423,6 +425,7 @@ export class Lobby extends DurableObject {
       return;
     }
     if (m.t === 'join') {
+      c.wire616=m.wire616===1;
       const code = String(m.code || '').trim().toUpperCase();
       const room = this.rooms.get(code);
       if (!room) { this.safeSend(c, { t: 'error', message: 'Sala não encontrada. Confira o código.' }); return; }
@@ -518,18 +521,25 @@ export class Lobby extends DurableObject {
       for (const p of r.members) {
         const a = m.actors[p.id];
         if(!a)continue;if(!Number.isFinite(a.x)||!Number.isFinite(a.y))return;
-        positions[p.id] = { x:a.x, y:a.y, face:String(a.face||'down').slice(0,5), step:Number(a.step)||0, hp:Number(a.hp)||0, blinkSeq:Math.max(0,Math.floor(Number(a.blinkSeq)||0)), blinking:a.blinking===true };
+        positions[p.id] = { x:a.x, y:a.y, face:String(a.face||'down').slice(0,5), step:Number(a.step)||0, hp:Number(a.hp)||0, blinkSeq:Math.max(0,Math.floor(Number(a.blinkSeq)||0)), blinking:a.blinking===true, vx:Number.isFinite(a.vx)?Math.max(-650,Math.min(650,a.vx)):undefined, vy:Number.isFinite(a.vy)?Math.max(-650,Math.min(650,a.vy)):undefined };
       }
-      const packet={t:'motion',epoch:r.epoch||1,seq:Number(m.seq)||0,actors:positions};const encoded=JSON.stringify(packet);for (const p of r.members) if (p !== c) this.safeSend(p,packet,encoded);
+      const packet={t:'motion',epoch:r.epoch||1,seq:Number(m.seq)||0,stage:Number.isInteger(m.stage)?m.stage:undefined,sim:Number.isFinite(m.sim)?m.sim:undefined,hostRtt:Number.isFinite(m.hostRtt)?Math.max(0,Math.min(1000,m.hostRtt)):undefined,actors:positions};const encoded=JSON.stringify(packet);for (const p of r.members) if (p !== c) this.safeSend(p,packet,encoded);
       return;
     }
     if (m.t === 'state' && r.host === c) {
       if (!m.data || typeof m.data !== 'object') return;
       if(m.epoch!==undefined&&m.epoch!==(r.epoch||1))return;
-      if(m.checkpoint&&typeof m.checkpoint==='object'&&m.checkpoint.actors?.[c.id]&&JSON.stringify(m.checkpoint).length<560000){r.checkpoint=m.checkpoint;}
-      const payload = JSON.stringify(m.data);
-      if (payload.length > 180000) return;
-      const packet={t:'state',epoch:r.epoch||1,data:m.data};const encoded=JSON.stringify(packet);for (const p of r.members) if(p!==c)this.safeSend(p,packet,encoded);
+      if(m.checkpoint&&typeof m.checkpoint==='object'&&m.checkpoint.actors?.[c.id]){
+        const cp=unpackWorld616(m.checkpoint);if(cp&&JSON.stringify(cp).length<560000)r.checkpoint=cp;
+      }
+      const payload=JSON.stringify(m.data);if(payload.length>180000)return;
+      const packet={t:'state',epoch:r.epoch||1,data:m.data};const encoded='{"t":"state","epoch":'+(r.epoch||1)+',"data":'+payload+'}';
+      // Modern peers receive the compact wire directly; old browsers get the same decoded state.
+      let legacy=null,legacyEncoded=null;
+      for(const p of r.members)if(p!==c){
+        if(m.data.wire616!==1||p.wire616)this.safeSend(p,packet,encoded);
+        else {if(!legacy){const data=unpackWorld616(m.data);if(!data)return;legacy={...packet,data};legacyEncoded=JSON.stringify(legacy);}this.safeSend(p,legacy,legacyEncoded);}
+      }
       return;
     }
     if (m.t === 'signal' && r.host === c) {
