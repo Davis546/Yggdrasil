@@ -1,6 +1,6 @@
 {
   "name": "yggdrasil-online-cloudflare",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -50,7 +50,8 @@
     "test:581": "node tests/story-v58.test.mjs && node tests/story-v581.test.mjs",
     "test:590": "node tests/v59.test.mjs && node tests/v561.test.mjs && node tests/story-v58.test.mjs",
     "test:591": "node tests/v59.test.mjs && node tests/v561.test.mjs && node tests/story-v58.test.mjs",
-    "test:600": "node tests/v60.test.mjs && node tests/v59.test.mjs && node tests/v561.test.mjs && node tests/story-v58.test.mjs"
+    "test:600": "node tests/v60.test.mjs && node tests/v59.test.mjs && node tests/v561.test.mjs && node tests/story-v58.test.mjs",
+    "test:601": "node tests/v601.test.mjs && node tests/v60.test.mjs && node tests/v59.test.mjs && node tests/v561.test.mjs && node tests/story-v58.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.50.0"

@@ -8,7 +8,7 @@ const YG_AUDIO=(()=>{
  const menuTrack=new Audio('assets/audio/menu.mp3'),battleTrack=new Audio('assets/audio/battle.mp3'),pecadoTrack=new Audio('assets/audio/pecado.mp3');
  const nordicTrack=new Audio('assets/audio/nordic_theme.mp3'),nordicBossTrack=new Audio('assets/audio/nordic_boss.mp3');
  const namelessTrack=new Audio('assets/audio/nameless_wave15.m4a');
- const tracks={nameless:namelessTrack,menu:menuTrack,battle:battleTrack,pecado:pecadoTrack,nordic:nordicTrack,nordicBoss:nordicBossTrack};
+ const tracks={merchant:new Audio('assets/audio/merchant601.mp3'),nameless:namelessTrack,menu:menuTrack,battle:battleTrack,pecado:pecadoTrack,nordic:nordicTrack,nordicBoss:nordicBossTrack};
  for(const a of Object.values(tracks)){a.loop=true;a.preload='none';a.playsInline=true;}
 
  let musicMode='',audioUnlocked=false;
@@ -93,7 +93,7 @@ const YG_AUDIO=(()=>{
   // 8-bit cover while alive, then automatically returns to Nordic ambience.
   // Waves 15 / 20 are intentionally distinct; stage 15 remains the existing
   // battle track until its custom audio is provided, stage 20 has Peccatum.
-  const requested=!combat?'menu':
+  const requested=typeof intermission601!=='undefined'&&intermission601?.view==='shop'&&currentPhase==='reward'?'merchant':!combat?'menu':
    typeof rushMode!=='undefined'&&rushMode?(activeBoss('pecado')?'pecado':activeBoss('nameless')||activeBoss('ancestralDragon')?'nameless':activeBoss('frostjarl')?'nordicBoss':activeBoss('odin')?'nordic':'battle'):
    currentStage===35&&(activeBoss('nameless')||activeBoss('ancestralDragon'))?'nameless':
    (currentStage===25||currentStage===30)&&activeBoss('frostjarl')?'nordicBoss':
@@ -104,7 +104,7 @@ const YG_AUDIO=(()=>{
    for(const t of all){t.pause();try{t.currentTime=0;}catch(_){}}
   }
   const target=tracks[requested];
-  const gains={menu:.32,battle:.41,pecado:.46,nordic:.42,nordicBoss:.43,nameless:.47};
+  const gains={merchant:.50,menu:.32,battle:.41,pecado:.46,nordic:.42,nordicBoss:.43,nameless:.47};
   target.volume=Math.min(1,volume*gains[requested]);
   if(target.paused)target.play().catch(()=>{});
  }
