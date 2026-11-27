@@ -13,7 +13,7 @@ export function createDuel(fighters){
  let state={finished:false,id:'__server__'}, hostSeq=0;
  let lastAt=performance.now();
 function makeActor(p,i){const def=heroes[p.hero]||heroes.loid;
- const a={id:p.id,hero:p.hero,team:i%2,x:i%2?1160:760,y:fighters.length===4?(i<2?600:820):710,face:i%2?'left':'right',step:0,hp:p.hero==='mollitiam'?Math.round(HP*1.45):HP,maxHp:p.hero==='mollitiam'?Math.round(HP*1.45):HP,damage:def.dmg,speed:def.speed,attackDelay:def.attack,reach:def.range,crit:def.crit,armor:p.hero==='mollitiam'?.18:0,echo:0,dashDelay:def.dash,skillDelay:def.skill,eDelay:def.second,extraArc:0,shape:0,aim:i?Math.PI:0,attackCd:0,dashCd:0,qCd:0,eCd:0,invuln:0,dashTime:0,dx:0,dy:0,charge:0,ultCharge:0,ultTimer:0,ultMode:'',aura:0,auraTick:0,shadows:0,shadowsTick:0,corruption:0,slow:0,burn:0,attackFx:0,hitFx:0,blink:0,teleports:[],skullFx:0,transform:0,transAmp:1.5,transDuration:6,defend:0,ultBuff:0,burst:0,stun:0,energy:0,energyCd:0,input:{x:0,y:0,aim:i?Math.PI:0,attack:false},moving:false,orbit:0,mirrorGuard:0,temporalField:0,temporalRadius:0,portalEcho:0,voidUlt:0,voidUltHit:false,fieldX:0,fieldY:0,fieldRadius:105,fieldDuration:5,mirrorImages:0,dodgeChance:p.hero==='cross'?.12:p.hero==='eve'?.15:0};
+ const a={id:p.id,hero:p.hero,bot:p.bot===true,team:i%2,x:i%2?1160:760,y:fighters.length===4?(i<2?600:820):710,face:i%2?'left':'right',step:0,hp:p.hero==='mollitiam'?Math.round(HP*1.45):HP,maxHp:p.hero==='mollitiam'?Math.round(HP*1.45):HP,damage:def.dmg,speed:def.speed,attackDelay:def.attack,reach:def.range,crit:def.crit,armor:p.hero==='mollitiam'?.18:0,echo:0,dashDelay:def.dash,skillDelay:def.skill,eDelay:def.second,extraArc:0,shape:0,aim:i?Math.PI:0,attackCd:0,dashCd:0,qCd:0,eCd:0,invuln:0,dashTime:0,dx:0,dy:0,charge:0,ultCharge:0,ultTimer:0,ultMode:'',aura:0,auraTick:0,shadows:0,shadowsTick:0,corruption:0,slow:0,burn:0,attackFx:0,hitFx:0,blink:0,teleports:[],skullFx:0,transform:0,transAmp:1.5,transDuration:6,defend:0,ultBuff:0,burst:0,stun:0,energy:0,energyCd:0,input:{x:0,y:0,aim:i?Math.PI:0,attack:false},moving:false,orbit:0,mirrorGuard:0,temporalField:0,temporalRadius:0,portalEcho:0,voidUlt:0,voidUltHit:false,fieldX:0,fieldY:0,fieldRadius:105,fieldDuration:5,mirrorImages:0,dodgeChance:p.hero==='cross'?.12:p.hero==='eve'?.15:0};
  for(const id of p.cards||[]){switch(id){case 'heart':a.maxHp+=1100;a.hp+=1100;break;case 'blade':a.damage*=1.12;break;case 'fast':a.attackDelay*=.9;break;case 'speed':a.speed*=1.08;break;case 'armor':a.armor=1-(1-a.armor)*.91;break;case 'reach':a.reach=Math.min(a.reach*1.1,def.range*1.25);break;case 'dodge':a.dashDelay*=.88;break;case 'critical':a.crit=Math.min(.45,a.crit+.08);break;case 'arc':a.extraArc+=.15;break;case 'echo':a.echo+=.12;break;case 'ancient':a.maxHp=Math.ceil(a.maxHp*1.06);a.hp=a.maxHp;a.damage*=1.06;a.speed*=1.06;break;case 'shadowblade':a.damage*=1.14;break;case 'shadowdash':a.dashDelay*=.82;break;case 'darkburst':a.shape+=.18;break;case 'black':a.transAmp+=.25;break;case 'form':a.transDuration+=3;break;case 'awakening':a.skillDelay*=.85;break;case 'bloodmoon':a.burst+=.25;break;case 'mirror':a.damage*=1.12;break;case 'mirrorguard':a.shape+=.18;break;case 'voidblade':a.damage*=1.12;break;case 'timeward':a.fieldDuration+=1;break;}}
  return a;
 }
@@ -152,12 +152,36 @@ function act(a,action,variant){if(!battle?.host||!a||a.hp<=0||a.stun>0||battle.s
   }return;
  }
 }
+// Server-side bots use the exact same action handlers, cooldowns and hit rules as humans.
+function botThink(a,dt){
+ if(!a.bot||a.hp<=0)return;
+ a.botWait=(a.botWait||0)-dt;
+ if(a.stun>0){a.input={...a.input,x:0,y:0,attack:false};return;}
+ if(a.botWait>0)return;
+ a.botWait=.14+Math.random()*.12;
+ const foe=enemyOf(a);if(!foe){a.input={...a.input,x:0,y:0,attack:false};return;}
+ const dx=foe.x-a.x,dy=foe.y-a.y,d=Math.hypot(dx,dy)||1,angle=Math.atan2(dy,dx);
+ const ranged=a.hero==='kali',reach=ranged?245:a.reach+12,ideal=ranged?185:Math.max(22,a.reach*.76);
+ const side=Math.sin(battle.clock*.9+a.team*2+(a.botPhase||0))>0?1:-1;
+ let forward=d>ideal+12?1:d<ideal-17?-.55:0;
+ const strafe=d<reach+45?(ranged?.5:.26)*side:0;
+ if(a.hero==='kris'&&a.energy>0)forward=d>275?.6:0;
+ a.input={x:clamp(dx/d*forward-dy/d*strafe,-1,1),y:clamp(dy/d*forward+dx/d*strafe,-1,1),aim:angle,attack:d<reach};a.aim=angle;
+ const injured=allies(a).some(p=>p.hp<p.maxHp*.78);
+ if(a.hero==='kris'&&a.energy>=1.20){act(a,'eUp');return;}
+ if(a.ultCharge>=100&&a.ultTimer<=0&&(d<260||a.hero==='eve'||injured)){act(a,'r',a.hp<a.maxHp*.40?'piedade':'fight');return;}
+ if(a.dashCd<=0&&d>reach+95&&d<480){act(a,'dash');return;}
+ if(a.qCd<=0&&((a.hero==='kali'&&injured)||d<({cross:280,eve:145,loid:110,kris:155,mollitiam:150,kali:140}[a.hero]||120))){act(a,'q');return;}
+ if(a.eCd<=0&&((['mollitiam','kali'].includes(a.hero)&&injured)||(!['mollitiam','kali'].includes(a.hero)&&d<({kris:295,loid:290,eve:170,cross:285}[a.hero]||140)))){
+  if(a.hero==='kris'){if(a.energy<=0)act(a,'eDown');}else act(a,'e');
+ }
+}
 function sim(dt){if(!battle?.host||battle.resultSent)return;
  battle.clock+=dt; if(battle.starting>0){battle.starting=Math.max(0,battle.starting-dt);return;}
  battle.remaining=Math.max(0,battle.remaining-dt);
  for(const a of battle.players){
   // A lost or sleeping guest must not keep walking or attacking forever.
-  if(a.id!==state.id&&a.inputAt&&performance.now()-a.inputAt>250){
+  if(!a.bot&&a.id!==state.id&&a.inputAt&&performance.now()-a.inputAt>250){
     a.input={...a.input,x:0,y:0,attack:false};
   }
   if(a.regen>0){a.regen=Math.max(0,a.regen-dt);if(a.hp>0)a.hp=Math.min(a.maxHp,a.hp+a.maxHp*.012*dt);}a.sanctuary=Math.max(0,(a.sanctuary||0)-dt);const dec=['attackCd','dashCd','qCd','eCd','invuln','aura','shadows','corruption','slow','burn','attackFx','hitFx','blink','transform','defend','ultTimer','stun','mirrorGuard','temporalField','voidUlt','mirrorImages'];for(const k of dec)a[k]=Math.max(0,a[k]-dt);
@@ -172,6 +196,7 @@ function sim(dt){if(!battle?.host||battle.resultSent)return;
       hit(a,victim,victim.maxHp*.20,'void');
     }
   }
+  botThink(a,dt);
   if(a.stun>0){a.input.attack=false;a.moving=false;continue;}
   a.aim=Number.isFinite(a.input.aim)?a.input.aim:a.aim;
   const mx=clamp(a.input.x,-1,1),my=clamp(a.input.y,-1,1),len=Math.hypot(mx,my),foe=enemyOf(a);
@@ -235,7 +260,7 @@ function updateShadows(dt){
 }
 
 function snapshot(forNetwork=true){if(!battle?.host)return null;
- return {seq:forNetwork?++hostSeq:hostSeq,stamp:+battle.clock.toFixed(3),time:battle.remaining,starting:battle.starting,players:battle.players.map(a=>({id:a.id,team:a.team,hero:a.hero,speed:a.speed,x:+a.x.toFixed(2),y:+a.y.toFixed(2),face:a.face,step:+a.step.toFixed(2),aim:+a.aim.toFixed(3),hp:Math.ceil(a.hp),maxHp:Math.ceil(a.maxHp),ult:Math.round(a.ultCharge),qCd:+a.qCd.toFixed(1),eCd:+a.eCd.toFixed(1),dashCd:+a.dashCd.toFixed(1),aura:+a.aura.toFixed(2),shadows:+a.shadows.toFixed(2),transform:+a.transform.toFixed(2),defend:+a.defend.toFixed(2),ultTimer:+a.ultTimer.toFixed(2),ultMode:a.ultMode,mirrorGuard:+a.mirrorGuard.toFixed(2),temporalField:+a.temporalField.toFixed(2),voidUlt:+a.voidUlt.toFixed(2),fieldX:Math.round(a.fieldX),fieldY:Math.round(a.fieldY),fieldRadius:a.fieldRadius,stun:+a.stun.toFixed(1),mirrorImages:+a.mirrorImages.toFixed(2),atkFx:+a.attackFx.toFixed(2),atkAngle:a.attackAngle||a.aim,hitFx:+a.hitFx.toFixed(2),blink:+a.blink.toFixed(2),corruption:+a.corruption.toFixed(2)})),
+ return {seq:forNetwork?++hostSeq:hostSeq,stamp:+battle.clock.toFixed(3),time:battle.remaining,starting:battle.starting,players:battle.players.map(a=>({id:a.id,bot:a.bot,team:a.team,hero:a.hero,speed:a.speed,x:+a.x.toFixed(2),y:+a.y.toFixed(2),face:a.face,step:+a.step.toFixed(2),aim:+a.aim.toFixed(3),hp:Math.ceil(a.hp),maxHp:Math.ceil(a.maxHp),ult:Math.round(a.ultCharge),qCd:+a.qCd.toFixed(1),eCd:+a.eCd.toFixed(1),dashCd:+a.dashCd.toFixed(1),aura:+a.aura.toFixed(2),shadows:+a.shadows.toFixed(2),transform:+a.transform.toFixed(2),defend:+a.defend.toFixed(2),ultTimer:+a.ultTimer.toFixed(2),ultMode:a.ultMode,mirrorGuard:+a.mirrorGuard.toFixed(2),temporalField:+a.temporalField.toFixed(2),voidUlt:+a.voidUlt.toFixed(2),fieldX:Math.round(a.fieldX),fieldY:Math.round(a.fieldY),fieldRadius:a.fieldRadius,stun:+a.stun.toFixed(1),mirrorImages:+a.mirrorImages.toFixed(2),atkFx:+a.attackFx.toFixed(2),atkAngle:a.attackAngle||a.aim,hitFx:+a.hitFx.toFixed(2),blink:+a.blink.toFixed(2),corruption:+a.corruption.toFixed(2)})),
   clones:(battle.clones||[]).map(c=>({owner:c.owner,id:c.id,x:Math.round(c.x),y:Math.round(c.y),face:c.face,step:+c.step.toFixed(2),life:+c.life.toFixed(1)})),projectiles:battle.projectiles.map(p=>({x:Math.round(p.x),y:Math.round(p.y),color:p.color,kind:p.kind||0})),fx:battle.fx.slice(-18).map(f=>({...f,t:+f.t.toFixed(2)}))};
 }
 // Tiny positional packets for Cloudflare fallback: about 250 bytes instead of
@@ -249,13 +274,13 @@ function snapshot(forNetwork=true){if(!battle?.host)return null;
      // Fixed-step integration prevents a delayed worker callback from creating a giant teleport.
      while(dt>.00001){const step=Math.min(dt,1/60);sim(step);dt-=step;if(battle.resultSent)break;}
    },
-   input(id,input,seq=0){const p=battle.players.find(p=>p.id===id);if(!p)return false;
+   input(id,input,seq=0){const p=battle.players.find(p=>p.id===id);if(!p||p.bot)return false;
      if(seq&&seq<=(p.inputSeq||0))return false;
      if(seq)p.inputSeq=seq;
      p.input={x:clamp(Number(input.x)||0,-1,1),y:clamp(Number(input.y)||0,-1,1),aim:Number.isFinite(input.aim)?input.aim:0,attack:!!input.attack};
      p.inputAt=performance.now();return true;
    },
-   action(id,name,variant,aim){const p=battle.players.find(p=>p.id===id);if(!p)return false;
+   action(id,name,variant,aim){const p=battle.players.find(p=>p.id===id);if(!p||p.bot)return false;
      if(Number.isFinite(aim)){p.input.aim=aim;p.aim=aim;}
      act(p,name,variant);
      return true;

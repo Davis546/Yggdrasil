@@ -206,19 +206,19 @@ function handleMessage(m){
  if(m.t==='error'){note('⚠ '+m.message);return;}
  if(m.t==='closed'){closeDirect();stopDuelMusic();battle=null;view=null;state.started=false;state.finished=false;state.scene='entry';showScene('entry');note(m.message||'A sala foi fechada.');return;}
  if(m.t==='pvpWelcome'){
-   Object.assign(state,{id:m.id,host:m.host,code:m.code,role:m.role,offer:m.offer||[],picks:[],members:m.members||[],duelSize:m.size||2,started:m.started,finished:m.finished||false});
+   Object.assign(state,{id:m.id,host:m.host,code:m.code,role:m.role,offer:m.offer||[],picks:[],members:m.members||[],duelSize:m.size||2,ranked:!!m.ranked,fillBots:!!m.fillBots,together:!!m.together,started:m.started,finished:m.finished||false});
    $('codeLabel').textContent=state.code;showScene(m.started?'battle':'lobby');refreshLobby();note(m.role==='spectator'?'Modo espectador: você verá o mesmo duelo dos jogadores.':'Você entrou na sala de duelo. Escolha seu personagem e três cartas.');
    return;
  }
  if(m.t==='pvpLobby'){
-   if(m.code!==state.code)return;state.members=m.members;state.duelSize=m.size||2;state.started=m.started;state.finished=m.finished||false;
+   if(m.code!==state.code)return;state.members=m.members;state.duelSize=m.size||2;state.ranked=!!m.ranked;state.fillBots=!!m.fillBots;state.together=!!m.together;state.started=m.started;state.finished=m.finished||false;
    if(state.scene==='lobby')refreshLobby();return;
  }
  if(m.t==='pvpDraft'){state.picks=m.picks||[];state.offer=m.offer||state.offer;renderDraft();refreshLobby();return;}
  if(m.t==='pvpBegin'){
    serverDuel=m.authority==='server';
    closeDirect();directFailed=false;inputSequence=0;lastCloudSnapshot=0;
-   state.started=true;state.finished=false;
+   state.started=true;state.finished=false;state.duelSize=m.size||state.duelSize;
    if(!state.id)return;
    battle={host:!serverDuel&&state.id===m.host,fighters:m.fighters,players:[],particles:[],projectiles:[],fx:[],clones:[],clock:0,remaining:ROUND_TIME,starting:3,resultSent:false};latestSeq=-1;hostSeq=0;lastMotionSeq=-1;lastViewStamp=-1;motionSeq=0;lastMotionSent=0;lastSnapAt=0;authoritativePrevious.clear();authoritativeVelocity.clear();smoothPacketCount=0;lastInputHeartbeat=0;lastInputSent={x:0,y:0,aim:0,attack:false};rendered.clear();
    for(let i=0;i<m.fighters.length;i++)battle.players.push(makeActor(m.fighters[i],i));
@@ -299,7 +299,7 @@ function handleMessage(m){
    return;
  }
  if(m.t==='pvpResult'){
-   closeDirect();stopDuelMusic();state.finished=true;const winner=state.members.find(x=>x.id===m.winner);
+   closeDirect();stopDuelMusic();state.finished=true;const winner=battle?.fighters?.find(x=>x.id===m.winner)||state.members.find(x=>x.id===m.winner);
    $('winnerTitle').textContent=m.winnerTeam!==null&&m.winnerTeam!==undefined&&state.duelSize===4?'VITÓRIA DA EQUIPE '+(m.winnerTeam+1):winner?`VITÓRIA DE ${heroes[winner.hero]?.name||'LUTADOR'}!`:'EMPATE!';
    $('winnerNote').textContent=m.reason==='Oponente desconectado'?'O oponente saiu da partida.':'A luta terminou. Vocês podem jogar novamente na mesma sala.';
    if(m.ranked)$('winnerNote').textContent+=' · Resultado competitivo registrado pelo servidor.';show('resultOverlay',true);$('rematch').hidden=state.id!==state.host;
@@ -317,7 +317,7 @@ function refreshLobby(){
  const people=state.members||[];$('codeLabel').textContent=state.code;
  $('participants').replaceChildren(...people.map(p=>{
  const a=document.createElement('div');a.className='person';
- a.textContent=`${p.role==='fighter'&&state.duelSize===4?'EQUIPE '+((p.team||0)+1)+' · ':''}${p.id===state.id?'VOCÊ · ':''}${p.role==='spectator'?'👁 ESPECTADOR':p.hero?heroes[p.hero]?.name:'ESCOLHENDO'} · ${p.role==='spectator'?'ASSISTINDO':p.ready?'PRONTO ✓':`${p.chosen}/3 CARTAS`}`;return a;
+ a.textContent=`${p.role==='fighter'&&state.duelSize===4?'EQUIPE '+((p.team||0)+1)+' · ':''}${p.bot?'BOT · ':p.id===state.id?'VOCÊ · ':''}${p.role==='spectator'?'👁 ESPECTADOR':p.hero?heroes[p.hero]?.name:'ESCOLHENDO'} · ${p.role==='spectator'?'ASSISTINDO':p.ready?'PRONTO ✓':`${p.chosen}/3 CARTAS`}`;return a;
  }));
  const spectator=state.role==='spectator';show('selectArea',!spectator);
  $('roleHint').textContent=spectator?'Você está como espectador. Os dois jogadores escolhem suas cartas antes do início.':'Cada lutador escolhe 1 personagem e 3 cartas entre 6 sorteadas. Os personagens não podem se repetir.';
@@ -327,9 +327,11 @@ function refreshLobby(){
    b.disabled=spectator||people.some(p=>p.id!==state.id&&p.role==='fighter'&&p.hero===b.dataset.hero);
  }
  renderDraft();
- const fighters=people.filter(p=>p.role==='fighter');const ready=fighters.length===(state.duelSize||2)&&fighters.every(p=>p.ready)&&new Set(fighters.map(p=>p.hero)).size===fighters.length;
+ const fighters=people.filter(p=>p.role==='fighter'&&!p.bot),capacity=state.duelSize||2,missing=Math.max(0,capacity-fighters.length),canFill=state.fillBots&&!state.ranked;
+ const ready=(missing===0||(canFill&&fighters.length>0))&&fighters.every(p=>p.ready)&&new Set(fighters.map(p=>p.hero)).size===fighters.length;
+ const host=state.host===state.id&&!spectator;show('botSettings621',host&&!state.ranked);$('lobbyBots621').checked=!!state.fillBots;$('lobbyTogether621').checked=!!state.together;$('lobbyTogether621').disabled=!canFill||capacity!==4;
  $('begin').hidden=state.host!==state.id;$('begin').disabled=!ready;
- $('waitText').textContent=ready?'Todos prontos! O anfitrião pode começar.':`Lutadores prontos: ${fighters.filter(p=>p.ready).length} / ${state.duelSize||2} · Espectadores: ${people.filter(p=>p.role==='spectator').length}`;
+ $('waitText').textContent=ready?(missing?`Pronto! ${missing} bot(s) entrarão ao começar. Sem pontos de ranking.`:'Todos prontos! O anfitrião pode começar.') :`Lutadores prontos: ${fighters.filter(p=>p.ready).length} / ${state.duelSize||2} · Espectadores: ${people.filter(p=>p.role==='spectator').length}`;
 }
 function renderDraft(){let root=$('draftCards');root.replaceChildren();$('chosenCount').textContent=`(${state.picks.length}/3)`;
  for(const id of state.offer){const item=cards[id];if(!item)continue;
@@ -771,7 +773,7 @@ function paint(s,dt){
  g.restore();
 }
 function renderHud(s){if(!s||!s.players?.length)return;
- for(let i=0;i<2;i++){const team=s.players.filter((p,j)=>(p.team??j%2)===i);if(!team.length)continue;const hp=team.reduce((n,p)=>n+p.hp,0),max=team.reduce((n,p)=>n+p.maxHp,0);$(i?'rightName':'leftName').textContent=team.map(p=>heroes[p.hero]?.name||'LUTADOR').join(' + ');$(i?'rightHp':'leftHp').style.width=(clamp(hp/max,0,1)*100)+'%';$(i?'rightNum':'leftNum').textContent=`${nfmt(hp)} / ${nfmt(max)} · ${team.filter(p=>p.hp>0).length} vivo(s)`;}
+ for(let i=0;i<2;i++){const team=s.players.filter((p,j)=>(p.team??j%2)===i);if(!team.length)continue;const hp=team.reduce((n,p)=>n+p.hp,0),max=team.reduce((n,p)=>n+p.maxHp,0);$(i?'rightName':'leftName').textContent=team.map(p=>(p.bot?'BOT ':'')+(heroes[p.hero]?.name||'LUTADOR')).join(' + ');$(i?'rightHp':'leftHp').style.width=(clamp(hp/max,0,1)*100)+'%';$(i?'rightNum':'leftNum').textContent=`${nfmt(hp)} / ${nfmt(max)} · ${team.filter(p=>p.hp>0).length} vivo(s)`;}
  let remain=Math.max(0,s.time||0),secs=Math.ceil(remain);$('timer').textContent=`${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
  $('netInfo').textContent=`${fps} FPS · ${serverDuel?'SERVIDOR':directActive()?'DIRETO P2P':'CLOUDFLARE'} · ${directRtt>0&&directActive()?Math.round(directRtt):state.ping}ms · jitter ${Math.round(networkJitter)}ms`;
  $('roundCountdown').textContent=s.starting>0?String(Math.ceil(s.starting)):s.players.some(p=>p.hero==='eve'&&p.voidUlt>0)?'EXPANSÃO DO VAZIO':'';
@@ -881,7 +883,9 @@ for(const b of document.querySelectorAll('[data-act]')){
 }
 function duelIdentity62(){let key;try{localStorage.setItem('ygg.rank.name',$('duelName62').value.trim());key=localStorage.getItem('ygg.duel.key62');if(!/^[a-f0-9]{48}$/.test(key||'')){key=Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('');localStorage.setItem('ygg.duel.key62',key);}}catch{}return {key,name:$('duelName62').value.trim()};}
 try{$('duelName62').value=localStorage.getItem('ygg.rank.name')||'';}catch{}
-$('create').onclick=()=>send({t:'pvpCreate',size:Number($('duelSize62').value),ranked:$('duelRanked62').checked,...duelIdentity62()});
+$('duelRanked62').onchange=()=>{$('duelBots621').disabled=$('duelRanked62').checked;};
+$('create').onclick=()=>send({t:'pvpCreate',size:Number($('duelSize62').value),ranked:$('duelRanked62').checked,fillBots:!$('duelRanked62').checked&&$('duelBots621').checked,...duelIdentity62()});
+const updateBots621=()=>send({t:'pvpBots',fillBots:$('lobbyBots621').checked,together:$('lobbyTogether621').checked});$('lobbyBots621').onchange=updateBots621;$('lobbyTogether621').onchange=updateBots621;
 $('duelRankOpen62').onclick=async()=>{const box=$('duelRanks62');box.textContent='Carregando...';try{const r=await fetch('/duel-ranking?size='+$('duelSize62').value,{cache:'no-store'});if(!r.ok)throw Error();const d=await r.json();box.textContent=d.entries.map((p,i)=>`${i+1}. ${p.name} · ${p.rank} · ${p.points} pts · ${p.wins}V/${p.losses}D`).join('\n')||'Nenhuma partida competitiva.';}catch{box.textContent='Ranking indisponível.';}};$('joinFighter').onclick=()=>send({t:'pvpJoin',code:$('roomCode').value,role:'fighter',...duelIdentity62()});$('joinSpectator').onclick=()=>send({t:'pvpJoin',code:$('roomCode').value,role:'spectator'});
 for(const b of document.querySelectorAll('[data-hero]'))b.onclick=()=>send({t:'pvpChoose',hero:b.dataset.hero});
 $('begin').onclick=()=>send({t:'pvpBegin'});$('leave').onclick=()=>{stopDuelMusic();send({t:'pvpLeave'});state.scene='entry';state.code='';showScene('entry');note('Você saiu da sala.');};

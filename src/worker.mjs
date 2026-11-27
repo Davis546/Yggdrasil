@@ -35,7 +35,7 @@ async function ranking60(request,storage){const url=new URL(request.url);if(requ
 const rankName62=p=>p>=1500?'Yggdrasil':p>=1000?'Divindade':p>=700?'Diamante':p>=450?'Platina':p>=250?'Ouro':p>=100?'Prata':'Bronze';
 function identity62(m){const name=typeof m.name==='string'?m.name.trim().normalize('NFC'):'';return /^[a-f0-9]{48}$/.test(m.key||'')&&name.length>=1&&name.length<=24&&/^[\p{L}\p{N} _.-]+$/u.test(name)?{key:m.key,name}:null;}
 const duelRankKey62=size=>'duelrank62:'+(size===4?4:2);
-async function saveDuelRank62(storage,room){if(!room.ranked||room.match.winnerTeam==null)return false;const fighters=[...room.members].filter(x=>x.role==='fighter');if(fighters.length!==room.size||fighters.some(x=>!x.duelIdentity))return false;const winner=room.match.winnerTeam;await storage.transaction(async tx=>{const key=duelRankKey62(room.size);const rows=await tx.get(key)||[];fighters.forEach((f,i)=>{let row=rows.find(x=>x.key===f.duelIdentity.key);if(!row){row={...f.duelIdentity,points:0,wins:0,losses:0};rows.push(row);}row.name=f.duelIdentity.name;const win=i%2===winner;row.points=Math.max(0,row.points+(win?25:-15));row.wins+=win?1:0;row.losses+=win?0:1;});rows.sort((a,b)=>b.points-a.points||b.wins-a.wins);await tx.put(key,rows.slice(0,1000));});return true;}
+async function saveDuelRank62(storage,room){if(!room.ranked||room.roster?.some(p=>p.bot)||room.match.winnerTeam==null)return false;const fighters=[...room.members].filter(x=>x.role==='fighter');if(fighters.length!==room.size||fighters.some(x=>!x.duelIdentity))return false;const winner=room.match.winnerTeam;await storage.transaction(async tx=>{const key=duelRankKey62(room.size);const rows=await tx.get(key)||[];fighters.forEach((f,i)=>{let row=rows.find(x=>x.key===f.duelIdentity.key);if(!row){row={...f.duelIdentity,points:0,wins:0,losses:0};rows.push(row);}row.name=f.duelIdentity.name;const win=i%2===winner;row.points=Math.max(0,row.points+(win?25:-15));row.wins+=win?1:0;row.losses+=win?0:1;});rows.sort((a,b)=>b.points-a.points||b.wins-a.wins);await tx.put(key,rows.slice(0,1000));});return true;}
 export class Lobby extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -58,7 +58,7 @@ export class Lobby extends DurableObject {
       if (!a.code) continue;
       let room = this.rooms.get(a.code);
       if (!room) {
-        room = { code: a.code, members: new Set(), host: null, started: !!a.started, kind:a.kind||'coop', selectedBoss:a.boss||'japan', lastSnapshot:null, finished:false,size:a.duelSize===4?4:2,ranked:a.duelRanked===true };
+        room = { code: a.code, members: new Set(), host: null, started: !!a.started, kind:a.kind||'coop', selectedBoss:a.boss||'japan', lastSnapshot:null, finished:false,size:a.duelSize===4?4:2,ranked:a.duelRanked===true,fillBots:a.duelRanked!==true&&a.duelFillBots===true,together:a.duelTogether===true };
         this.rooms.set(a.code, room);
       }
       room.members.add(c);
@@ -78,7 +78,7 @@ export class Lobby extends DurableObject {
   persist(c) {
     if(!c.socket)return;
     c.socket.serializeAttachment({
-      token:c.token||null,wire616:c.wire616===true,duelIdentity:c.duelIdentity||null,duelSize:c.room?.size||2,duelRanked:c.room?.ranked===true,
+      token:c.token||null,wire616:c.wire616===true,duelIdentity:c.duelIdentity||null,duelSize:c.room?.size||2,duelRanked:c.room?.ranked===true,duelFillBots:c.room?.fillBots===true,duelTogether:c.room?.together===true,
       id: c.id,
       code: c.room?.code || null,
       hero: c.hero || null,
@@ -242,10 +242,12 @@ export class Lobby extends DurableObject {
     },50);
   }
   pvpMembers(room){
-    let i=0;return [...room.members].map(c=>({id:c.id,role:c.role,team:c.role==='fighter'?i++%2:null,hero:c.hero||null,chosen:(c.picks||[]).length,ready:(c.picks||[]).length===3&&!!c.hero}));
+    let i=0;const humans=[...room.members].filter(c=>c.role==='fighter');const together=room.fillBots&&room.together&&room.size===4&&humans.length===2;
+    const members=[...room.members].map(c=>({id:c.id,role:c.role,team:c.role==='fighter'?(room.started&&room.roster?room.roster.find(p=>p.id===c.id)?.team:(together?0:i++%2)):null,hero:c.hero||null,chosen:(c.picks||[]).length,ready:(c.picks||[]).length===3&&!!c.hero}));
+    if(room.started&&room.roster)members.push(...room.roster.filter(p=>p.bot).map(p=>({...p,role:'fighter',chosen:3,ready:true})));return members;
   }
   pvpLobby(room){
-    const data={t:'pvpLobby',code:room.code,members:this.pvpMembers(room),host:room.host.id,started:room.started,finished:!!room.finished,size:room.size||2,ranked:!!room.ranked};
+    const data={t:'pvpLobby',code:room.code,members:this.pvpMembers(room),host:room.host.id,started:room.started,finished:!!room.finished,size:room.size||2,ranked:!!room.ranked,fillBots:!!room.fillBots,together:!!room.together};
     for(const p of room.members)this.safeSend(p,data);
   }
   pvpLeave(c,room){
@@ -272,10 +274,10 @@ export class Lobby extends DurableObject {
     c.room=room;c.role=role;c.hero=null;c.picks=[];c.offer=[];c.duelIdentity=identity;
     room.members.add(c);this.persist(c);
     this.safeSend(c,{t:'pvpWelcome',id:c.id,code:room.code,role:c.role,host:room.host.id,offer:c.offer,
-      members:this.pvpMembers(room),started:room.started,finished:!!room.finished,size:room.size||2,ranked:!!room.ranked});
+      members:this.pvpMembers(room),started:room.started,finished:!!room.finished,size:room.size||2,ranked:!!room.ranked,fillBots:!!room.fillBots,together:!!room.together});
     this.pvpLobby(room);
     if(room.started){
-      this.safeSend(c,{t:'pvpBegin',fighters:this.pvpMembers(room).filter(x=>x.role==='fighter').map(x=>({...x,cards:this.players.get(x.id)?.picks||[]})),
+      this.safeSend(c,{t:'pvpBegin',size:room.size,fighters:room.roster||this.pvpMembers(room).filter(x=>x.role==='fighter').map(x=>({...x,cards:this.players.get(x.id)?.picks||[]})),
         hp:11200,host:room.host.id,spectator:true,authority:'server'});
       if(room.lastSnapshot)this.safeSend(c,{t:'pvpSnapshot',data:room.lastSnapshot});
     }
@@ -319,7 +321,7 @@ export class Lobby extends DurableObject {
       const identity=identity62(m);if(m.ranked===true&&!identity){this.safeSend(c,{t:'error',message:'Digite um apelido válido para o competitivo.'});return;}
       if(c.room)this.leaveRoom(c);
       const code=this.makeCode();
-      const room={code,host:c,members:new Set(),started:false,finished:false,kind:'pvp',lastSnapshot:null,size:m.size===4?4:2,ranked:m.ranked===true};
+      const room={code,host:c,members:new Set(),started:false,finished:false,kind:'pvp',lastSnapshot:null,size:m.size===4?4:2,ranked:m.ranked===true,fillBots:m.ranked!==true&&m.fillBots===true,together:m.ranked!==true&&m.together===true};
       this.rooms.set(code,room);
       this.pvpJoin(c,room,'fighter',identity);return;
     }
@@ -345,16 +347,23 @@ export class Lobby extends DurableObject {
         c.picks.push(id);this.persist(c);
         this.safeSend(c,{t:'pvpDraft',offer:c.offer,picks:c.picks});this.pvpLobby(r);return;
       }
+      if(m.t==='pvpBots'&&!r.started&&r.host===c&&!r.ranked){
+        r.fillBots=m.fillBots===true;r.together=m.together===true;for(const p of r.members)this.persist(p);this.pvpLobby(r);return;
+      }
       if(m.t==='pvpBegin'&&!r.started&&r.host===c){
         const fighters=[...r.members].filter(p=>p.role==='fighter');
-        if(fighters.length!==(r.size||2)||fighters.some(p=>!p.hero||p.picks.length!==3)||new Set(fighters.map(p=>p.hero)).size!==fighters.length){
+        if((fighters.length!==(r.size||2)&&(!r.fillBots||r.ranked||!fighters.length))||fighters.some(p=>!p.hero||p.picks.length!==3)||new Set(fighters.map(p=>p.hero)).size!==fighters.length){
           this.safeSend(c,{t:'error',message:'Aguarde todos os lutadores com personagem e 3 cartas escolhidas.'});return;
         }
         r.started=true;r.finished=false;r.lastSnapshot=null;
-        r.match=createDuel(fighters.map(p=>({id:p.id,hero:p.hero,cards:p.picks})));
+        const roster=Array(r.size).fill(null);const together=r.fillBots&&!r.ranked&&r.together&&r.size===4&&fighters.length===2;
+        fighters.forEach((p,i)=>{roster[together?i*2:i]={id:p.id,hero:p.hero,cards:p.picks,bot:false};});
+        const used=new Set(fighters.map(p=>p.hero));const available=['loid','kris','cross','eve','kali','mollitiam'].filter(h=>!used.has(h));
+        for(let i=0;i<roster.length;i++)if(!roster[i]){const j=crypto.getRandomValues(new Uint32Array(1))[0]%available.length;const hero=available.splice(j,1)[0];roster[i]={id:'bot:'+r.code+':'+i,hero,cards:pvpOffer(hero).slice(0,3),bot:true};}
+        r.roster=roster.map((p,i)=>({...p,team:i%2}));r.match=createDuel(r.roster);
         this.ensureDuelTicker();
         const started={t:'pvpBegin',host:r.host.id,authority:'server',hp:11200,
-          size:r.size||2,fighters:fighters.map((p,i)=>({id:p.id,hero:p.hero,cards:p.picks,team:i%2}))};
+          size:r.size||2,fighters:r.roster};
         for(const p of r.members){this.persist(p);this.safeSend(p,started);}this.pvpLobby(r);return;
       }
       // Server-authoritative movement and skills: applies equally to both fighters.
@@ -373,7 +382,7 @@ export class Lobby extends DurableObject {
         return;
       }
       if(m.t==='pvpRematch'&&r.host===c&&r.started&&r.finished&&!r.savingRank){
-        r.started=false;r.finished=false;r.lastSnapshot=null;r.match=null;r.netTick=0;
+        r.started=false;r.finished=false;r.lastSnapshot=null;r.match=null;r.roster=null;r.netTick=0;
         for(const p of r.members){p.picks=[];p.offer=p.role==='fighter'&&p.hero?pvpOffer(p.hero):[];this.persist(p);
           this.safeSend(p,{t:'pvpReset',offer:p.offer});}
         this.pvpLobby(r);return;
