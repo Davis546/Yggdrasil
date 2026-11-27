@@ -32,3 +32,9 @@ body:has(#coopLobby:not([hidden]) .hs50:not([hidden])):not(.waiting-full) #coopS
 .hs50 .hs50-card[data-card-slot="1"]{grid-column:2!important}.hs50 .hs50-card[data-card-slot="2"]{grid-column:3!important}.hs50 .hs50-josue{font:700 11px system-ui!important;padding:4px 8px!important;min-height:25px;color:#f4d8a3;background:#34281e!important;border:1px solid #8e7248!important;border-radius:4px}.hs50:not(:has(.hs50-card[data-card-slot="2"]:not([hidden]))) .hs50-card[data-card-slot="1"]:not([hidden]){grid-column:2/4!important;max-width:100%;justify-self:center}
 
 .hs50 .hs50-abloy{background:#262139!important;border-color:#a899cf!important;color:#e5dcff}.hs50 .hs50-card[data-card-hero="abloy"]:not([hidden]){cursor:pointer;pointer-events:auto}.hs50 .hs50-card[data-card-hero="abloy"]:disabled{pointer-events:none}.hs50:not(:has(.hs50-card[data-card-slot="2"]:not([hidden]))) .hs50-card[data-card-slot="1"]:not([hidden]){grid-column:2/4!important;justify-self:center;width:min(100%,420px)}
+
+/* V6.1.4: an unpaired hero keeps the width of ONE grid column, centered. */
+.hs50:not(:has(.hs50-card[data-card-slot="2"]:not([hidden]))) .hs50-card[data-card-slot="1"]:not([hidden]){grid-column:2/4!important;width:calc((100% - clamp(4px,1.2vw,12px))/2)!important;max-width:none!important;justify-self:center;}
+.hs50 .hs50-card .hero-art-wrap{flex:0 0 auto!important;min-width:0;overflow:hidden;}
+.hs50 .hs50-card img{object-fit:contain!important;object-position:center!important;max-width:100%!important;filter:none!important;}
+.hs50 .secret-locked img{filter:brightness(.28) grayscale(.7)!important;}

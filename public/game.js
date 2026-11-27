@@ -48,8 +48,8 @@ HERO.moretti=new Image();HERO.moretti.src='assets/heroes/moretti_sheet.png?v=49'
 HERO.mimic=new Image();HERO.mimic.src='assets/heroes/mimic_sheet.png?v=551';
 const MIMIC_ATTACK=new Image();MIMIC_ATTACK.src='assets/heroes/mimic_attack.png?v=551';
 const MIMIC_ART={};function getMimicArt(t){if(!MIMIC_ART[t]){const im=new Image();im.src='assets/heroes/mimic/'+t+'.webp?v=551';MIMIC_ART[t]=im;}return MIMIC_ART[t];}
-HERO.abloy=new Image();HERO.abloy.src='assets/heroes/abloy_sheet.png?v=613';
-const ABLOY_COSMIC=new Image();ABLOY_COSMIC.src='assets/heroes/abloy_cosmic.png?v=613';
+HERO.abloy=new Image();HERO.abloy.src='assets/heroes/abloy_sheet.png?v=614';
+const ABLOY_COSMIC=new Image();ABLOY_COSMIC.src='assets/heroes/abloy_cosmic.png?v=614';
 HERO.josue=new Image();HERO.josue.src='assets/heroes/josue_sheet.png?v=523';
 const SKILL_HEROES=new Set(['loid','kris','cross','eve','kali','mollitiam','moretti','l0id','josue','mimic','abloy']);let lastSkillArt='';
 function syncSkillArt(type){if(!SKILL_HEROES.has(type)||lastSkillArt===type)return;lastSkillArt=type; /* Keep original ✦ ✧ ✺ buttons; ability art does not replace their symbols. */}
@@ -277,7 +277,7 @@ const abloyCards=[
 {id:'ab_nova',hero:'abloy',name:'Constelação Partida',desc:'Explosões Q/E +20% de dano (até +60%) e uma bolha extra pode surgir na onda.',icon:'☼',rarity:'rare',effect:p=>{p.abBurstAmp=Math.min(1.6,(p.abBurstAmp||1)+.2);p.abSpiritExtra=Math.min(1,(p.abSpiritExtra||0)+1);}},
 {id:'ab_eternity',hero:'abloy',name:'Coroa das Almas',desc:'Feixe Celestial dura +0,5s (até 4,4s), projétil espiritual extra e garante pelo menos uma bolha por onda.',icon:'♛',rarity:'legendary',effect:p=>{p.abBeamDuration=Math.min(4.4,(p.abBeamDuration||2.4)+.5);p.abCrown=true;p.abSpiritGuarantee=true;}}
 ];
-for(const c of abloyCards){cards.push(c);CARD_IMAGES[c.id]='assets/cards/'+c.id+'.webp?v=612';CARD_IMAGES['n_'+c.id]=CARD_IMAGES[c.id];}
+for(const c of abloyCards){cards.push(c);CARD_IMAGES[c.id]='assets/cards/'+c.id+'.webp?v=614';CARD_IMAGES['n_'+c.id]=CARD_IMAGES[c.id];}
 nordicSpecials.push({id:'ab_eternity',hero:'abloy'});
 const nordicSpecialRunes=nordicSpecials.map(({id,hero})=>{
  const original=cards.find(c=>c.id===id);
@@ -592,9 +592,9 @@ function tickAbloy(p,dt){
  }finally{player=prior;}
 }
 function drawAbloy61(x,y,face,step,scale,a){
- const cosmic=(a?.abCosmicUntil||0)>elapsed;const im=cosmic?ABLOY_COSMIC:HERO.abloy;const aim=a?.abBeam?.angle??a?.aim;const dir=cosmic&&Number.isFinite(aim)?(Math.abs(Math.cos(aim))>Math.abs(Math.sin(aim))?(Math.cos(aim)<0?'left':'right'):(Math.sin(aim)<0?'up':'down')):face;const row=({down:0,left:1,right:2,up:3})[dir]??0;const col=cosmic?3:(a?.moving||a===player&&movingNow)?[1,0,2,0][Math.floor(step)%4]:0;
+ const cosmic=(a?.abCosmicUntil||0)>elapsed;const im=cosmic?ABLOY_COSMIC:HERO.abloy;const aim=a?.abBeam?.angle??a?.aim;const dir=cosmic&&Number.isFinite(aim)?(Math.abs(Math.cos(aim))>Math.abs(Math.sin(aim))?(Math.cos(aim)<0?'left':'right'):(Math.sin(aim)<0?'up':'down')):face;const row=({down:0,left:1,right:2,up:3})[dir]??0;const col=(a?.moving||a===player&&movingNow)?Math.floor(step)%4:cosmic?3:0;
  ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(scale,scale);ctx.imageSmoothingEnabled=false;
- if(im?.complete&&im.naturalWidth)ctx.drawImage(im,col*112,row*112,112,112,-26,-46,52,52);else{ctx.fillStyle='#dbe5ff';ctx.beginPath();ctx.arc(0,-19,12,0,TAU);ctx.fill();}
+ if(im?.complete&&im.naturalWidth)ctx.drawImage(im,col*112,row*112,112,112,-22,-39,44,44);else{ctx.fillStyle='#dbe5ff';ctx.beginPath();ctx.arc(0,-19,12,0,TAU);ctx.fill();}
  const active=a?.abActiveSpirits||[];const order=['gold','violet','blue'];const colors={gold:'#ffd67d',violet:'#c397ff',blue:'#91daff'};const list=order.filter(k=>active.includes(k));
  for(let i=0;i<list.length;i++){const ang=elapsed*1.65+i*TAU/Math.max(1,list.length),ox=Math.cos(ang)*24,oy=-18+Math.sin(ang)*12;ctx.fillStyle=colors[list[i]];ctx.beginPath();ctx.arc(ox,oy,3.2,0,TAU);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=.7;ctx.stroke();}
  ctx.restore();
