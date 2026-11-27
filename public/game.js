@@ -48,8 +48,8 @@ HERO.moretti=new Image();HERO.moretti.src='assets/heroes/moretti_sheet.png?v=49'
 HERO.mimic=new Image();HERO.mimic.src='assets/heroes/mimic_sheet.png?v=551';
 const MIMIC_ATTACK=new Image();MIMIC_ATTACK.src='assets/heroes/mimic_attack.png?v=551';
 const MIMIC_ART={};function getMimicArt(t){if(!MIMIC_ART[t]){const im=new Image();im.src='assets/heroes/mimic/'+t+'.webp?v=551';MIMIC_ART[t]=im;}return MIMIC_ART[t];}
-HERO.abloy=new Image();HERO.abloy.src='assets/heroes/abloy_sheet.png?v=612';
-const ABLOY_COSMIC=new Image();ABLOY_COSMIC.src='assets/heroes/abloy_cosmic.png?v=612';
+HERO.abloy=new Image();HERO.abloy.src='assets/heroes/abloy_sheet.png?v=613';
+const ABLOY_COSMIC=new Image();ABLOY_COSMIC.src='assets/heroes/abloy_cosmic.png?v=613';
 HERO.josue=new Image();HERO.josue.src='assets/heroes/josue_sheet.png?v=523';
 const SKILL_HEROES=new Set(['loid','kris','cross','eve','kali','mollitiam','moretti','l0id','josue','mimic','abloy']);let lastSkillArt='';
 function syncSkillArt(type){if(!SKILL_HEROES.has(type)||lastSkillArt===type)return;lastSkillArt=type; /* Keep original ✦ ✧ ✺ buttons; ability art does not replace their symbols. */}
