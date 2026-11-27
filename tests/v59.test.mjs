@@ -28,7 +28,7 @@ run("start('mimic','rush');awardCard(player,cards.find(c=>c.id==='critical'));mi
 run("start('cross','rush');stage=16;coop.active=true;coop.host=true;coop.id='host';coop.members=Array.from({length:5},(_,i)=>({id:String(i)}));globalThis.WebSocket={OPEN:1};coop.socket={readyState:1,bufferedAmount:0,send:s=>globalThis.sentState=JSON.parse(s)};spawnStage();coopSendState(true)");
 eq('waveBalance.players',5);eq('sentState.data.enemies.filter(isBossEnemy).length',3);eq('sentState.data.rushMode',true);eq('sentState.data.stage',16);eq('sentState.checkpoint.enemies.filter(isBossEnemy).length',3);
 run("coop.active=false;coop.host=false;coop.socket=null;coop.members=[]");
-assert(html.includes('game.js?v=602')&&html.includes('id="worldRush"')&&html.includes('value="rush"'));
+assert(html.includes('game.js?v=610')&&html.includes('id="worldRush"')&&html.includes('value="rush"'));
 console.log('PASS V5.9: 64 rodadas, oito chefes, duplas, trios, cartas, retorno à sobrevivência, seis alvos, blink, Mímico e menu.');
 let worker=fs.readFileSync(new URL('../src/worker.mjs',import.meta.url),'utf8').replace("import { DurableObject } from 'cloudflare:workers';",'class DurableObject {constructor(ctx,env){this.ctx=ctx;this.env=env;}}');
 const tmp=new URL('../src/.worker_v59_test.mjs',import.meta.url);fs.writeFileSync(tmp,worker);
