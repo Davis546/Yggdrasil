@@ -15,7 +15,7 @@ function waitingJapanWalk(x,y){const px=(x-244)*1448/960,py=(y-180)*1086/600;ret
 function waitingSpawn(i,nordic){return {x:nordic?584+(i%5)*70:780+(i%5)*58,y:nordic?600:490,face:'down',moving:false};}
 const PASSIVE_IDS=new Set(['odin','tyr','ymir','sleipnir','eir','huginn']);
 const validPassives=p=>Array.isArray(p)&&p.length===3&&new Set(p).size===3&&p.every(id=>PASSIVE_IDS.has(id));
-const ACTIONS = new Set(['attack', 'q', 'eDown', 'eUp', 'dash', 'ultimate', 'card', 'ultimateChoice', 'f', 'mimic']);
+const ACTIONS = new Set(['attack', 'q', 'eDown', 'eUp', 'dash', 'ultimate', 'card', 'ultimateChoice', 'f', 'mimic', 'shop', 'relic']);
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 // The PvP draft is server-generated and server-validated. No instant-kill cards in PvP.
 const PVP_CARDS = ['heart','blade','fast','speed','armor','reach','dodge','critical','arc','echo','ancient','shadowblade','shadowdash','darkburst','black','form','awakening','bloodmoon','mirror','mirrorguard','voidblade','timeward'];
@@ -25,6 +25,11 @@ function pvpOffer(hero){
   return pool.slice(0,6);
 }
 
+
+const rankModes60=new Set(['rush','japan','nordic']),rankKinds60=new Set(['solo','coop']),rankDiffs60=new Set(['normal','pecador']);
+const rankJson60=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+function rankCategory60(v){return rankModes60.has(v.mode)&&rankKinds60.has(v.kind)&&rankDiffs60.has(v.difficulty)?`rank60:${v.mode}:${v.kind}:${v.difficulty}`:null;}
+async function ranking60(request,storage){const url=new URL(request.url);if(request.method==='GET'){const key=rankCategory60(Object.fromEntries(url.searchParams));if(!key)return rankJson60({error:'Categoria inválida'},400);return rankJson60({entries:await storage.get(key)||[],verified:false});}if(request.method!=='POST')return rankJson60({error:'Método inválido'},405);let v;try{const body=await request.text();if(body.length>2048)return rankJson60({error:'Pedido muito grande'},413);v=JSON.parse(body);}catch{return rankJson60({error:'JSON inválido'},400);}if(!v||typeof v!=='object')return rankJson60({error:'Dados inválidos'},400);const key=rankCategory60(v);const name=typeof v.name==='string'?v.name.trim().normalize('NFC'):'';const wave=v.wave;if(!key||!HEROES.has(v.hero)||!name||name.length>24||!/^[\p{L}\p{N} _.-]+$/u.test(name)||!Number.isInteger(wave)||wave<1||wave>(v.mode==='rush'?10000:20))return rankJson60({error:'Dados inválidos'},400);const row={name,hero:v.hero,wave};await storage.transaction(async tx=>{const entries=await tx.get(key)||[];const i=entries.findIndex(x=>x.name.toLocaleLowerCase('pt-BR')===name.toLocaleLowerCase('pt-BR')&&x.hero===v.hero);if(i>=0&&entries[i].wave>=wave)return;if(i>=0)entries.splice(i,1);entries.push(row);entries.sort((a,b)=>b.wave-a.wave||a.name.localeCompare(b.name,'pt-BR')||a.hero.localeCompare(b.hero));await tx.put(key,entries.slice(0,100));});return rankJson60({ok:true,verified:false});}
 
 export class Lobby extends DurableObject {
   constructor(ctx, env) {
@@ -272,6 +277,7 @@ export class Lobby extends DurableObject {
 
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.pathname === '/ranking') return ranking60(request,this.ctx.storage);
     if (url.pathname === '/health') {
       return new Response(JSON.stringify({ ok: true, rooms: this.rooms.size }), {
         headers: { 'content-type': 'application/json; charset=utf-8' }
@@ -550,6 +556,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if(url.pathname==='/net-edge')return new Response(JSON.stringify({ok:true,colo:request.cf?.colo||'unknown'}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+    if(url.pathname==='/ranking'){const id=env.LOBBY.idFromName('yggdrasil-world-ranking-v60');return env.LOBBY.get(id).fetch(request);}
     if (url.pathname === '/ws' || url.pathname === '/health') {
       const id = env.LOBBY.idFromName('yggdrasil-sam-lobby-v493');
       const stub = env.LOBBY.get(id,{locationHint:'sam'});
