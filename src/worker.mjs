@@ -1,5 +1,5 @@
 import { unpackWorld616 } from './wire616.mjs';
-import { createDuel } from './duel-engine.mjs';
+import { createDuel, DUEL_HEROES622 } from './duel-engine.mjs';
 // Yggdrasil Online v3.4 — Cloudflare Workers + Durable Objects (prototype)
 // Host-authoritative: the host simulates combat; this Durable Object relays inputs/states.
 import { DurableObject } from 'cloudflare:workers';
@@ -19,9 +19,9 @@ const validPassives=p=>Array.isArray(p)&&p.length===3&&new Set(p).size===3&&p.ev
 const ACTIONS = new Set(['attack', 'q', 'eDown', 'eUp', 'dash', 'ultimate', 'card', 'ultimateChoice', 'f', 'mimic', 'shop', 'relic', 'shopTalk', 'shopExit']);
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 // The PvP draft is server-generated and server-validated. No instant-kill cards in PvP.
-const PVP_CARDS = ['heart','blade','fast','speed','armor','reach','dodge','critical','arc','echo','ancient','shadowblade','shadowdash','darkburst','black','form','awakening','bloodmoon','mirror','mirrorguard','voidblade','timeward'];
+const PVP_CARDS = ['heart','blade','fast','speed','armor','reach','dodge','critical','arc','echo','ancient','shadowblade','shadowdash','darkburst','black','form','awakening','bloodmoon','mirror','mirrorguard','voidblade','timeward','ab_guard','ab_ruin','ab_nova','ab_eternity','mimicMastery'];
 function pvpOffer(hero){
-  const pool = PVP_CARDS.filter(id=>!['shadowblade','shadowdash','darkburst'].includes(id)||hero==='loid').filter(id=>!['black','form','awakening','bloodmoon'].includes(id)||hero==='kris').filter(id=>!['mirror','mirrorguard'].includes(id)||hero==='kali').filter(id=>!['voidblade','timeward'].includes(id)||hero==='eve');
+  const pool = PVP_CARDS.filter(id=>!['shadowblade','shadowdash','darkburst'].includes(id)||hero==='loid').filter(id=>!['black','form','awakening','bloodmoon'].includes(id)||hero==='kris').filter(id=>!['mirror','mirrorguard'].includes(id)||hero==='kali').filter(id=>!['voidblade','timeward'].includes(id)||hero==='eve').filter(id=>!id.startsWith('ab_')||hero==='abloy').filter(id=>id!=='mimicMastery'||hero==='mimic');
   for(let i=pool.length-1;i>0;i--){ const j=crypto.getRandomValues(new Uint32Array(1))[0]%(i+1); [pool[i],pool[j]]=[pool[j],pool[i]]; }
   return pool.slice(0,6);
 }
@@ -219,7 +219,7 @@ export class Lobby extends DurableObject {
           // resending spell FX, projectiles and all cooldowns on every frame.
           room.netTick=(room.netTick||0)+1;
           const actors=room.match.getActors();
-          const motion={t:'pvpMotion',data:{seq:room.netTick,stamp:room.match.getClock(),time:room.match.getTime(),starting:room.match.getStarting(),players:actors.map((a,i)=>({id:a.id,x:Number(a.x.toFixed(2)),y:Number(a.y.toFixed(2)),face:a.face,step:a.step,aim:a.aim}))}};
+          const motion={t:'pvpMotion',data:{seq:room.netTick,stamp:room.match.getClock(),time:room.match.getTime(),starting:room.match.getStarting(),players:actors.map((a,i)=>({id:a.id,x:Number(a.x.toFixed(2)),y:Number(a.y.toFixed(2)),face:a.face,step:a.step,aim:a.aim,blinkSeq:a.blinkSeq,moving:a.moving}))}};
           if(room.netTick%2===1 || !room.lastSnapshot){
             const packet={t:'pvpSnapshot',data:room.match.snapshot()};
             room.lastSnapshot=packet.data;
@@ -278,7 +278,7 @@ export class Lobby extends DurableObject {
     this.pvpLobby(room);
     if(room.started){
       this.safeSend(c,{t:'pvpBegin',size:room.size,fighters:room.roster||this.pvpMembers(room).filter(x=>x.role==='fighter').map(x=>({...x,cards:this.players.get(x.id)?.picks||[]})),
-        hp:11200,host:room.host.id,spectator:true,authority:'server'});
+        hp:null,host:room.host.id,spectator:true,authority:'server'});
       if(room.lastSnapshot)this.safeSend(c,{t:'pvpSnapshot',data:room.lastSnapshot});
     }
   }
@@ -335,7 +335,7 @@ export class Lobby extends DurableObject {
     if (c.room?.kind === 'pvp') {
       const r=c.room;
       if(m.t === 'pvpChoose'&&!r.started&&c.role==='fighter'){
-        if(!HEROES.has(m.hero)||['moretti','l0id','josue','mimic','abloy'].includes(m.hero))return;
+        if(!HEROES.has(m.hero))return; c.skin622=m.skin===true;
         if([...r.members].some(p=>p!==c&&p.role==='fighter'&&p.hero===m.hero)){
           this.safeSend(c,{t:'error',message:'Esse personagem já foi escolhido.'});return;
         }
@@ -357,12 +357,12 @@ export class Lobby extends DurableObject {
         }
         r.started=true;r.finished=false;r.lastSnapshot=null;
         const roster=Array(r.size).fill(null);const together=r.fillBots&&!r.ranked&&r.together&&r.size===4&&fighters.length===2;
-        fighters.forEach((p,i)=>{roster[together?i*2:i]={id:p.id,hero:p.hero,cards:p.picks,bot:false};});
-        const used=new Set(fighters.map(p=>p.hero));const available=['loid','kris','cross','eve','kali','mollitiam'].filter(h=>!used.has(h));
+        fighters.forEach((p,i)=>{roster[together?i*2:i]={id:p.id,hero:p.hero,cards:p.picks,bot:false,skin:p.skin622===true};});
+        const used=new Set(fighters.map(p=>p.hero));const available=DUEL_HEROES622.filter(h=>!used.has(h));
         for(let i=0;i<roster.length;i++)if(!roster[i]){const j=crypto.getRandomValues(new Uint32Array(1))[0]%available.length;const hero=available.splice(j,1)[0];roster[i]={id:'bot:'+r.code+':'+i,hero,cards:pvpOffer(hero).slice(0,3),bot:true};}
         r.roster=roster.map((p,i)=>({...p,team:i%2}));r.match=createDuel(r.roster);
         this.ensureDuelTicker();
-        const started={t:'pvpBegin',host:r.host.id,authority:'server',hp:11200,
+        const started={t:'pvpBegin',host:r.host.id,authority:'server',hp:null,
           size:r.size||2,fighters:r.roster};
         for(const p of r.members){this.persist(p);this.safeSend(p,started);}this.pvpLobby(r);return;
       }
@@ -373,7 +373,7 @@ export class Lobby extends DurableObject {
         return;
       }
       if(m.t==='pvpAction'&&r.started&&!r.finished&&c.role==='fighter'&&r.match){
-        if(!['dash','q','e','eDown','eUp','r'].includes(m.action))return;
+        if(!['dash','q','e','eDown','eUp','r','mimic'].includes(m.action))return;
         // Rate limit actions even if a client attempts to spam websocket packets.
         const now=Date.now();if(!['eDown','eUp'].includes(m.action)&&c.lastSkillAt&&now-c.lastSkillAt<50)return;if(!['eDown','eUp'].includes(m.action))c.lastSkillAt=now;
         r.match.action(c.id,m.action,typeof m.variant==='string'?m.variant.slice(0,12):'',Number.isFinite(m.aim)?m.aim:0);
@@ -405,7 +405,7 @@ export class Lobby extends DurableObject {
           ult:typeof m.ult==='string'?m.ult.slice(0,10):''}});return;
       }
       if(m.t==='pvpAction'&&r.started&&!r.finished&&c.role==='fighter'&&c!==r.host){
-        if(!['dash','q','e','eDown','eUp','r'].includes(m.action))return;
+        if(!['dash','q','e','eDown','eUp','r','mimic'].includes(m.action))return;
         this.safeSend(r.host,{t:'pvpAction',id:c.id,action:m.action,variant:String(m.variant||'').slice(0,10),aim:Number.isFinite(m.aim)?m.aim:0,x:Number.isFinite(m.x)?Math.max(-1,Math.min(1,m.x)):0,y:Number.isFinite(m.y)?Math.max(-1,Math.min(1,m.y)):0});return;
       }
       if(m.t==='pvpMotion'&&r.started&&!r.finished&&r.host===c){

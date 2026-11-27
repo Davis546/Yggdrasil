@@ -1,294 +1,35 @@
-// YGGDRASIL v3.6 — authoritative duel simulation shared from the original X1 rules.
-// No DOM/canvas is used by this module. Server owns positions, hits, cooldowns and winner.
-const HP=11200,MAP_W=1920,MAP_H=1400;
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-const heroes={loid:{name:'LOID',dmg:128,speed:175,attack:.37,range:46,crit:.09,skill:9,second:20,dash:2.4,color:'#cda4f2'},kris:{name:'KRIS',dmg:158,speed:157,attack:.43,range:109,crit:.08,skill:14,second:8.5,dash:2.8,color:'#6dbbff'},cross:{name:'XANS',dmg:75,speed:145,attack:.18,range:34,crit:.26,skill:6.5,second:9,dash:1.05,color:'#bb74ff'},eve:{name:'EVE LOREY',dmg:175,speed:197,attack:.34,range:113,crit:.15,skill:21,second:18,dash:2.2,color:'#916aff'},kali:{name:'KALI',dmg:113,speed:162,attack:.44,range:157,crit:.08,skill:20,second:18,dash:2.6,color:'#dfaafa'},mollitiam:{name:'MOLLITIAM',dmg:245,speed:105,attack:1.16,range:112,crit:.10,skill:12,second:30,dash:4.0,color:'#e6bb7c'}};
-const cards={
-  heart:['Coração da Raiz','+1.100 de vida máxima.'],blade:['Fio da Ruína','+12% de dano.'],fast:['Dança das Lâminas','+10% de rapidez de ataque.'],speed:['Passos Leves','+8% velocidade de movimento.'],armor:['Casca Ancestral','9% menos dano recebido.'],reach:['Alcance da Raiz','+10% alcance (máximo 25%).'],dodge:['Reflexos Antigos','Esquiva recarrega mais rápido.'],critical:['Olho do Predador','+8% chance de crítico.'],arc:['Corte Crescente','Aumenta o arco do ataque.'],echo:['Eco da Lâmina','12% chance de segundo golpe.'],ancient:['Herança de Yggdrasil','+6% vida, dano e velocidade.'],shadowblade:['Lâmina Sombria','Loid: +14% de dano.'],shadowdash:['Passo Sombrio','Loid: esquiva 18% mais rápida.'],darkburst:['Abismo Desperto','Loid: aura mais forte.'],black:['Fúria Negra','Kris: +25% dano transformado.'],form:['Forma Perfeita','Kris: +3s de transformação.'],awakening:['Despertar','Kris: Q recarrega mais rápido.'],bloodmoon:['Lua do Abismo','Kris: corte transformado causa mais dano.'],mirror:['Reflexo Duplo','Kali: +12% de dano de ilusão.'],mirrorguard:['Espelho Protetor','Kali: defesa ilusória dura mais.'],voidblade:['Espada Voraz','Eve: +12% dano da espada.'],timeward:['Tempo Dilatado','Eve: área de tempo mais duradoura.']
-};
-
+// V6.2.2 — server-authoritative PvP adapter for the real Journey combat engine.
+import {createJourneyRuntime622} from '../public/journey-runtime622.mjs';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),round=(v,n=2)=>Number.isFinite(v)?+v.toFixed(n):0;
+export const DUEL_HEROES622=['loid','kris','cross','eve','kali','mollitiam','moretti','l0id','josue','mimic','abloy'];
 export function createDuel(fighters){
- let battle={host:true,players:[],projectiles:[],fx:[],clones:[],clock:0,remaining:180,starting:3,resultSent:false,winner:null};
- let state={finished:false,id:'__server__'}, hostSeq=0;
- let lastAt=performance.now();
-function makeActor(p,i){const def=heroes[p.hero]||heroes.loid;
- const a={id:p.id,hero:p.hero,bot:p.bot===true,team:i%2,x:i%2?1160:760,y:fighters.length===4?(i<2?600:820):710,face:i%2?'left':'right',step:0,hp:p.hero==='mollitiam'?Math.round(HP*1.45):HP,maxHp:p.hero==='mollitiam'?Math.round(HP*1.45):HP,damage:def.dmg,speed:def.speed,attackDelay:def.attack,reach:def.range,crit:def.crit,armor:p.hero==='mollitiam'?.18:0,echo:0,dashDelay:def.dash,skillDelay:def.skill,eDelay:def.second,extraArc:0,shape:0,aim:i?Math.PI:0,attackCd:0,dashCd:0,qCd:0,eCd:0,invuln:0,dashTime:0,dx:0,dy:0,charge:0,ultCharge:0,ultTimer:0,ultMode:'',aura:0,auraTick:0,shadows:0,shadowsTick:0,corruption:0,slow:0,burn:0,attackFx:0,hitFx:0,blink:0,teleports:[],skullFx:0,transform:0,transAmp:1.5,transDuration:6,defend:0,ultBuff:0,burst:0,stun:0,energy:0,energyCd:0,input:{x:0,y:0,aim:i?Math.PI:0,attack:false},moving:false,orbit:0,mirrorGuard:0,temporalField:0,temporalRadius:0,portalEcho:0,voidUlt:0,voidUltHit:false,fieldX:0,fieldY:0,fieldRadius:105,fieldDuration:5,mirrorImages:0,dodgeChance:p.hero==='cross'?.12:p.hero==='eve'?.15:0};
- for(const id of p.cards||[]){switch(id){case 'heart':a.maxHp+=1100;a.hp+=1100;break;case 'blade':a.damage*=1.12;break;case 'fast':a.attackDelay*=.9;break;case 'speed':a.speed*=1.08;break;case 'armor':a.armor=1-(1-a.armor)*.91;break;case 'reach':a.reach=Math.min(a.reach*1.1,def.range*1.25);break;case 'dodge':a.dashDelay*=.88;break;case 'critical':a.crit=Math.min(.45,a.crit+.08);break;case 'arc':a.extraArc+=.15;break;case 'echo':a.echo+=.12;break;case 'ancient':a.maxHp=Math.ceil(a.maxHp*1.06);a.hp=a.maxHp;a.damage*=1.06;a.speed*=1.06;break;case 'shadowblade':a.damage*=1.14;break;case 'shadowdash':a.dashDelay*=.82;break;case 'darkburst':a.shape+=.18;break;case 'black':a.transAmp+=.25;break;case 'form':a.transDuration+=3;break;case 'awakening':a.skillDelay*=.85;break;case 'bloodmoon':a.burst+=.25;break;case 'mirror':a.damage*=1.12;break;case 'mirrorguard':a.shape+=.18;break;case 'voidblade':a.damage*=1.12;break;case 'timeward':a.fieldDuration+=1;break;}}
- return a;
-}
-function opponents(a){return battle.players.filter(x=>x.team!==a.team&&x.hp>0);}function allies(a){return battle.players.filter(x=>x.team===a.team&&x.hp>0);}function enemyOf(a){return opponents(a).sort((x,y)=>dist(a,x)-dist(a,y))[0];}
-function drawFx(x,y,type,t=0.4,r=25,color='#cf92fc',ex=0,ey=0){if(!battle?.fx)return;battle.fx.push({x,y,type,t,max:t,r,color,ex,ey});if(battle.fx.length>26)battle.fx.shift();}
-// Guest-only cosmetic feedback; damage and cooldown are always decided by the host.
-function guestFx(x,y,type,t=.3,r=40,color='#bf8bf7',ex=0,ey=0){
-  if(localTravelFx.length>18)localTravelFx.shift();
-  localTravelFx.push({x,y,type,t,max:t,r,color,ex,ey});
-}
-function previewGuestAction(name){
- if(battle?.host||state.role!=='fighter')return;
- const me=rendered.get(state.id)||view?.players?.find(x=>x.id===state.id);
- if(!me)return;
- const direction=Number.isFinite(controls.aim)?controls.aim:0;
- if(name==='dash'&&me.hero==='eve'){
-   guestFx(me.x,me.y,'portal',1.20,94);
-   guestFx(clamp(me.x+Math.cos(direction)*215,55,MAP_W-55),clamp(me.y+Math.sin(direction)*215,75,MAP_H-55),'portal',1.20,94);
- }else if(name==='dash')guestFx(me.x,me.y,'ring',.25,26,heroes[me.hero]?.color||'#ae8cfa');
- else if(name==='q'&&me.hero==='eve'){guestFx(me.x,me.y,'voidBurst',.82,85);}
- else if(name==='e')guestFx(me.x,me.y,me.hero==='eve'?'ring':me.hero==='kali'?'mirrorcast':'ring',.65,me.hero==='eve'?170:70,'#bcaaff');
- else if(name==='r')guestFx(me.x,me.y,'ring',.62,130,'#deb9ff');
-}
-function hit(a,b,amount,from='hit'){
- if(!b||a.team===b.team||b.hp<=0||a.hp<=0||b.invuln>0||b.defend>0)return 0; if(b.mirrorGuard>0&&Math.random()<.5){drawFx(b.x,b.y,'ring',.26,25,'#ddbbff');return 0;}if(b.dodgeChance>0&&Math.random()<b.dodgeChance){drawFx(b.x,b.y,'ring',.28,21,'#a2bcff');return 0;}
- let dealt=amount*(1-b.armor)*(b.sanctuary>0?.65:1);
- const crit=Math.random()<Math.min(.75,a.crit+(a.ultMode==='xans'&&a.ultTimer>0?.27:0));if(crit&&from==='hit')dealt*=a.hero==='mollitiam'?200/130:1.7;
- if(a.ultMode==='xans'&&a.ultTimer>0)dealt*=1.35;
- if(a.ultMode==='fight'&&a.ultTimer>0&&from==='hit')dealt*=2;
- if(a.hero==='mollitiam'&&a.ultMode==='mollitiam'&&a.ultTimer>0)dealt*=1.35;
- if(a.transform>0&&from==='hit')dealt*=a.transAmp;
- if(b.corruption>0)dealt*=1.16;
- dealt=Math.round(dealt);
- b.hp=Math.max(0,b.hp-dealt);b.hitFx=.18;
- a.ultCharge=Math.min(100,a.ultCharge+(a.hero==='mollitiam'?(from==='hit'?4.2:2):a.hero==='eve'?3.2:from==='hit'?9:Math.min(9,Math.max(2,Math.round(dealt/135)))));
- drawFx(b.x,b.y-38,'text',.55,0,crit?'#ffdf81':'#ffe2f4',dealt,0);
- if(a.hero==='cross'&&b.hp<=b.maxHp*.5&&b.hp>0){b.corruption=Math.max(b.corruption,4);b.slow=Math.max(b.slow,1.3);}
- if(b.hp<=0&&!opponents(a).length)finish(a.id);
- return dealt;
-}
-function finish(id){if(!battle||battle.resultSent)return;battle.resultSent=true;state.finished=true;battle.winner=id;battle.winnerTeam=id?battle.players.find(p=>p.id===id)?.team:null;}
-function basic(a){if(a.hp<=0||a.stun>0||a.attackCd>0||battle?.starting>0||battle?.resultSent)return;
- const b=enemyOf(a),angle=a.input.aim;a.aim=angle;a.attackCd=a.attackDelay*(a.hero==='mollitiam'&&a.ultMode==='mollitiam'&&a.ultTimer>0?.66:1);
- a.attackFx=.15;a.attackAngle=angle;
- if(a.hero==='kali'){battle.projectiles.push({x:a.x,y:a.y-10,vx:Math.cos(angle)*410,vy:Math.sin(angle)*410,damage:a.damage,color:'#e4bfff',from:a.id,life:1.1,kind:3,spin:0});drawFx(a.x,a.y-12,'mirrorcast',.30,20,'#e4bfff');return;}const slashReach=a.hero==='loid'?Math.min(49,a.reach+3):a.reach;
- drawFx(a.x+Math.cos(angle)*slashReach*.36,a.y+Math.sin(angle)*slashReach*.36,'slash',.23,slashReach,heroes[a.hero].color,angle,0);
- const reach=a.reach;for(const b of opponents(a)){let theta=Math.atan2(b.y-a.y,b.x-a.x),diff=Math.atan2(Math.sin(theta-angle),Math.cos(theta-angle));if(dist(a,b)<reach+21&&Math.abs(diff)<.8+a.extraArc){hit(a,b,a.damage,'hit');if(a.echo>0&&Math.random()<a.echo)hit(a,b,a.damage*.5,'hit');if(a.ultMode==='itens'&&a.ultTimer>0)hit(a,b,a.damage*.6,'hit');}}
-}
-function act(a,action,variant){if(!battle?.host||!a||a.hp<=0||a.stun>0||battle.starting>0||battle.resultSent)return;
- if(a.chain)return;const b=enemyOf(a);if(action==='dash'){
-  if(a.dashCd>0)return;const ang=Math.hypot(a.input.x,a.input.y)>.05?Math.atan2(a.input.y,a.input.x):a.aim;
-  a.dx=Math.cos(ang);a.dy=Math.sin(ang);a.dashTime=.22;a.dashCd=a.hero==='loid'&&a.ultMode==='loid'&&a.ultTimer>0?.07:a.dashDelay;
-  a.invuln=.32;if(a.hero==='cross'){const ox=a.x,oy=a.y;a.dashTime=0;a.x=clamp(a.x+a.dx*120,55,MAP_W-55);a.y=clamp(a.y+a.dy*120,75,MAP_H-55);drawFx(ox,oy,'ring',.32,25,'#ad77ff');drawFx(a.x,a.y,'ring',.32,25,'#ad77ff');a.blink=.32;return;}if(a.hero==='eve'){
-     // Instant void-portal travel. Host is the authority; clients display both portals.
-     const fromX=a.x,fromY=a.y;
-     a.dashTime=0;a.x=clamp(a.x+a.dx*232,55,MAP_W-55);a.y=clamp(a.y+a.dy*232,75,MAP_H-55);
-     drawFx(fromX,fromY,'portal',1.25,100,'#9e75ff');drawFx(fromX,fromY,'voidBurst',.6,78,'#7e57cf');
-     drawFx(a.x,a.y,'portal',1.25,100,'#b78aff');drawFx(a.x,a.y,'voidBurst',.6,78,'#b78aff');
-     a.blink=.32;
-   }else drawFx(a.x,a.y,'ring',.35,25,heroes[a.hero].color);return;
+ const units=fighters.map((x,i)=>({...x,team:i%2,x:i%2?805:643,y:fighters.length===4?(i<2?505:580):545,aim:i%2?Math.PI:0,face:i%2?'left':'right',inputSeq:0,botWait:0,botHold:0}));
+ const teams=[0,1].map(t=>({units:units.filter(x=>x.team===t),runtime:createJourneyRuntime622()}));for(const t of teams)t.runtime.init(t.units);
+ let clock=0,starting=3,remaining=180,lastAt=performance.now(),seq=0,finished=false,winner=null,winnerTeam=null;
+ const living=t=>teams[t].units.filter(x=>x.actor.hp>0);
+ function proxy(u){const p=u.actor;const x={id:u.id,type:'duelFighter',pvpFighter:true,radius:10,receive:amount=>teams[u.team].runtime.receive(u,amount)};
+ for(const k of ['x','y','hp','maxHp','speed','hurt','slow','stunTime','corruptTime','timeSlow','burnTime','burnTick'])Object.defineProperty(x,k,{enumerable:true,get:()=>p[k]??0,set:v=>{if(Number.isFinite(v))p[k]=v;}});return x;}
+ const proxies=units.map(u=>({u,p:proxy(u)}));
+ const targets=t=>proxies.filter(x=>x.u.team!==t&&x.u.actor.hp>0).map(x=>x.p);
+ function refresh(t){teams[t].runtime.refreshTargets(targets(t));}
+ function act(u,name,variant,aim){if(starting>0||finished||u.actor.hp<=0)return false;const p=u.actor;if(Number.isFinite(aim)){p.aim=aim;p.input.aim=aim;}refresh(u.team);return teams[u.team].runtime.press(u,name,variant);}
+ function bot(u,dt){const p=u.actor;if(p.hp<=0)return;u.botWait-=dt;if(u.botWait>0)return;u.botWait=.14+Math.random()*.07;const other=living(1-u.team).sort((x,y)=>dist(x.actor,p)-dist(y.actor,p))[0];if(!other)return;const e=other.actor,dx=e.x-p.x,dy=e.y-p.y,d=Math.hypot(dx,dy)||1,aim=Math.atan2(dy,dx),r=p.reach||40,ranged=['kali','abloy'].includes(p.type),ideal=ranged?r*.64:r*.75,forward=d>ideal+8?1:d<ideal-12&&ranged?-.6:0,side=Math.sin(clock*1.7+u.team)>0?.22:-.22;
+ p.input={x:clamp(dx/d*forward-dy/d*side,-1,1),y:clamp(dy/d*forward+dx/d*side,-1,1),aim,attack:d<r+14};p.inputAt=performance.now();p.aim=aim;
+ if(p.secondaryCharging&&p.secondaryCharge>=1.25){act(u,'eUp','',aim);return;}
+ if(p.type==='mimic'&&clock>5){act(u,'mimic','kris',aim);return;}
+ if(p.ultimateCharge>=100){act(u,'r',p.hp<p.maxHp*.4?'piedade':'fight',aim);return;}
+ const injured=living(u.team).some(x=>x.actor.hp<x.actor.maxHp*.78);
+ if(p.skillCd<=0&&(d<Math.max(r+35,160)||['moretti','kali'].includes(p.type)&&injured)){act(u,'q','',aim);return;}
+ if(p.secondaryCd<=0&&!p.secondaryCharging&&(d<Math.max(r+40,185)||injured)){act(u,'eDown','',aim);return;}
+ if(p.dashCd<=0&&d>r+100){act(u,'dash','',aim);}
  }
- if(action==='q'){
-  if(a.qCd>0)return;a.qCd=a.skillDelay;
-  if(a.hero==='mollitiam'){drawFx(a.x,a.y,'ring',.8,165,'#dbbb78');for(const v of opponents(a))if(dist(a,v)<160)hit(a,v,a.damage*.585,'skill');}
-  else if(a.hero==='loid'){a.aura=4.1;a.auraTick=0;a.invuln=.55;drawFx(a.x,a.y,'ring',.65,112,'#33204d');}
-  else if(a.hero==='kris'){a.transform=a.transDuration;a.invuln=.5;drawFx(a.x,a.y,'ring',.6,70,'#6967fa');}
-  else if(a.hero==='eve'){
-   // Same 45px desintegration zone used in the co-op campaign. PvP opponents
-   // count as bosses, so they take damage instead of being instant-killed.
-   const nearby=b&&b.hp>0&&dist(a,b)<155;
-   const cx=nearby?b.x:a.x+Math.cos(a.aim)*68;
-   const cy=nearby?b.y:a.y+Math.sin(a.aim)*68;
-   drawFx(cx,cy,'voidBurst',.95,50,'#4a1a88');drawFx(cx,cy,'ring',.9,48,'#b187ff');
-   for(const v of opponents(a))if(Math.hypot(v.x-cx,v.y-cy)<65)hit(a,v,Math.min(v.maxHp*.065,a.damage*23),'skill');
-  }
-
-  else if(a.hero==='kali'){for(const v of allies(a)){v.mirrorGuard=5+a.shape;v.hp=Math.min(v.maxHp,v.hp+v.maxHp*.10);}drawFx(a.x,a.y,'ring',1,145,'#e0b6fa');}
-  else if(a.hero==='cross'&&b&&b.hp>0){
-   const targets=opponents(a).sort((x,y)=>y.maxHp-x.maxHp);a.chain={ids:targets.map(v=>v.id),ox:a.x,oy:a.y,age:0,i:0,total:targets.length*.24+.14};a.invuln=a.chain.total+.08;
-  }return;
+ function step(dt){clock+=dt;if(starting>0){starting=Math.max(0,starting-dt);return;}remaining=Math.max(0,remaining-dt);
+ for(const u of units){const p=u.actor;if(!u.bot&&performance.now()-p.inputAt>350)p.input={...p.input,x:0,y:0,attack:false};if(u.bot)bot(u,dt);p.pvpStun=Math.max(0,(p.stunTime||0)-dt);p.stunTime=p.pvpStun;for(const k of ['slow','corruptTime','burnTime'])p[k]=Math.max(0,(p[k]||0)-dt);p.pvpWeakness=teams[1-u.team].runtime.weaknessAt(p);p.pvpSlowFactor=p.pvpStun>0?.01:p.timeSlow>0?.30:p.slow>0?.70:1;}
+ // Alternate team order to avoid always giving the first team the initiative.
+ const order=Math.floor(clock*60)%2?[1,0]:[0,1];for(const t of order)if(living(t).length)teams[t].runtime.tick(dt,targets(t));
+ for(const u of units){if(!Number.isFinite(u.actor.hp)||!Number.isFinite(u.actor.x)||!Number.isFinite(u.actor.y))throw Error('Invalid Journey actor '+u.id);}
+ const alive=[living(0).length,living(1).length];if(!alive[0]||!alive[1]||remaining<=0){const score=t=>teams[t].units.reduce((n,u)=>n+Math.max(0,u.actor.hp)/u.actor.maxHp,0);winnerTeam=alive[0]&&!alive[1]?0:alive[1]&&!alive[0]?1:Math.abs(score(0)-score(1))<1e-7?null:score(0)>score(1)?0:1;winner=winnerTeam===null?null:teams[winnerTeam].units[0].id;finished=true;}
  }
- if(action==='eDown'&&a.hero==='kris'){if(a.eCd<=0)a.energy=.03;return;}
- if(action==='eUp'&&a.hero==='kris'){
-  if(a.eCd>0||a.energy<=0)return;
-  const fraction=clamp(a.energy/1.6,0,1);const damage=a.damage*(1.1+5.7*fraction); a.eCd=a.eDelay;
-  drawFx(a.x,a.y,'dimensional',.68,315,'#c5b3ff',a.aim,0);
-  for(const b of opponents(a))if(dist(a,b)<330&&Math.abs(Math.atan2(Math.sin(Math.atan2(b.y-a.y,b.x-a.x)-a.aim),Math.cos(Math.atan2(b.y-a.y,b.x-a.x)-a.aim)))<.5)hit(a,b,damage,'skill');
-  a.energy=0;return;
- }
- if(action==='e'||action==='eDown'&&a.hero!=='kris'){
-  if(a.eCd>0)return;a.eCd=a.eDelay;
-  if(a.hero==='mollitiam'){for(const v of allies(a))v.hp=Math.min(v.maxHp,v.hp+Math.ceil(v.maxHp*.125));drawFx(a.x,a.y,'ring',.8,120,'#c3e6aa');}
-  else if(a.hero==='loid'){
-    a.shadows=8;a.shadowsTick=.1;
-    battle.clones=(battle.clones||[]).filter(c=>c.owner!==a.id);
-    for(let i=0;i<4;i++){
-      const angle=i*Math.PI/2+Math.PI/4;
-      battle.clones.push({owner:a.id,id:a.id+'-shade-'+i,x:a.x+Math.cos(angle)*28,y:a.y+Math.sin(angle)*28,offset:angle,face:'down',step:i*.6,life:8,attackCd:.16+i*.15});
-    }
-    drawFx(a.x,a.y,'shadowBurst',.9,84,'#66358e');
-   }
-  else if(a.hero==='eve'){
-   a.temporalField=a.fieldDuration;
-   a.fieldRadius=105;a.fieldX=a.x+Math.cos(a.aim)*85;a.fieldY=a.y+Math.sin(a.aim)*85;
-   drawFx(a.fieldX,a.fieldY,'ring',.8,105,'#84abff');
-  }
-
-  else if(a.hero==='kali'){for(const v of allies(a))v.regen=6;a.mirrorImages=6;drawFx(a.x,a.y,'ring',.8,170,'#d7b6ff');}
-  else if(a.hero==='cross'){
-   a.bones={left:9,index:0,next:0,aim:a.aim};
-  }return;
- }
- if(action==='r'){
-  if(a.ultCharge<100||a.ultTimer>0)return;
-  if(a.hero==='kris'&&!['fight','defesa','itens','piedade'].includes(variant))return;
-  a.ultCharge=0;a.ultMode=a.hero==='kris'?variant:a.hero;a.ultTimer=a.hero==='loid'?5:a.hero==='eve'?2.5:a.hero==='kali'?6:8;
-  if(a.hero==='mollitiam'){a.invuln=.6;drawFx(a.x,a.y,'ring',1.4,175,'#ffc16c');}
-  if(a.hero==='loid'){a.dashCd=0;drawFx(a.x,a.y,'ring',1,230,'#110b23');}
-  if(a.hero==='eve'){
-   a.voidUlt=2.5;a.voidUltHit=false;a.invuln=Math.max(a.invuln,2.5);
-   drawFx(a.x,a.y,'ring',2.5,275,'#6234aa');
-   drawFx(a.x,a.y,'voidBurst',1.6,240,'#b38aff');
-   // The damage occurs at the dramatic collapse, never invisibly at cast time.
-  }
-
-  if(a.hero==='kali'){a.ultTimer=10;a.invuln=.6;a.mirrorImages=10;for(const v of allies(a)){v.hp=Math.min(v.maxHp,v.hp+v.maxHp*.20);v.sanctuary=10;}drawFx(a.x,a.y,'ring',2,275,'#dcabff');}
-  if(a.hero==='kris'){
-   a.ultTimer={fight:9,defesa:3,itens:11,piedade:9}[variant]||8;
-   if(variant==='defesa')a.defend=3;
-   if(variant==='piedade'){a.hp=a.maxHp;}
-  }
-
-  if(a.hero==='cross'&&b&&b.hp>0){
-    for(let i=0;i<5;i++){let theta=i*Math.PI*2/5,px=a.x+Math.cos(theta)*53,py=a.y+Math.sin(theta)*53;
-      drawFx(px,py,'skull',.9,24,'#dfd7ff',b.x,b.y);hit(a,b,205,'skill');}
-  }return;
- }
-}
-// Server-side bots use the exact same action handlers, cooldowns and hit rules as humans.
-function botThink(a,dt){
- if(!a.bot||a.hp<=0)return;
- a.botWait=(a.botWait||0)-dt;
- if(a.stun>0){a.input={...a.input,x:0,y:0,attack:false};return;}
- if(a.botWait>0)return;
- a.botWait=.14+Math.random()*.12;
- const foe=enemyOf(a);if(!foe){a.input={...a.input,x:0,y:0,attack:false};return;}
- const dx=foe.x-a.x,dy=foe.y-a.y,d=Math.hypot(dx,dy)||1,angle=Math.atan2(dy,dx);
- const ranged=a.hero==='kali',reach=ranged?245:a.reach+12,ideal=ranged?185:Math.max(22,a.reach*.76);
- const side=Math.sin(battle.clock*.9+a.team*2+(a.botPhase||0))>0?1:-1;
- let forward=d>ideal+12?1:d<ideal-17?-.55:0;
- const strafe=d<reach+45?(ranged?.5:.26)*side:0;
- if(a.hero==='kris'&&a.energy>0)forward=d>275?.6:0;
- a.input={x:clamp(dx/d*forward-dy/d*strafe,-1,1),y:clamp(dy/d*forward+dx/d*strafe,-1,1),aim:angle,attack:d<reach};a.aim=angle;
- const injured=allies(a).some(p=>p.hp<p.maxHp*.78);
- if(a.hero==='kris'&&a.energy>=1.20){act(a,'eUp');return;}
- if(a.ultCharge>=100&&a.ultTimer<=0&&(d<260||a.hero==='eve'||injured)){act(a,'r',a.hp<a.maxHp*.40?'piedade':'fight');return;}
- if(a.dashCd<=0&&d>reach+95&&d<480){act(a,'dash');return;}
- if(a.qCd<=0&&((a.hero==='kali'&&injured)||d<({cross:280,eve:145,loid:110,kris:155,mollitiam:150,kali:140}[a.hero]||120))){act(a,'q');return;}
- if(a.eCd<=0&&((['mollitiam','kali'].includes(a.hero)&&injured)||(!['mollitiam','kali'].includes(a.hero)&&d<({kris:295,loid:290,eve:170,cross:285}[a.hero]||140)))){
-  if(a.hero==='kris'){if(a.energy<=0)act(a,'eDown');}else act(a,'e');
- }
-}
-function sim(dt){if(!battle?.host||battle.resultSent)return;
- battle.clock+=dt; if(battle.starting>0){battle.starting=Math.max(0,battle.starting-dt);return;}
- battle.remaining=Math.max(0,battle.remaining-dt);
- for(const a of battle.players){
-  // A lost or sleeping guest must not keep walking or attacking forever.
-  if(!a.bot&&a.id!==state.id&&a.inputAt&&performance.now()-a.inputAt>250){
-    a.input={...a.input,x:0,y:0,attack:false};
-  }
-  if(a.regen>0){a.regen=Math.max(0,a.regen-dt);if(a.hp>0)a.hp=Math.min(a.maxHp,a.hp+a.maxHp*.012*dt);}a.sanctuary=Math.max(0,(a.sanctuary||0)-dt);const dec=['attackCd','dashCd','qCd','eCd','invuln','aura','shadows','corruption','slow','burn','attackFx','hitFx','blink','transform','defend','ultTimer','stun','mirrorGuard','temporalField','voidUlt','mirrorImages'];for(const k of dec)a[k]=Math.max(0,a[k]-dt);
-  if(a.hp<=0)continue;
-  if(a.chain){const c=a.chain;c.age+=dt;while(c.i<c.ids.length&&c.age>=.08+c.i*.24){const i=c.i++,v=battle.players.find(p=>p.id===c.ids[i]&&p.hp>0);if(!v)continue;const angle=Math.atan2(v.y-a.y,v.x-a.x);a.x=clamp(v.x-Math.cos(angle)*30,55,MAP_W-55);a.y=clamp(v.y-Math.sin(angle)*30,75,MAP_H-55);a.blink=.18;drawFx(a.x,a.y,'slash',.3,65,'#c88cff',angle);hit(a,v,a.damage*(i===0?2.9:1.15),'skill');v.stun=Math.max(v.stun,.45);}if(c.age>=c.total){a.x=c.ox;a.y=c.oy;a.blink=.25;a.chain=null;}continue;}
-  if(a.bones){const b=a.bones;b.next-=dt;if(b.next<=0){b.next=.085;const i=b.index++,angle=b.aim+(i-4)*.083,kind=Math.floor(Math.random()*3);battle.projectiles.push({x:a.x+Math.cos(angle)*20,y:a.y+Math.sin(angle)*20,vx:Math.cos(angle)*405,vy:Math.sin(angle)*405,r:6,damage:a.damage*[.62,.48,.54][kind],color:['#fff9ec','#6acbff','#ff9b4b'][kind],from:a.id,life:1.5,kind});if(--b.left<=0)a.bones=null;}}
-  if(a.hero==='eve'&&a.voidUlt>0&&a.voidUlt<=1.10&&!a.voidUltHit){
-    a.voidUltHit=true;
-    drawFx(a.x,a.y,'voidBurst',.9,260,'#dab6ff');
-    for(const victim of opponents(a)){
-      drawFx(victim.x,victim.y,'disintegrate',1.15,95,'#c3a1ff');
-      hit(a,victim,victim.maxHp*.20,'void');
-    }
-  }
-  botThink(a,dt);
-  if(a.stun>0){a.input.attack=false;a.moving=false;continue;}
-  a.aim=Number.isFinite(a.input.aim)?a.input.aim:a.aim;
-  const mx=clamp(a.input.x,-1,1),my=clamp(a.input.y,-1,1),len=Math.hypot(mx,my),foe=enemyOf(a);
-  const inTimeZone=opponents(a).some(foe=>foe.temporalField>0&&Math.hypot(a.x-foe.fieldX,a.y-foe.fieldY)<foe.fieldRadius);
-  const timeSlow=inTimeZone?.30:1;
-  const v=a.speed*(a.slow>0?.75:1)*timeSlow;
-  a.moving=len>.08;
-  if(a.dashTime>0){a.dashTime=Math.max(0,a.dashTime-dt);a.x+=a.dx*(a.hero==='eve'?790:580)*dt;a.y+=a.dy*(a.hero==='eve'?790:580)*dt;
-   if(a.hero==='loid')drawFx(a.x,a.y,'shadow',.24,20,'#44205b');
-  }else if(len>.08){a.x+=mx/Math.max(len,1)*v*dt;a.y+=my/Math.max(len,1)*v*dt;}
-  a.x=clamp(a.x,55,MAP_W-55);a.y=clamp(a.y,75,MAP_H-55);
-  if(len>.08){a.step=(a.step+dt*8)%3; a.face=Math.abs(mx)>Math.abs(my)?mx>0?'right':'left':my>0?'down':'up';}
-  if(a.input.attack)basic(a);
-  if(a.hero==='kris'&&a.energy>0)a.energy=Math.min(1.6,a.energy+dt);
-  const b=enemyOf(a);
-  if(b&&b.hp>0){
-   if(a.aura>0&&dist(a,b)<120){a.auraTick-=dt;if(a.auraTick<=0){a.auraTick=.35;hit(a,b,94*(1+a.shape),'skill');}}
-   if(a.hero==='kali'&&a.mirrorImages>0&&dist(a,b)<220){a.shadowsTick-=dt;if(a.shadowsTick<=0){a.shadowsTick=.85;hit(a,b,62,'skill');}}
-   // Shadow damage is now handled by updateShadows: one hit per actual moving clone.
-   if(a.ultTimer>0&&a.ultMode==='loid'&&dist(a,b)<230){a.auraTick-=dt;if(a.auraTick<=0){a.auraTick=.32;hit(a,b,160,'skill');}}
-   if(a.burn>0&&a.burn%0.7<dt)hit(b,a,70,'burn');
-  }
- }
- updateShadows(dt);
- for(const p of battle.projectiles){let speedMult=1;for(const a of battle.players)if(a.temporalField>0&&a.team!==battle.players.find(v=>v.id===p.from)?.team&&Math.hypot(p.x-a.fieldX,p.y-a.fieldY)<a.fieldRadius)speedMult=.25;p.x+=p.vx*dt*speedMult;p.y+=p.vy*dt*speedMult;p.life-=dt;let attacker=battle.players.find(a=>a.id===p.from);let defender=attacker&&opponents(attacker).filter(v=>Math.hypot(v.x-p.x,v.y-p.y)<26).sort((x,y)=>Math.hypot(x.x-p.x,x.y-p.y)-Math.hypot(y.x-p.x,y.y-p.y))[0];
-  if(attacker&&defender&&defender.hp>0&&Math.hypot(defender.x-p.x,defender.y-p.y)<26){hit(attacker,defender,p.damage,'skill');if(p.kind===3)drawFx(p.x,p.y,'mirrorShatter',.48,37,'#f5bbff');if(p.kind===1)defender.slow=Math.max(defender.slow,1.3);if(p.kind===2)defender.burn=Math.max(defender.burn,1.7);p.life=0;}
- }
- battle.projectiles=battle.projectiles.filter(p=>p.life>0&&p.x>0&&p.x<MAP_W&&p.y>0&&p.y<MAP_H);
- battle.fx=battle.fx.filter(f=>(f.t-=dt)>0);
- if(battle.remaining<=0){const score=t=>battle.players.filter(p=>p.team===t).reduce((n,p)=>n+p.hp/p.maxHp,0);const a=score(0),b=score(1);finish(a===b?null:battle.players.find(p=>p.team===(a>b?0:1)&&p.hp>0)?.id||null);}
-}
-// Shared simulation: the four real shadow copies follow Loid, chase a nearby foe
-// and strike only on the host. Guests draw the same positions from snapshots.
-function updateShadows(dt){
- if(!battle?.clones)return;
- for(const shade of battle.clones){
-  const owner=battle.players.find(p=>p.id===shade.owner);
-  if(!owner||owner.hp<=0||owner.shadows<=0){shade.life=0;continue;}
-  shade.life=Math.min(shade.life-dt,owner.shadows);
-  shade.attackCd-=dt;shade.step=(shade.step+dt*9)%3;
-  const foe=enemyOf(owner);
-  const distance=foe&&foe.hp>0?Math.hypot(foe.x-shade.x,foe.y-shade.y):Infinity;
-  // Remain with Loid if the foe is too far away, so shadows never seem abandoned.
-  const chase=foe&&foe.hp>0&&Math.hypot(foe.x-owner.x,foe.y-owner.y)<385;
-  const destination=chase?foe:{x:owner.x+Math.cos(shade.offset+battle.clock*.8)*40,y:owner.y+Math.sin(shade.offset+battle.clock*.8)*34};
-  const dx=destination.x-shade.x,dy=destination.y-shade.y,span=Math.hypot(dx,dy)||1;
-  const speed=chase?214:178;
-  if(span>(chase?34:9)){
-   const step=Math.min(span-(chase?31:6),speed*dt);
-   shade.x+=dx/span*step;shade.y+=dy/span*step;
-  }
-  shade.x=clamp(shade.x,55,MAP_W-55);shade.y=clamp(shade.y,75,MAP_H-55);
-  shade.face=Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
-  if(chase&&distance<52&&shade.attackCd<=0){
-   shade.attackCd=.70+(Number(shade.id.slice(-1))||0)*.06;
-   drawFx(shade.x+dx/span*18,shade.y+dy/span*18,'slash',.18,27,'#8b55c8',Math.atan2(dy,dx));
-   hit(owner,foe,owner.damage*.34,'shadow');
-  }
- }
- battle.clones=battle.clones.filter(c=>c.life>0);
-}
-
-function snapshot(forNetwork=true){if(!battle?.host)return null;
- return {seq:forNetwork?++hostSeq:hostSeq,stamp:+battle.clock.toFixed(3),time:battle.remaining,starting:battle.starting,players:battle.players.map(a=>({id:a.id,bot:a.bot,team:a.team,hero:a.hero,speed:a.speed,x:+a.x.toFixed(2),y:+a.y.toFixed(2),face:a.face,step:+a.step.toFixed(2),aim:+a.aim.toFixed(3),hp:Math.ceil(a.hp),maxHp:Math.ceil(a.maxHp),ult:Math.round(a.ultCharge),qCd:+a.qCd.toFixed(1),eCd:+a.eCd.toFixed(1),dashCd:+a.dashCd.toFixed(1),aura:+a.aura.toFixed(2),shadows:+a.shadows.toFixed(2),transform:+a.transform.toFixed(2),defend:+a.defend.toFixed(2),ultTimer:+a.ultTimer.toFixed(2),ultMode:a.ultMode,mirrorGuard:+a.mirrorGuard.toFixed(2),temporalField:+a.temporalField.toFixed(2),voidUlt:+a.voidUlt.toFixed(2),fieldX:Math.round(a.fieldX),fieldY:Math.round(a.fieldY),fieldRadius:a.fieldRadius,stun:+a.stun.toFixed(1),mirrorImages:+a.mirrorImages.toFixed(2),atkFx:+a.attackFx.toFixed(2),atkAngle:a.attackAngle||a.aim,hitFx:+a.hitFx.toFixed(2),blink:+a.blink.toFixed(2),corruption:+a.corruption.toFixed(2)})),
-  clones:(battle.clones||[]).map(c=>({owner:c.owner,id:c.id,x:Math.round(c.x),y:Math.round(c.y),face:c.face,step:+c.step.toFixed(2),life:+c.life.toFixed(1)})),projectiles:battle.projectiles.map(p=>({x:Math.round(p.x),y:Math.round(p.y),color:p.color,kind:p.kind||0})),fx:battle.fx.slice(-18).map(f=>({...f,t:+f.t.toFixed(2)}))};
-}
-// Tiny positional packets for Cloudflare fallback: about 250 bytes instead of
-// forwarding the entire VFX/projectile state 20 times each second.
-
- for(let i=0;i<fighters.length;i++)battle.players.push(makeActor(fighters[i],i));
- return {
-   get finished(){return battle.resultSent;},
-   get winner(){return battle.winner;},get winnerTeam(){return battle.winnerTeam??null;},
-   tick(){let now=performance.now();let dt=Math.min(.09,Math.max(0,(now-lastAt)/1000));lastAt=now;
-     // Fixed-step integration prevents a delayed worker callback from creating a giant teleport.
-     while(dt>.00001){const step=Math.min(dt,1/60);sim(step);dt-=step;if(battle.resultSent)break;}
-   },
-   input(id,input,seq=0){const p=battle.players.find(p=>p.id===id);if(!p||p.bot)return false;
-     if(seq&&seq<=(p.inputSeq||0))return false;
-     if(seq)p.inputSeq=seq;
-     p.input={x:clamp(Number(input.x)||0,-1,1),y:clamp(Number(input.y)||0,-1,1),aim:Number.isFinite(input.aim)?input.aim:0,attack:!!input.attack};
-     p.inputAt=performance.now();return true;
-   },
-   action(id,name,variant,aim){const p=battle.players.find(p=>p.id===id);if(!p||p.bot)return false;
-     if(Number.isFinite(aim)){p.input.aim=aim;p.aim=aim;}
-     act(p,name,variant);
-     return true;
-   },
-   snapshot(){return snapshot(true);},
-   getClock(){return +battle.clock.toFixed(3);},
-   getTime(){return +battle.remaining.toFixed(2);},
-   getStarting(){return +battle.starting.toFixed(2);},
-   getActors(){return battle.players.map(p=>({id:p.id,x:p.x,y:p.y,face:p.face,step:+p.step.toFixed(2),aim:p.aim,hp:p.hp}));}
- };
+ function actorWire(u){const p=u.actor;const visual={};for(const k of ['moving','mimicOrigin','mimicBoss','mimicNext','abCosmicUntil','abBeam','abActiveSpirits','newPose','mollitiamPose','mollitiamHeartTime','frogTime','ultimateBuff','ultimateBuffTime','ultimateTime','transformTime','atkTime','attackDelay','reach','skin62','secondaryCharging','secondaryCharge','realityRoll','godShadowUntil','dashTime','blinkSeq','darkAuraTime','crossTp','rewriteUntil','mimicMarks','mimicWardUntil','mimicGuardUntil','mimicVeilUntil','orbiters','pvpSlowFactor'])if(p[k]!==undefined)visual[k]=p[k];return {...visual,id:u.id,hero:p.type,originHero:u.hero,type:p.type,bot:u.bot===true,team:u.team,x:round(p.x),y:round(p.y),face:p.face,step:round(p.step),aim:round(p.aim,3),speed:round(p.speed),hp:Math.ceil(Math.max(0,p.hp)),maxHp:Math.ceil(p.maxHp),ult:Math.round(p.ultimateCharge),qCd:round(p.skillCd,1),eCd:round(p.secondaryCd,1),dashCd:round(p.dashCd,1),aura:round(p.darkAuraTime),shadows:0,transform:round(p.transformTime),defend:p.ultimateBuff==='defesa'?p.ultimateBuffTime:0,ultTimer:round(p.ultimateTime||p.ultimateBuffTime),ultMode:p.ultimateBuff||p.type,mirrorGuard:round(p.mirrorGuard),temporalField:0,voidUlt:round(p.voidUltimate),fieldX:0,fieldY:0,fieldRadius:0,stun:round(p.pvpStun),mirrorImages:0,atkFx:round(p.atkTime),atkAngle:p.aim,hitFx:0,blink:0,corruption:round(p.corruptTime)};}
+ return {get finished(){return finished},get winner(){return winner},get winnerTeam(){return winnerTeam},tick(){const now=performance.now();let dt=Math.min(.09,Math.max(0,(now-lastAt)/1000));lastAt=now;while(dt>1e-5&&!finished){const s=Math.min(dt,1/60);step(s);dt-=s;}},input(id,input,s=0){const u=units.find(v=>v.id===id);if(!u||u.bot||finished||s&&s<=u.inputSeq)return false;if(s)u.inputSeq=s;u.actor.input={x:clamp(Number(input.x)||0,-1,1),y:clamp(Number(input.y)||0,-1,1),aim:Number.isFinite(input.aim)?input.aim:0,attack:!!input.attack};u.actor.inputAt=performance.now();return true;},action(id,n,v,a){const u=units.find(x=>x.id===id);return !!u&&!u.bot&&act(u,n,v,a);},snapshot(){const effects=teams.map(t=>t.runtime.effects());return {seq:++seq,stamp:round(clock,3),sim:round(teams[0].runtime.time,3),time:remaining,starting,players:units.map(actorWire),clones:effects.flatMap(e=>e.clones),projectiles:effects.flatMap(e=>e.projectiles),fx:[],visual:Object.fromEntries(['rings','slashes','timeFields','realityFields','mirrorIllusions','evePortals','xansBlasters','damageFloats'].map(k=>[k,effects.flatMap(e=>e[k]||[]).slice(-32)]))}},getClock:()=>round(clock,3),getTime:()=>round(remaining),getStarting:()=>round(starting),getActors:()=>units.map(u=>{const p=u.actor;return {id:u.id,x:p.x,y:p.y,face:p.face,step:round(p.step),aim:p.aim,hp:p.hp,blinkSeq:p.blinkSeq||0,moving:!!p.moving};})};
 }
