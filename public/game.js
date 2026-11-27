@@ -48,8 +48,8 @@ HERO.moretti=new Image();HERO.moretti.src='assets/heroes/moretti_sheet.png?v=49'
 HERO.mimic=new Image();HERO.mimic.src='assets/heroes/mimic_sheet.png?v=551';
 const MIMIC_ATTACK=new Image();MIMIC_ATTACK.src='assets/heroes/mimic_attack.png?v=551';
 const MIMIC_ART={};function getMimicArt(t){if(!MIMIC_ART[t]){const im=new Image();im.src='assets/heroes/mimic/'+t+'.webp?v=551';MIMIC_ART[t]=im;}return MIMIC_ART[t];}
-HERO.abloy=new Image();HERO.abloy.src='assets/heroes/abloy_sheet.png?v=611';
-const ABLOY_COSMIC=new Image();ABLOY_COSMIC.src='assets/heroes/abloy_cosmic.png?v=611';
+HERO.abloy=new Image();HERO.abloy.src='assets/heroes/abloy_sheet.png?v=612';
+const ABLOY_COSMIC=new Image();ABLOY_COSMIC.src='assets/heroes/abloy_cosmic.png?v=612';
 HERO.josue=new Image();HERO.josue.src='assets/heroes/josue_sheet.png?v=523';
 const SKILL_HEROES=new Set(['loid','kris','cross','eve','kali','mollitiam','moretti','l0id','josue','mimic','abloy']);let lastSkillArt='';
 function syncSkillArt(type){if(!SKILL_HEROES.has(type)||lastSkillArt===type)return;lastSkillArt=type; /* Keep original ✦ ✧ ✺ buttons; ability art does not replace their symbols. */}
@@ -273,11 +273,11 @@ cards.push({id:'mimicMastery',hero:'mimic',name:'Mímico · Imitação Suprema',
 // Especiais exclusivas mantêm o poder original, mas têm identidade rúnica própria no Nórdico.
 const abloyCards=[
 {id:'ab_guard',hero:'abloy',name:'Guardiões do Além',desc:'Aumenta a chance das bolhas surgirem no começo de cada onda; espírito dourado dá mais escudo e o azul cura mais.',icon:'✦',rarity:'rare',effect:p=>{p.abSpiritChanceBonus=Math.min(.30,(p.abSpiritChanceBonus||0)+.08);p.abGuard=Math.min(2.2,(p.abGuard||1)+.30);}},
-{id:'ab_ruin',hero:'abloy',name:'Alma da Ruína',desc:'O espírito violeta aparece com mais frequência e causa +25% dano (até +100%).',icon:'✧',rarity:'rare',effect:p=>{p.abSpiritChanceBonus=Math.min(.30,(p.abSpiritChanceBonus||0)+.05);p.abOrbAmp=Math.min(2,(p.abOrbAmp||1)+.25);}},
+{id:'ab_ruin',hero:'abloy',name:'Alma da Ruína',desc:'Espíritos aparecem com mais frequência; o violeta causa +25% dano (até +100%).',icon:'✧',rarity:'rare',effect:p=>{p.abSpiritChanceBonus=Math.min(.30,(p.abSpiritChanceBonus||0)+.05);p.abOrbAmp=Math.min(2,(p.abOrbAmp||1)+.25);}},
 {id:'ab_nova',hero:'abloy',name:'Constelação Partida',desc:'Explosões Q/E +20% de dano (até +60%) e uma bolha extra pode surgir na onda.',icon:'☼',rarity:'rare',effect:p=>{p.abBurstAmp=Math.min(1.6,(p.abBurstAmp||1)+.2);p.abSpiritExtra=Math.min(1,(p.abSpiritExtra||0)+1);}},
-{id:'ab_eternity',hero:'abloy',name:'Coroa das Almas',desc:'Feixe Celestial dura +0,5s (até 4,4s), projétil espiritual extra e pelo menos uma bolha quase sempre aparece.',icon:'♛',rarity:'legendary',effect:p=>{p.abBeamDuration=Math.min(4.4,(p.abBeamDuration||2.4)+.5);p.abCrown=true;p.abSpiritGuarantee=true;}}
+{id:'ab_eternity',hero:'abloy',name:'Coroa das Almas',desc:'Feixe Celestial dura +0,5s (até 4,4s), projétil espiritual extra e garante pelo menos uma bolha por onda.',icon:'♛',rarity:'legendary',effect:p=>{p.abBeamDuration=Math.min(4.4,(p.abBeamDuration||2.4)+.5);p.abCrown=true;p.abSpiritGuarantee=true;}}
 ];
-for(const c of abloyCards){cards.push(c);CARD_IMAGES[c.id]='assets/cards/'+c.id+'.webp?v=611';CARD_IMAGES['n_'+c.id]=CARD_IMAGES[c.id];}
+for(const c of abloyCards){cards.push(c);CARD_IMAGES[c.id]='assets/cards/'+c.id+'.webp?v=612';CARD_IMAGES['n_'+c.id]=CARD_IMAGES[c.id];}
 nordicSpecials.push({id:'ab_eternity',hero:'abloy'});
 const nordicSpecialRunes=nordicSpecials.map(({id,hero})=>{
  const original=cards.find(c=>c.id===id);
@@ -393,7 +393,7 @@ function mimicTransform(a,type){
  for(const k of ['x','y','face','aim','step','moving','input','inputAt','lastAttack','kills','attackCount','curseTime','frostTime','invuln','ghost','nordicStarterGranted','nordicSpecialEarned','dragonPact','mimicMastery','mimicUsedPowers','mimicBosses'])if(old[k]!==undefined)fresh[k]=old[k];
  for(const k of ['skillCd','secondaryCd','dashCd','atkTime'])fresh[k]=Math.max(old[k]||0,k==='atkTime'?.2:0);
  fresh.hp=Math.max(1,Math.min(fresh.maxHp,fresh.maxHp*old.hp/old.maxHp));fresh.ultimateCharge=old.ultimateCharge||0;
- fresh.cards=owned;fresh.runes=runes;fresh.mimicOrigin=true;fresh.mimicNext=elapsed+(old.mimicMastery?5:8);
+ fresh.cards=owned;fresh.runes=runes;fresh.mimicOrigin=true;for(const k of ['abActiveSpirits','abOrbAt','abHealAt','abGuardAt'])if(old[k]!==undefined)fresh[k]=old[k];fresh.mimicNext=elapsed+(old.mimicMastery?5:8);
  // Exclusive cards retain ownership and use state; only activate in the matching copied form.
  const used={...(old.mimicUsedPowers||{})};if(old.cardPower&&(old.cardPowerUsed||old.frogUsed))used[old.cardPower]=true;
  const special=owned.map(id=>cards.find(c=>c.id===id)).find(c=>c?.hero===type&&['frog','gaster','granita','eveprime','mollitiamHeart','authorReality','godShadow','chronosFury'].includes(c.id));
@@ -562,6 +562,13 @@ function shopExitLocal601(){if(!merchant60())return;shopTalkLocal601=false;shopS
 function tickShopUI601(dt){if(!merchant60())return;if(shopTalkLocal601||intermission601.ready.includes(coop.id||'solo'))return;const v=getMove();shopPos601.x=clamp(shopPos601.x+v.x*36*dt,9,91);shopPos601.y=clamp(shopPos601.y+v.y*48*dt,53,88);paintShopHero601();const token=$('shopPlayer601');token.style.left=shopPos601.x+'%';token.style.top=shopPos601.y+'%';$('shopHint601').textContent=shopNear601()?'E · conversar com o Mercador':'Toque no caminho ou use WASD para andar.';}
 function wire601(){for(const [id,value] of [['portalShop601','shop'],['portalEvent601','event'],['portalSkip601','skip']])$(id).addEventListener('click',()=>portalChoice601(value));$('shopScene601').addEventListener('pointerdown',e=>{if(!merchant60()||shopTalkLocal601||intermission601.ready.includes(coop.id||'solo'))return;const b=$('shopScene601').getBoundingClientRect();shopPos601={x:clamp((e.clientX-b.left)/b.width*100,9,91),y:clamp((e.clientY-b.top)/b.height*100,53,88)};tickShopUI601(0);});$('shopNpc601').addEventListener('click',()=>{shopPos601={x:57,y:57};tickShopUI601(0);shopInteract601();});$('shopInteract601').addEventListener('click',()=>{if(!shopNear601()){shopPos601={x:57,y:57};tickShopUI601(0);}shopInteract601();});$('shopExit601').addEventListener('click',shopExitLocal601);$('shopClose601').addEventListener('click',()=>{shopTalkLocal601=false;shopUiSignature601='';refreshShop601();});for(const id of Object.keys(items60))$('shop601_'+id).addEventListener('click',()=>shopSend601('shop',id));}
 // V6.1 — Abloy: three spirits, ranged sorcery, and secret encounters.
+function rollAbloySpirits61(p,random=Math.random){
+ const bonus=Math.max(0,p.abSpiritChanceBonus||0), picks=[];
+ for(const [name,rate] of [['gold',.30],['violet',.35],['blue',.25]])if(random()<Math.min(.85,rate+bonus))picks.push(name);
+ if(!picks.length&&p.abSpiritGuarantee)picks.push(['gold','violet','blue'][Math.min(2,Math.floor(random()*3))]);
+ if(p.abSpiritExtra&&picks.length<3&&random()<.65){const remain=['gold','violet','blue'].filter(k=>!picks.includes(k));picks.push(remain[Math.min(remain.length-1,Math.floor(random()*remain.length))]);}
+ p.abActiveSpirits=picks;p.abOrbAt=0;p.abHealAt=0;p.abGuardAt=0;return picks;
+}
 function abloyShot(p,angle,damage,blast=0,charge=true){
  if(projectiles.length>=155)return;
  const v={x:Math.cos(angle),y:Math.sin(angle)};projectiles.push({x:p.x+v.x*12,y:p.y+v.y*12-8,vx:v.x*320,vy:v.y*320,life:Math.min(1.6,p.reach/320+.18),r:5,damage,from:'player',color:'#e0dfff',ownerId:coop.active?actorKey(p):null,abShot:true,abBlast:blast,abCharge:charge});
@@ -585,9 +592,9 @@ function tickAbloy(p,dt){
  }finally{player=prior;}
 }
 function drawAbloy61(x,y,face,step,scale,a){
- const cosmic=(a?.abCosmicUntil||0)>elapsed;const im=cosmic?ABLOY_COSMIC:HERO.abloy;const row=({down:0,left:1,right:2,up:3})[face]??0;const col=(a?.moving||a===player&&movingNow)?[1,2,1,0][Math.floor(step)%4]:0;
+ const cosmic=(a?.abCosmicUntil||0)>elapsed;const im=cosmic?ABLOY_COSMIC:HERO.abloy;const aim=a?.abBeam?.angle??a?.aim;const dir=cosmic&&Number.isFinite(aim)?(Math.abs(Math.cos(aim))>Math.abs(Math.sin(aim))?(Math.cos(aim)<0?'left':'right'):(Math.sin(aim)<0?'up':'down')):face;const row=({down:0,left:1,right:2,up:3})[dir]??0;const col=cosmic?3:(a?.moving||a===player&&movingNow)?[1,0,2,0][Math.floor(step)%4]:0;
  ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(scale,scale);ctx.imageSmoothingEnabled=false;
- if(im?.complete&&im.naturalWidth)ctx.drawImage(im,col*112,row*112,112,112,-30,-52,60,60);else{ctx.fillStyle='#dbe5ff';ctx.beginPath();ctx.arc(0,-19,12,0,TAU);ctx.fill();}
+ if(im?.complete&&im.naturalWidth)ctx.drawImage(im,col*112,row*112,112,112,-26,-46,52,52);else{ctx.fillStyle='#dbe5ff';ctx.beginPath();ctx.arc(0,-19,12,0,TAU);ctx.fill();}
  const active=a?.abActiveSpirits||[];const order=['gold','violet','blue'];const colors={gold:'#ffd67d',violet:'#c397ff',blue:'#91daff'};const list=order.filter(k=>active.includes(k));
  for(let i=0;i<list.length;i++){const ang=elapsed*1.65+i*TAU/Math.max(1,list.length),ox=Math.cos(ang)*24,oy=-18+Math.sin(ang)*12;ctx.fillStyle=colors[list[i]];ctx.beginPath();ctx.arc(ox,oy,3.2,0,TAU);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=.7;ctx.stroke();}
  ctx.restore();
@@ -623,6 +630,7 @@ function spawnStage(){
  if(coop.active&&coop.host){let teamIndex=0;const allyCount=coop.allies.size;for(const [aid,a] of coop.allies){const angle=(teamIndex+++.5)*Math.PI*2/Math.max(allyCount,1);a.x=player.x+Math.cos(angle)*62;a.y=player.y+Math.sin(angle)*62;a.hp=a.hp<=0?Math.ceil(a.maxHp*.5):Math.min(a.maxHp,a.hp+a.betweenHeal);a.ghost=false;a.crossTp=null;a.crossChain=null;a.abBeam=null;a.abCosmicUntil=0;a.invuln=2;a.skillCd=0;a.dashCd=0;a.darkAuraTime=0;a.ultimateTime=0;a.ultimateBuffTime=0;a.curseTime=0;a.secondaryCharging=false;a.evePrimeTime=0;a.mollitiamHeartTime=0;a.mollitiamPose=0;if(isNordic()){a.shield=a.runeShield||0;a.jeraBonus=(a.runes||[]).includes('n_jera')?Math.min(.10,Math.max(0,(localNordicWave()-1)*.02)):0;}}}
  camera.x=clamp(player.x-W/2,0,WORLD_W-W);camera.y=clamp(player.y-H/2,0,WORLD_H-H);
  waveIntro=2.3;YG_AUDIO.play('waveStart',.8);
+ for(const a of actors60())if(a&&a.hp>0&&(a.type==='abloy'||a.mimicOrigin))rollAbloySpirits61(a);
  if(rushMode){spawnRush();updateHud();return;}
  const isBoss=stage%5===0;const bossType=stage===40?'pecado':stage===35?'nameless':stage===30?'odin':stage===25?'frostjarl':stage===20?'pecado':stage===15?'tsukuomi':stage===10?'reuni':'boss';
  const baseTotal=testBossMode?0:isNordic()?(isBoss?5:Math.min(isPecador()?19:14,5+localNordicWave()+(isPecador()?3:0))):isBoss?(stage===20?12:stage===15?2:stage===10?4:3):Math.min(isPecador()?23:18,3+Math.floor(stage*1.02)+(isPecador()?3:0));
@@ -634,7 +642,6 @@ function spawnStage(){
   addMob(type,pos.x,pos.y,elite);
  }
  if(!isBoss)maybeSecret61();
- for(const a of actors60())if(a&&a.hp>0&&a.type==='abloy')rollAbloySpirits61(a);
  if(isBoss){
   YG_AUDIO.play('bossWarning',1.1);
   let pos=spawnAroundPlayer(120,170);
@@ -657,7 +664,7 @@ function spawnAroundPlayer(minD,maxD){
  }
  return {x,y};
 }
-function start(type, bossTest=false, frogTest=false){intermission601=null;syncIntermission601();worldEvent60=null;waveMod60='';cleared60=0;rankLast60='';rushMode=bossTest==='rush'||(!bossTest&&selectedCampaign==='rush');if(rushMode)bossTest='rush';selectedBoss=null;activeCampaign=bossTest==='nordic'||bossTest==='frostjarl'||bossTest==='nameless'||bossTest==='odin'||bossTest==='pecadoNordic'?'nordic':bossTest&&bossTest!=='japan'?'japan':selectedCampaign;testBossMode=!!bossTest&&!['nordic','japan','rush'].includes(bossTest);player=createPlayer(type);if(player.type==='abloy')rollAbloySpirits61(player);realityVictory=false;mimicVictory=false;closeMimicMenu();realityFields=[];if(activeCampaign==='nordic'){grantNordicStarter(player,testBossMode);const ids=coop.active?coop.members.find(m=>m.id===coop.id)?.passives:pendingNordicPassives;applyNordicPassives(player,ids);}if(coop.active&&coop.host)coop.hostAvatar=player;if(type==='kris'&&frogTest){player.frogSkill=true;player.cards.push('frog');}stage=bossTest==='pecadoNordic'?40:bossTest==='nordic'?21:bossTest==='frostjarl'?25:bossTest==='nameless'?35:bossTest==='odin'?30:bossTest==='pecado'?20:bossTest==='tsukuomi'?15:(bossTest==='reuni'?10:(bossTest==='samurai'?5:(activeCampaign==='nordic'?21:1)));essence=0;elapsed=0;flash=0;mouseAim=null;keys.clear();$('titleScreen').classList.add('hidden');$('selectScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('supremeScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('gameOverScreen').classList.add('hidden');$('hud').style.display='flex';$('mobileControls').style.display='';document.body.classList.add('is-playing');adaptViewport();YG_AUDIO.play('choose');if(coop.active&&coop.host)coopInitAllies();
+function start(type, bossTest=false, frogTest=false){intermission601=null;syncIntermission601();worldEvent60=null;waveMod60='';cleared60=0;rankLast60='';rushMode=bossTest==='rush'||(!bossTest&&selectedCampaign==='rush');if(rushMode)bossTest='rush';selectedBoss=null;activeCampaign=bossTest==='nordic'||bossTest==='frostjarl'||bossTest==='nameless'||bossTest==='odin'||bossTest==='pecadoNordic'?'nordic':bossTest&&bossTest!=='japan'?'japan':selectedCampaign;testBossMode=!!bossTest&&!['nordic','japan','rush'].includes(bossTest);player=createPlayer(type);realityVictory=false;mimicVictory=false;closeMimicMenu();realityFields=[];if(activeCampaign==='nordic'){grantNordicStarter(player,testBossMode);const ids=coop.active?coop.members.find(m=>m.id===coop.id)?.passives:pendingNordicPassives;applyNordicPassives(player,ids);}if(coop.active&&coop.host)coop.hostAvatar=player;if(type==='kris'&&frogTest){player.frogSkill=true;player.cards.push('frog');}stage=bossTest==='pecadoNordic'?40:bossTest==='nordic'?21:bossTest==='frostjarl'?25:bossTest==='nameless'?35:bossTest==='odin'?30:bossTest==='pecado'?20:bossTest==='tsukuomi'?15:(bossTest==='reuni'?10:(bossTest==='samurai'?5:(activeCampaign==='nordic'?21:1)));essence=0;elapsed=0;flash=0;mouseAim=null;keys.clear();$('titleScreen').classList.add('hidden');$('selectScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('supremeScreen').classList.add('hidden');$('bossScreen').classList.add('hidden');$('gameOverScreen').classList.add('hidden');$('hud').style.display='flex';$('mobileControls').style.display='';document.body.classList.add('is-playing');adaptViewport();YG_AUDIO.play('choose');if(coop.active&&coop.host)coopInitAllies();
  if(coop.active&&!coop.host){
    phase='play';enemies=[];projectiles=[];hazards=[];healthDrops=[];shadowClones=[];slashes=[];rings=[];
    camera.x=clamp(player.x-W/2,0,WORLD_W-W);camera.y=clamp(player.y-H/2,0,WORLD_H-H);
@@ -1210,7 +1217,7 @@ function hurtPlayer(d,coopSource=currentCoopEnemy){
  if(phase!=='play'||!player||player.hp<=0||player.invuln>0||player.godShadowUntil-7>elapsed||
    (player.type==='loid'&&player.dashTime>0)||
    (player.ultimateBuff==='defesa'&&player.ultimateBuffTime>0))return;
- if(player.type==='abloy'&&elapsed>=(player.abGuardAt||0)){player.abGuardAt=elapsed+12;player.shield=Math.max(player.shield||0,Math.round(15*(player.abGuard||1)));player.abCosmicUntil=Math.max(player.abCosmicUntil||0,elapsed+.55);ring(player.x,player.y,24,'#ffe4a4');}if(player.mimicGuardUntil>elapsed){player.mimicGuardUntil=0;player.mimicMarks=(player.mimicMarks||[]).concat({x:player.x,y:player.y,r:85,m:2.3,fx:'stun',color:'#ff5668',at:elapsed+.05,stage,charge:true});textPop(player.x,player.y-25,'CONTRA-ATAQUE','#ff8792');d*=.35;}if(player.mimicWardUntil>elapsed)d*=.70;if(player.mimicVeilUntil>elapsed)d*=.60;
+ if(player.type==='abloy'&&(player.abActiveSpirits||[]).includes('gold')&&elapsed>=(player.abGuardAt||0)){player.abGuardAt=elapsed+12;player.shield=Math.max(player.shield||0,Math.round(15*(player.abGuard||1)));player.abCosmicUntil=Math.max(player.abCosmicUntil||0,elapsed+.55);ring(player.x,player.y,24,'#ffe4a4');}if(player.mimicGuardUntil>elapsed){player.mimicGuardUntil=0;player.mimicMarks=(player.mimicMarks||[]).concat({x:player.x,y:player.y,r:85,m:2.3,fx:'stun',color:'#ff5668',at:elapsed+.05,stage,charge:true});textPop(player.x,player.y-25,'CONTRA-ATAQUE','#ff8792');d*=.35;}if(player.mimicWardUntil>elapsed)d*=.70;if(player.mimicVeilUntil>elapsed)d*=.60;
  d=Math.max(1,d*hurt60(player)*coopDamageFactor(coopSource)*(currentNordicBossStrike?nordicBossDamageMultiplier():1)*(isPecador()?1.38:1)*(player.type==='mollitiam'&&player.mollitiamHeartTime>0?.60:1)*(1-player.armor)*(player.lastStand&&player.hp/player.maxHp<.4?1-player.lastStand:1));if(player.shield>0){const absorbed=Math.min(player.shield,d);player.shield-=absorbed;d-=absorbed;if(d<=0){textPop(player.x,player.y-20,'ESCUDO','#9ddfff');return;}}
  d*=(1-.35*realityPower(player,'mirrorSanctuary'))*(1-realityEnemyWeakness)*(1-Math.min(.65,.20*realityPower(player,'population')));player.hp=Math.max(0,player.hp-d);
  YG_AUDIO.play('hurt');player.invuln=player.type==='mollitiam'&&!isNordic()?.18:.76;

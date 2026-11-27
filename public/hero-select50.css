@@ -30,3 +30,5 @@ body:has(#coopLobby:not([hidden]) .hs50:not([hidden])):not(.waiting-full) #coopS
 @media(max-height:430px) and (orientation:landscape){#selectScreen .hs50{width:min(100%,calc(clamp(90px,100dvh - 125px,310px)*1.85 + 90px))!important;}}
 
 .hs50 .hs50-card[data-card-slot="1"]{grid-column:2!important}.hs50 .hs50-card[data-card-slot="2"]{grid-column:3!important}.hs50 .hs50-josue{font:700 11px system-ui!important;padding:4px 8px!important;min-height:25px;color:#f4d8a3;background:#34281e!important;border:1px solid #8e7248!important;border-radius:4px}.hs50:not(:has(.hs50-card[data-card-slot="2"]:not([hidden]))) .hs50-card[data-card-slot="1"]:not([hidden]){grid-column:2/4!important;max-width:100%;justify-self:center}
+
+.hs50 .hs50-abloy{background:#262139!important;border-color:#a899cf!important;color:#e5dcff}.hs50 .hs50-card[data-card-hero="abloy"]:not([hidden]){cursor:pointer;pointer-events:auto}.hs50 .hs50-card[data-card-hero="abloy"]:disabled{pointer-events:none}.hs50:not(:has(.hs50-card[data-card-slot="2"]:not([hidden]))) .hs50-card[data-card-slot="1"]:not([hidden]){grid-column:2/4!important;justify-self:center;width:min(100%,420px)}
