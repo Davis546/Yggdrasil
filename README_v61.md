@@ -25,3 +25,13 @@ git push origin main &&
 npm run deploy
 ```
 Confirme V6.1 e `game.js?v=610`. Testes automatizados de combate e lobby simulados, não validação visual ou de rede no Cloudflare real. As chances e os valores iniciais são escolhas de balanceamento sujeitas aos testes de gameplay.
+
+
+## V6.1.1 — Rework do Abloy
+- Sprite sheet do Abloy refeito em pixel art mais próximo dos outros heróis.
+- Forma cósmica também ganhou folha própria em estilo pixelado.
+- As bolhas/espíritos não ficam mais sempre ativas: agora têm chance de aparecer no início de cada onda.
+- Espírito dourado: dá escudo da rodada.
+- Espírito violeta: dispara automaticamente durante a rodada.
+- Espírito azul: ativa cura ao longo da rodada.
+- Cartas do Abloy ajustadas para reforçar chance de aparição dos espíritos e o feixe final.
