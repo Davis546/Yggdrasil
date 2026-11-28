@@ -1,6 +1,6 @@
 {
   "name": "yggdrasil-online-cloudflare",
-  "version": "6.2.8",
+  "version": "6.2.9",
   "private": true,
   "type": "module",
   "scripts": {
@@ -68,7 +68,8 @@
     "test:625": "npm run build:622 && node tests/v620.test.mjs && node tests/v616.test.mjs && node tests/duel-v622.test.mjs && node tests/duel-v623.test.mjs && node tests/v625.test.mjs",
     "test:626": "npm run test:625 && node tests/v626.test.mjs",
     "test:627": "npm run test:626 && node tests/v627.test.mjs",
-    "test:628": "npm run test:627 && node tests/v628.test.mjs"
+    "test:628": "npm run test:627 && node tests/v628.test.mjs",
+    "test:629": "npm run test:628 && node tests/v629.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.50.0"
