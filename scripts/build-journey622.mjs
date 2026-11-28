@@ -17,7 +17,7 @@ change("player.invuln=player.type==='mollitiam'&&!isNordic()?.18:.76;", "player.
 // PvP opponent actors are not AI monsters. Only the original player-side simulation runs.
 const lo=s.indexOf('for(const e of enemies){if(e.hp<=0)continue;eliteTick62(e,dt);');const hi=s.indexOf('for(let i=projectiles.length-1;i>=0;i--){let b=projectiles[i];',lo);if(lo<0||hi<lo)throw Error('Enemy loop anchor');s=s.slice(0,lo)+s.slice(hi);
 const a=s.indexOf('// After killing the final Oni');const b=s.indexOf('// Boss state machine.',a);if(a<0||b<a)throw Error('wave end anchor');s=s.slice(0,a)+'updateHud();}\n'+s.slice(b);
-change('for(const e of enemies)if(e.hp<=0&&isBossEnemy(e))captureMimicBoss(e);','for(const e of enemies)if(e.hp<=0&&isBossEnemy(e)&&!e.pvpFighter)captureMimicBoss(e);');
+change('if(e.hp<=0&&isBossEnemy(e))captureMimicBoss(e);','if(e.hp<=0&&isBossEnemy(e)&&!e.pvpFighter)captureMimicBoss(e);');
 // Movement status applies to player actors too (enemy-side statuses are adapted by the room).
 change('player.speed*haste*sprint*newSpeed(player)', 'player.speed*haste*sprint*newSpeed(player)*(player.pvpSlowFactor||1)');
 change('a.speed*sprint*newSpeed(a)*(a.evePrimeTime>0?2:1)', 'a.speed*sprint*newSpeed(a)*(a.pvpSlowFactor||1)*(a.evePrimeTime>0?2:1)');

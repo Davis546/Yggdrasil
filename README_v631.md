@@ -1,0 +1,2 @@
+# V6.3.1 — Acesso secreto ao Explorador
+Na tela inicial, digite V01D (letra V, zero, número um, letra D). Escolha o herói e inicie diretamente a cutscene da queda de Yggdrasil, seguida pela luta original da onda 20. Teste solo, sem progresso de perfil ou ranking, sem ondas anteriores e sem bônus artificiais de atributos. A dificuldade pode ser escolhida na seleção. A entrada normal e o cooperativo não mudam. Cumulativo sobre V6.3.0.
