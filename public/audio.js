@@ -96,7 +96,8 @@ const YG_AUDIO=(()=>{
   const inVoid=typeof defense62!=='undefined'&&defense62&&typeof tree62!=='undefined'&&tree62&&combat;
   const voidBoss=inVoid&&typeof enemies!=='undefined'&&enemies.some(e=>e.hp>0&&String(e.type).startsWith('voidboss_'));
   if(inVoid&&tree62.finale630?.lastUntil632&&!tree62.finale630.lastDone632){for(const t of all)t.pause();return;}
-  const requested=inVoid?(tree62.intro||tree62.prep||currentPhase==='reward'?'voidIntro':activeBoss('voidboss_devourer')?'explorer':voidBoss?'voidBoss':'voidBattle'):typeof intermission601!=='undefined'&&intermission601?.view==='shop'&&currentPhase==='reward'?'merchant':!combat?'menu':
+  const epilogue=typeof voidEpilogue633!=='undefined'&&!!voidEpilogue633;
+  const requested=epilogue?'voidIntro':inVoid?(tree62.intro||tree62.prep||currentPhase==='reward'?'voidIntro':activeBoss('voidboss_devourer')?'explorer':voidBoss?'voidBoss':'voidBattle'):typeof intermission601!=='undefined'&&intermission601?.view==='shop'&&currentPhase==='reward'?'merchant':!combat?'menu':
    typeof rushMode!=='undefined'&&rushMode?(activeBoss('pecado')?'pecado':activeBoss('nameless')||activeBoss('ancestralDragon')?'nameless':activeBoss('frostjarl')?'nordicBoss':activeBoss('odin')?'nordic':'battle'):
    currentStage===35&&(activeBoss('nameless')||activeBoss('ancestralDragon'))?'nameless':
    (currentStage===25||currentStage===30)&&activeBoss('frostjarl')?'nordicBoss':
