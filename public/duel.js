@@ -1,4 +1,5 @@
-import {createJourneyRuntime622} from './journey-runtime622.mjs?v=626';
+import {unpackDuel627} from './duel-wire627.mjs?v=627';
+import {createJourneyRuntime622} from './journey-runtime622.mjs?v=627';
 // YGGDRASIL v3.7 PvP — optimised shared online arena with locally predicted input.
 // The host is the authority for damage, cooldowns, positions and the outcome.
 const $ = id => document.getElementById(id);
@@ -185,7 +186,7 @@ function sendAuthoritativeSnapshot(force=false){
 const controls={x:0,y:0,aim:0,attack:false};let lastInputSent={x:0,y:0,aim:0,attack:false},lastInputHeartbeat=0;const keySet=new Set();let touchX=0,touchY=0,dragging=false,stickId=null,stickStart={x:0,y:0};
 const show=(id,yes)=>$(id).classList.toggle('hidden',!yes);
 const note=text=>{$('notice').textContent=text;};
-const send=m=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(m));};
+const send=m=>{if(ws?.readyState===WebSocket.OPEN){if(m.t==='pvpCreate'||m.t==='pvpJoin')m={...m,wire627:1};ws.send(JSON.stringify(m));}};
 function connect(){let proto=location.protocol==='https:'?'wss':'ws';ws=new WebSocket(`${proto}://${location.host}/ws`);
  ws.onopen=()=>{state.online=true;send({t:'ping',ts:Date.now(),mono:performance.now()});probeEdge623();note('Conectado ao Yggdrasil · Crie uma sala X1 ou entre por código.');};
  ws.onclose=()=>{state.online=false;closeDirect();note('Conexão encerrada. Recarregue a página para reconectar.');};
@@ -243,6 +244,7 @@ function handleMessage(m){
   }return;}
 
  if(m.t==='pvpSnapshot'&&!battle?.host){
+   m.data=unpackDuel627(m.data);
    if(!m.data?.players || ![2,4].includes(m.data.players.length))return;
    const seq=Number.isFinite(m.data.seq)?m.data.seq:latestSeq+1;
    if(seq<=latestSeq || (Number.isFinite(m.data.stamp)&&m.data.stamp<lastViewStamp))return;
@@ -682,7 +684,7 @@ function renderGuests(dt){
    return smooth;
  })};
 }
-function nearestDuel62(players,me,strong=false){return me&&players?.filter(p=>p.id!==me.id&&p.hp>0&&(p.team===undefined||me.team===undefined||p.team!==me.team)).sort((a,b)=>strong?(b.maxHp-a.maxHp):Math.hypot(a.x-me.x,a.y-me.y)-Math.hypot(b.x-me.x,b.y-me.y))[0];}
+function nearestDuel62(players,me,strong=false){if(!me)return;let best,score=-Infinity;for(const p of players||[]){if(p.id===me.id||p.hp<=0||p.team!==undefined&&me.team!==undefined&&p.team===me.team)continue;const dx=p.x-me.x,dy=p.y-me.y,v=strong?p.maxHp:-(dx*dx+dy*dy);if(v>score){score=v;best=p;}}return best;}
 function getControls(){let x=0,y=0;if(keySet.has('w')||keySet.has('arrowup'))y--;if(keySet.has('s')||keySet.has('arrowdown'))y++;if(keySet.has('a')||keySet.has('arrowleft'))x--;if(keySet.has('d')||keySet.has('arrowright'))x++;
  controls.x=clamp(x+touchX,-1,1);controls.y=clamp(y+touchY,-1,1);
  if(keySet.has('j')||keySet.has('mouse'))controls.attack=true;
@@ -693,7 +695,7 @@ function getControls(){let x=0,y=0;if(keySet.has('w')||keySet.has('arrowup'))y--
  } }
 function tick(ms){let dt=clamp((ms-last)/1000,0,.045);last=ms;gameTime+=dt;fpsTime+=dt;frames++;if(fpsTime>=1){fps=Math.round(frames/fpsTime);frames=0;fpsTime=0;
    if(qualityMode==='auto'&&isMobile&&performance.now()-lastQualityShift>4500){
-    if(fps<37){slowFpsTime++;if(slowFpsTime>=2&&DUEL_SCALE>0.88){DUEL_SCALE=Math.max(.85,DUEL_SCALE-.22);resizeArena();lastQualityShift=performance.now();slowFpsTime=0;}}
+    if(fps<48){slowFpsTime++;if(slowFpsTime>=2&&DUEL_SCALE>0.71){DUEL_SCALE=Math.max(.70,DUEL_SCALE-.18);resizeArena();lastQualityShift=performance.now();slowFpsTime=0;}}
     else {slowFpsTime=0;if(fps>57&&DUEL_SCALE<(isMobile?1.05:1.25)){DUEL_SCALE=Math.min(isMobile?1.05:1.25,DUEL_SCALE+.12);resizeArena();lastQualityShift=performance.now();}}
    }}
  if(battle){getControls();if(state.role==='fighter'&&controls.attack&&gameTime>=nextBasicSfx){
@@ -705,7 +707,8 @@ function tick(ms){let dt=clamp((ms-last)/1000,0,.045);last=ms;gameTime+=dt;fpsTi
    else if(performance.now()-lastSend>45||controls.attack!==lastInputSent.attack||Math.abs(controls.x-lastInputSent.x)>.15||Math.abs(controls.y-lastInputSent.y)>.15){
     const now=performance.now();
     const changed=Math.abs(controls.x-lastInputSent.x)>.06||Math.abs(controls.y-lastInputSent.y)>.06||Math.abs(Math.atan2(Math.sin(controls.aim-lastInputSent.aim),Math.cos(controls.aim-lastInputSent.aim)))>.13||controls.attack!==lastInputSent.attack;
-    if(ws?.bufferedAmount<6000&&(changed||now-lastInputHeartbeat>(serverDuel?100:140))){
+    const urgent=controls.attack!==lastInputSent.attack||(Math.hypot(controls.x,controls.y)<.06)!==(Math.hypot(lastInputSent.x,lastInputSent.y)<.06);
+    if(ws?.bufferedAmount<6000&&(urgent||changed&&now-lastInputHeartbeat>=32||now-lastInputHeartbeat>(serverDuel?150:140))){
       sendDuelInput({t:'pvpInput',seq:++inputSequence,...controls});lastInputSent={...controls};lastInputHeartbeat=now;
     }
     lastSend=now;
@@ -713,7 +716,7 @@ function tick(ms){let dt=clamp((ms-last)/1000,0,.045);last=ms;gameTime+=dt;fpsTi
   }
   if(battle.host&&!state.finished){sim(dt);sendCloudMotion(ms);if(ms-lastSnapshot>(directActive()?53:123))sendAuthoritativeSnapshot();}
   const s=battle.host?snapshot(false):renderGuests(dt);
-  if(state.scene==='battle'){paint(s,dt);if(ms-lastHudAt>125){renderHud(s);lastHudAt=ms;}}
+  if(state.scene==='battle'){paint(s,dt);if(ms-lastHudAt>(DUEL_SCALE<.9?200:125)){renderHud(s);lastHudAt=ms;}}
   localTravelFx=localTravelFx.filter(f=>(f.t-=dt)>0);
  }requestAnimationFrame(tick);
 }

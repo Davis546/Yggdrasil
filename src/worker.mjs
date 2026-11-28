@@ -1,3 +1,4 @@
+import { packDuel627 } from '../public/duel-wire627.mjs';
 import { unpackWorld616 } from './wire616.mjs';
 import { createDuel, DUEL_HEROES622 } from './duel-engine.mjs';
 // Yggdrasil Online v3.4 — Cloudflare Workers + Durable Objects (prototype)
@@ -50,7 +51,7 @@ export class Lobby extends DurableObject {
       const a = socket.deserializeAttachment() || {};
       const id = typeof a.id === 'string' ? a.id : String(this.nextId++);
       this.nextId = Math.max(this.nextId, (Number(id) || 0) + 1);
-      const c = { id, socket, hero: a.hero || null, room: null, role:a.role||'fighter', offer:a.offer||[], picks:a.picks||[], passives:a.passives||[], token:a.token||null,wire616:a.wire616===true,duelIdentity:a.duelIdentity||null };
+      const c = { id, socket, hero: a.hero || null, room: null, role:a.role||'fighter', offer:a.offer||[], picks:a.picks||[], passives:a.passives||[], token:a.token||null,wire616:a.wire616===true,wire627:a.wire627===true,duelIdentity:a.duelIdentity||null };
       this.players.set(id, c);
     }
     for (const c of this.players.values()) {
@@ -78,7 +79,7 @@ export class Lobby extends DurableObject {
   persist(c) {
     if(!c.socket)return;
     c.socket.serializeAttachment({
-      token:c.token||null,wire616:c.wire616===true,duelIdentity:c.duelIdentity||null,duelSize:c.room?.size||2,duelRanked:c.room?.ranked===true,duelFillBots:c.room?.fillBots===true,duelTogether:c.room?.together===true,
+      token:c.token||null,wire616:c.wire616===true,wire627:c.wire627===true,duelIdentity:c.duelIdentity||null,duelSize:c.room?.size||2,duelRanked:c.room?.ranked===true,duelFillBots:c.room?.fillBots===true,duelTogether:c.room?.together===true,
       id: c.id,
       code: c.room?.code || null,
       hero: c.hero || null,
@@ -218,14 +219,13 @@ export class Lobby extends DurableObject {
           // 20Hz small motion updates, ~10Hz combat snapshots: fast movement without
           // resending spell FX, projectiles and all cooldowns on every frame.
           room.netTick=(room.netTick||0)+1;
-          const actors=room.match.getActors();
-          const motion={t:'pvpMotion',data:{seq:room.netTick,stamp:room.match.getClock(),time:room.match.getTime(),starting:room.match.getStarting(),players:actors.map((a,i)=>({id:a.id,x:Number(a.x.toFixed(2)),y:Number(a.y.toFixed(2)),face:a.face,step:a.step,aim:a.aim,blinkSeq:a.blinkSeq,moving:a.moving}))}};
+          const makeMotion627=()=>{const actors=room.match.getActors();return {t:'pvpMotion',data:{seq:room.netTick,stamp:room.match.getClock(),time:room.match.getTime(),starting:room.match.getStarting(),players:actors.map((a,i)=>({id:a.id,x:Number(a.x.toFixed(2)),y:Number(a.y.toFixed(2)),face:a.face,step:a.step,aim:a.aim,blinkSeq:a.blinkSeq,moving:a.moving}))}};};
           if(room.netTick%2===1 || !room.lastSnapshot || room.match.finished){
             const packet={t:'pvpSnapshot',data:room.match.snapshot()};
             room.lastSnapshot=packet.data;
-            const encoded=JSON.stringify(packet);for(const p of room.members)this.safeSend(p,packet,encoded);
+            let encoded=null,compact=null,compactEncoded=null;for(const p of room.members){if(p.wire627){if(!compact){compact={t:packet.t,data:packDuel627(packet.data)};compactEncoded=JSON.stringify(compact);}this.safeSend(p,compact,compactEncoded);}else{encoded??=JSON.stringify(packet);this.safeSend(p,packet,encoded);}}
           }else{
-            const encoded=JSON.stringify(motion);for(const p of room.members)this.safeSend(p,motion,encoded);
+            const motion=makeMotion627();const encoded=JSON.stringify(motion);for(const p of room.members)this.safeSend(p,motion,encoded);
           }
           if(room.match.finished){
             room.finished=true;
@@ -318,6 +318,7 @@ export class Lobby extends DurableObject {
     if(raw.length>180000&&!(m.t==='state'&&c.room?.host===c&&c.room.kind!=='pvp'))return;
     // PvP is isolated from the original cooperative protocol.
     if (m.t === 'pvpCreate') {
+      c.wire627=m.wire627===1;
       const identity=identity62(m);if(m.ranked===true&&!identity){this.safeSend(c,{t:'error',message:'Digite um apelido válido para o competitivo.'});return;}
       if(c.room)this.leaveRoom(c);
       const code=this.makeCode();
@@ -326,6 +327,7 @@ export class Lobby extends DurableObject {
       this.pvpJoin(c,room,'fighter',identity);return;
     }
     if (m.t === 'pvpJoin') {
+      c.wire627=m.wire627===1;
       const code=String(m.code||'').trim().toUpperCase();
       const room=this.rooms.get(code);
       if(!room){this.safeSend(c,{t:'error',message:'Sala X1 não encontrada.'});return;}
@@ -516,7 +518,7 @@ export class Lobby extends DurableObject {
         x: Math.max(-1, Math.min(1, x)),
         y: Math.max(-1, Math.min(1, y)),
         aim: Number.isFinite(aim) ? aim : 0,
-        attack: !!m.attack
+        attack: !!m.attack, sprint: !!m.sprint
       });
       return;
     }

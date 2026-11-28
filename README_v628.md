@@ -1,0 +1,11 @@
+# Yggdrasil RPG V6.2.8 — Guardiões das Raízes
+
+Patch cumulativo sobre V6.2.7 (inclui as otimizações da V6.2.7 e os arquivos dos patches nela contidos). Instale sobre o repositório existente; não é o jogo completo com todas as músicas e artes históricas.
+
+- Defesa: após conversar com o desconhecido, chegam Kurohime (tanque, espada e sombras), Ureiko (cura e +15% de dano temporário), Lady (até seis esqueletos simultâneos, com vida e duração), Musashi Minamoto (espada física e ataque especial a cada três golpes). No momento só a equipe Japão está pronta; o sorteio 50/50 com o Nórdico fica para quando a segunda equipe for criada. A equipe retorna perto da árvore entre ondas, recupera 25% de PV e os derrotados voltam com metade da vida.
+- Sprites: quatro folhas PNG 4x4 com transparência, direções baixo/esquerda/direita/cima, e quatro sequências especiais de seis quadros em WebP. Caminhada sem GIF. Esqueleto com sprite próprio simples. Animações de habilidades tocam em ações específicas; NPCs fora da tela não são desenhados.
+- NPCs interagem durante preparação (E ou botão de conversar). Mensagem e círculos de invocação na chegada. Simulação somente no anfitrião; posições dos reforços são interpoladas no cliente e incluídas no snapshot existente, com limite de dez unidades (quatro NPCs, seis esqueletos), sem canal novo.
+- Inimigos a até 145 unidades de um herói priorizam o herói, salvo quando já iniciaram ataque contra a árvore. Podem atacar NPCs próximos e barricadas. Inimigos dentro da área central atacam a árvore. Arqueiros/magos também podem mirar jogadores. Ataques à árvore ficam travados nela.
+- Seiva: 145 + min(125, onda*7) por onda, antes dos bônus de raiz; três por inimigo comum, 75 por chefe. A seiva inicial continua 150. Sem mudança de preço.
+- Corrida exclusiva da Defesa: Shift ou segurar CORRER, +65% velocidade, 100 de fôlego, consumo 26/s, recuperação 19/s, após exaustão precisa recuperar 28. O anfitrião simula o fôlego dos convidados, que também fazem previsão local.
+- Teste: `npm run test:628` (inclui os testes de regressão V6.2.7, motor compartilhado do Duelo, rede simulada e as mecânicas novas). Sem teste em celulares reais ou Cloudflare publicado. O novo conjunto adiciona tráfego de NPCs, não há nova medição de ping.
