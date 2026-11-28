@@ -8,7 +8,7 @@ const YG_AUDIO=(()=>{
  const menuTrack=new Audio('assets/audio/menu.mp3'),battleTrack=new Audio('assets/audio/battle.mp3'),pecadoTrack=new Audio('assets/audio/pecado.mp3');
  const nordicTrack=new Audio('assets/audio/nordic_theme.mp3'),nordicBossTrack=new Audio('assets/audio/nordic_boss.mp3');
  const namelessTrack=new Audio('assets/audio/nameless_wave15.m4a');
- const tracks={voidIntro:new Audio('assets/audio/void_intro629.m4a'),voidBattle:new Audio('assets/audio/void_battle629.m4a'),voidBoss:new Audio('assets/audio/void_boss629.m4a'),merchant:new Audio('assets/audio/merchant601.mp3'),nameless:namelessTrack,menu:menuTrack,battle:battleTrack,pecado:pecadoTrack,nordic:nordicTrack,nordicBoss:nordicBossTrack};
+ const tracks={explorer:new Audio('assets/audio/explorer632.m4a'),voidIntro:new Audio('assets/audio/void_intro629.m4a'),voidBattle:new Audio('assets/audio/void_battle629.m4a'),voidBoss:new Audio('assets/audio/void_boss629.m4a'),merchant:new Audio('assets/audio/merchant601.mp3'),nameless:namelessTrack,menu:menuTrack,battle:battleTrack,pecado:pecadoTrack,nordic:nordicTrack,nordicBoss:nordicBossTrack};
  for(const a of Object.values(tracks)){a.loop=true;a.preload='none';a.playsInline=true;}
 
  let musicMode='',audioUnlocked=false;
@@ -95,7 +95,8 @@ const YG_AUDIO=(()=>{
   // battle track until its custom audio is provided, stage 20 has Peccatum.
   const inVoid=typeof defense62!=='undefined'&&defense62&&typeof tree62!=='undefined'&&tree62&&combat;
   const voidBoss=inVoid&&typeof enemies!=='undefined'&&enemies.some(e=>e.hp>0&&String(e.type).startsWith('voidboss_'));
-  const requested=inVoid?(tree62.intro||tree62.prep||currentPhase==='reward'?'voidIntro':voidBoss?'voidBoss':'voidBattle'):typeof intermission601!=='undefined'&&intermission601?.view==='shop'&&currentPhase==='reward'?'merchant':!combat?'menu':
+  if(inVoid&&tree62.finale630?.lastUntil632&&!tree62.finale630.lastDone632){for(const t of all)t.pause();return;}
+  const requested=inVoid?(tree62.intro||tree62.prep||currentPhase==='reward'?'voidIntro':activeBoss('voidboss_devourer')?'explorer':voidBoss?'voidBoss':'voidBattle'):typeof intermission601!=='undefined'&&intermission601?.view==='shop'&&currentPhase==='reward'?'merchant':!combat?'menu':
    typeof rushMode!=='undefined'&&rushMode?(activeBoss('pecado')?'pecado':activeBoss('nameless')||activeBoss('ancestralDragon')?'nameless':activeBoss('frostjarl')?'nordicBoss':activeBoss('odin')?'nordic':'battle'):
    currentStage===35&&(activeBoss('nameless')||activeBoss('ancestralDragon'))?'nameless':
    (currentStage===25||currentStage===30)&&activeBoss('frostjarl')?'nordicBoss':
@@ -106,7 +107,7 @@ const YG_AUDIO=(()=>{
    for(const t of all){t.pause();try{t.currentTime=0;}catch(_){}}
   }
   const target=tracks[requested];
-  const gains={voidIntro:.42,voidBattle:.43,voidBoss:.46,merchant:.50,menu:.32,battle:.41,pecado:.46,nordic:.42,nordicBoss:.43,nameless:.47};
+  const gains={explorer:.46,voidIntro:.42,voidBattle:.43,voidBoss:.46,merchant:.50,menu:.32,battle:.41,pecado:.46,nordic:.42,nordicBoss:.43,nameless:.47};
   target.volume=Math.min(1,volume*gains[requested]);
   if(target.paused)target.play().catch(()=>{});
  }
